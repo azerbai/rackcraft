@@ -28,7 +28,13 @@ public final class MachineScreenHandler extends ScreenHandler {
 		this(syncId, playerInventory, null, buf.readBlockPos(), mode,
 				mode == Mode.CONTROLLER ? buf.readString(64) : "none",
 				mode == Mode.CONTROLLER ? buf.readString(64) : "none");
+		if (mode == Mode.EXCHANGE) catalog = dev.rackcraft.ExchangeCatalog.read(buf);
 	}
+
+	/** Client only: every item the Exchange sells, with its price. */
+	private java.util.List<dev.rackcraft.ExchangeCatalog.Entry> catalog = java.util.List.of();
+
+	public java.util.List<dev.rackcraft.ExchangeCatalog.Entry> catalog() { return catalog; }
 
 	public MachineScreenHandler(int syncId, PlayerInventory playerInventory, MachineBlockEntity machine, Mode mode) {
 		this(syncId, playerInventory, machine, machine.getPos(), mode,

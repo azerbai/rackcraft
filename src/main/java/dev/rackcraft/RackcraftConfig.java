@@ -33,6 +33,7 @@ public final class RackcraftConfig {
 		public Thermal thermal = new Thermal();
 		public Events events = new Events();
 		public HeatOverlay heatOverlay = new HeatOverlay();
+		public Hud hud = new Hud();
 
 		private Values withDefaults() {
 			Values defaults = new Values();
@@ -40,6 +41,7 @@ public final class RackcraftConfig {
 			if (thermal == null) thermal = defaults.thermal;
 			if (events == null) events = defaults.events;
 			if (heatOverlay == null) heatOverlay = defaults.heatOverlay;
+			if (hud == null) hud = defaults.hud;
 			if (sim.stepTicks <= 0) sim.stepTicks = defaults.sim.stepTicks;
 			if (thermal.cellCapacityKjPerK <= 0) thermal.cellCapacityKjPerK = defaults.thermal.cellCapacityKjPerK;
 			if (thermal.maxActiveCells <= 0) thermal.maxActiveCells = defaults.thermal.maxActiveCells;
@@ -65,4 +67,6 @@ public final class RackcraftConfig {
 		public double perHour = 3;
 	}
 	public static final class HeatOverlay { public int maxCells = 2000; }
+	/** Client-side: the RackCoin balance shown near racks or while holding a Rackcraft tool. */
+	public static final class Hud { public boolean enabled = true; }
 }

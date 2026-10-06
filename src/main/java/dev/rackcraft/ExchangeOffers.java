@@ -50,6 +50,7 @@ public final class ExchangeOffers {
 			add(map, "suppression_canister", Category.PARTS, RcItems.ITEMS.get("suppression_canister"), 1, 150);
 			add(map, "pi_node", Category.PARTS, RcItems.ITEMS.get("pi_node"), 1, 150);
 			add(map, "server_1u", Category.PARTS, RcItems.ITEMS.get("server_1u"), 1, 600);
+			add(map, "asic_miner", Category.PARTS, RcItems.ITEMS.get("asic_miner"), 1, 2_000);
 			add(map, "gpu_blade", Category.PARTS, RcItems.ITEMS.get("gpu_blade"), 1, 4_000);
 			add(map, "fuel_cell", Category.PARTS, RcItems.ITEMS.get("fuel_cell"), 1, 500);
 			offers = map;

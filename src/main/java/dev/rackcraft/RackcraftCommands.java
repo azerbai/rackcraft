@@ -34,6 +34,13 @@ public final class RackcraftCommands {
 		root.then(heatCommand());
 		root.then(facilityCommand());
 		root.then(simCommand());
+		root.then(literal("structure").then(literal("datacenter").executes(context -> {
+			var source = context.getSource();
+			BlockPos origin = BlockPos.ofFloored(source.getPosition()).add(-4, 0, 1);
+			dev.rackcraft.world.AbandonedDataCenterFeature.place(source.getWorld(), origin, source.getWorld().getRandom(), true);
+			source.sendFeedback(() -> Text.literal("Placed an abandoned data center at " + origin.toShortString()), true);
+			return 1;
+		})));
 		dispatcher.register(root);
 	}
 

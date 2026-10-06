@@ -23,6 +23,8 @@ public final class RackcraftNetworking {
 	private static final Identifier BUY_ITEM = Rackcraft.id("buy_item");
 	private static final Identifier RESET_BREAKER = Rackcraft.id("reset_breaker");
 	private static final Identifier HEAT_CELLS = Rackcraft.id("heat_cells");
+	public static final Identifier HUD = Rackcraft.id("hud");
+	private static final int HUD_RANGE_SQUARED = 32 * 32;
 	private RackcraftNetworking() {}
 
 	public static void registerServer() {
@@ -47,8 +49,8 @@ public final class RackcraftNetworking {
 		});
 		ServerPlayNetworking.registerGlobalReceiver(BUY_ITEM, (server, player, handler, buf, responseSender) -> {
 			BlockPos pos = buf.readBlockPos();
-			String itemId = buf.readString(32);
-			int times = Math.max(1, Math.min(16, buf.readVarInt()));
+			String itemId = buf.readString(96);
+			int times = Math.max(1, Math.min(64, buf.readVarInt()));
 			server.execute(() -> {
 				for (int purchase = 0; purchase < times; purchase++) {
 					if (!buy(player, pos, itemId)) break;
@@ -62,6 +64,26 @@ public final class RackcraftNetworking {
 				if (machine != null && machine.blockId().equals("pdu")) machine.setTripped(false);
 			});
 		});
+	}
+
+	/**
+	 * Once a second, tell each player their facility's RackCoin balance and mining rate. The HUD shows
+	 * while they are near a rack or holding a Rackcraft tool.
+	 */
+	public static void sendHud(ServerWorld world, List<MachineBlockEntity> machines) {
+		FacilityManager facility = FacilityManager.get(world);
+		for (ServerPlayerEntity player : world.getPlayers()) {
+			boolean tool = java.util.stream.Stream.of("field_manual", "multimeter", "thermal_scanner")
+					.map(RcItems.ITEMS::get).anyMatch(item -> player.getMainHandStack().isOf(item) || player.getOffHandStack().isOf(item));
+			boolean nearRack = machines.stream().anyMatch(machine -> machine.blockId().equals("server_rack")
+					&& machine.getPos().getSquaredDistance(player.getPos()) <= HUD_RANGE_SQUARED);
+			net.minecraft.network.PacketByteBuf buf = net.fabricmc.fabric.api.networking.v1.PacketByteBufs.create();
+			buf.writeBoolean(tool || nearRack);
+			buf.writeVarLong(facility.credits());
+			buf.writeFloat((float) facility.miningRate());
+			buf.writeVarInt(facility.miningRacks());
+			ServerPlayNetworking.send(player, HUD, buf);
+		}
 	}
 
 	public static void sendHeatCells(ServerWorld world, ThermalGrid grid) {
@@ -93,8 +115,22 @@ public final class RackcraftNetworking {
 		}
 	}
 
+	/** Catalog purchases are sent as "item:namespace:path" and give one item each. */
+	public static final String CATALOG_PREFIX = "item:";
+
 	private static boolean buy(ServerPlayerEntity player, BlockPos pos, String offerId) {
 		MachineBlockEntity machine = validatedMachine(player, pos);
+		if (offerId.startsWith(CATALOG_PREFIX)) {
+			if (machine == null || !machine.blockId().equals("crypto_exchange")) return false;
+			Identifier id = Identifier.tryParse(offerId.substring(CATALOG_PREFIX.length()));
+			if (id == null || !Registries.ITEM.containsId(id)) return false;
+			Item item = Registries.ITEM.get(id);
+			Long price = ExchangeCatalog.price(item);
+			if (price == null || !FacilityManager.get(player.getServerWorld()).spendCredits(price)) return false;
+			ItemStack bought = new ItemStack(item);
+			if (!player.getInventory().insertStack(bought)) player.dropItem(bought, false);
+			return true;
+		}
 		ExchangeOffers.Offer offer = ExchangeOffers.all().get(offerId);
 		if (machine == null || offer == null) return false;
 		boolean sold = machine.blockId().equals("crypto_exchange")

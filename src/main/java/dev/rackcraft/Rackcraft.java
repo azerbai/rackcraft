@@ -34,6 +34,7 @@ public final class Rackcraft implements ModInitializer {
 		dev.rackcraft.world.CableUpgrader.register();
 		RackcraftCommands.register();
 		RackcraftNetworking.registerServer();
+		ExchangeCatalog.register();
 		RackcraftSelfTest.register();
 		LOGGER.info("Rackcraft initialised");
 	}

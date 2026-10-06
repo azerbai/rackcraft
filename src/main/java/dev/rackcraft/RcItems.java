@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.Set;
 import dev.rackcraft.generated.ContentIds;
 import dev.rackcraft.item.FieldManualItem;
+import dev.rackcraft.item.MultimeterItem;
 import net.fabricmc.fabric.api.registry.FuelRegistry;
 import net.minecraft.item.BlockItem;
 import net.minecraft.item.Item;
@@ -14,7 +15,7 @@ import net.minecraft.registry.Registry;
 
 public final class RcItems {
 	private static final Set<String> SINGLE_STACK = Set.of(
-			"pi_node", "server_1u", "gpu_blade", "quantum_core", "failed_module", "thermal_scanner", "field_manual");
+			"pi_node", "server_1u", "asic_miner", "gpu_blade", "quantum_core", "failed_module", "thermal_scanner", "field_manual");
 	public static final Map<String, Item> ITEMS = new LinkedHashMap<>();
 
 	private RcItems() {}
@@ -28,7 +29,11 @@ public final class RcItems {
 			Item.Settings settings = new Item.Settings();
 			if (SINGLE_STACK.contains(id)) settings.maxCount(1);
 			if (id.equals("repair_kit")) settings.maxCount(1).maxDamage(8);
-			Item item = id.equals("field_manual") ? new FieldManualItem(settings) : new Item(settings);
+			Item item = switch (id) {
+				case "field_manual" -> new FieldManualItem(settings);
+				case "multimeter" -> new MultimeterItem(settings.maxCount(1));
+				default -> new Item(settings);
+			};
 			ITEMS.put(id, Registry.register(Registries.ITEM, Rackcraft.id(id), item));
 		}
 		ContentIds.FUEL_TICKS.forEach((id, ticks) ->

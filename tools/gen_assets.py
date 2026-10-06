@@ -150,6 +150,40 @@ def write_java(blocks, items):
     generated_java.write_text("\n".join(source), encoding="utf-8")
 
 
+# One site per this many chunks in eligible biomes, before the flat-ground check rejects some.
+DATA_CENTER_RARITY = 360
+MAINTENANCE_LOG = [
+    "MAINTENANCE LOG\nSite 7\n\nA storm cut two lines and the site went dark. The racks are still loaded and the generator still has fuel.\n\nThe Repair Kit in this chest can splice them.",
+    "1) Find the sparking cables. One is the red POWER cable beside the generator, the other the purple FIBER cable beside the router.\n\n2) Right-click each one with the Repair Kit.",
+    "3) Open a rack. It should say Mining. RackCoin flows into one shared balance.\n\n4) Spend it at the Crypto Exchange by the door: diamonds, tools, almost anything.\n\nThe Field Manual explains the rest.",
+]
+
+
+def data_center_loot():
+    # Each page is a JSON text component inside a single-quoted SNBT string, so escape twice:
+    # backslashes for SNBT (it only understands \\ and quote escapes), then the quote itself.
+    pages = ",".join("'" + json.dumps({"text": page}).replace("\\", "\\\\").replace("'", "\\'") + "'"
+                     for page in MAINTENANCE_LOG)
+    book_nbt = '{title:"Maintenance Log",author:"Site Engineer",pages:[' + pages + ']}'
+
+    def item(name, low=1, high=1, weight=1):
+        entry = {"type": "minecraft:item", "name": name, "weight": weight}
+        if high > 1:
+            entry["functions"] = [{"function": "minecraft:set_count", "count": {"type": "minecraft:uniform", "min": low, "max": high}}]
+        return entry
+
+    guaranteed = [item("rackcraft:repair_kit"), item("rackcraft:field_manual"), item("rackcraft:multimeter"),
+                  {"type": "minecraft:item", "name": "minecraft:written_book",
+                   "functions": [{"function": "minecraft:set_nbt", "tag": book_nbt}]}]
+    return {"type": "minecraft:chest", "pools": [
+        *({"rolls": 1, "entries": [entry]} for entry in guaranteed),
+        {"rolls": {"type": "minecraft:uniform", "min": 3, "max": 5}, "entries": [
+            item("minecraft:coal", 4, 10, 4), item("rackcraft:coke", 1, 4, 2), item("rackcraft:copper_wire", 2, 6, 3),
+            item("rackcraft:silicon", 2, 6, 3), item("rackcraft:circuit_board", 1, 2, 2), item("rackcraft:steel_ingot", 2, 5, 2),
+            item("rackcraft:pi_node", 1, 1, 1), item("minecraft:emerald", 1, 2, 1)]},
+    ]}
+
+
 def item_result(recipe):
     return {"item": f"rackcraft:{recipe['result']}", "count": recipe.get("count", 1)}
 
@@ -293,6 +327,7 @@ def main():
         "guide.rackcraft.click_to_open": "Click to open page",
         "tooltip.rackcraft.fuel": "Fuel: %s s of diesel runtime",
         "tooltip.rackcraft.field_manual": "Right-click to read",
+        "tooltip.rackcraft.multimeter": "Right-click a machine or cable to measure; sneak-right-click a machine to rotate",
         "screen.rackcraft.exchange": "Crypto Exchange",
         "exchange.rackcraft.balance": "Balance: %s RC",
         "exchange.rackcraft.mining": "+%s RC/s from %s of %s racks",
@@ -304,6 +339,11 @@ def main():
         "exchange.rackcraft.category.resources": "Resources",
         "exchange.rackcraft.category.rare": "Rare",
         "exchange.rackcraft.category.parts": "Parts",
+        "exchange.rackcraft.category.all": "All Items",
+        "exchange.rackcraft.search": "Search items...",
+        "exchange.rackcraft.price_each": "Price: %s RC each",
+        "exchange.rackcraft.bulk_all": "Shift-click: buy %s. Ctrl-click: buy a stack",
+        "exchange.rackcraft.footer_all": "Almost every survival item is for sale. Scroll to browse; dimmed items are beyond your balance.",
         "rack_status.rackcraft.mining": "Mining %s RC/s",
         "rack_status.rackcraft.mining.hint": "Everything is working. RackCoin goes to the shared balance; spend it at a Crypto Exchange.",
         "rack_status.rackcraft.throttled": "Mining %s RC/s (throttled)",
@@ -311,7 +351,7 @@ def main():
         "rack_status.rackcraft.network_limited": "Mining %s RC/s (bandwidth-limited)",
         "rack_status.rackcraft.network_limited.hint": "The routers on this fiber network can't carry every rack. Add another Uplink Router or a Core Router.",
         "rack_status.rackcraft.empty": "Idle: no modules",
-        "rack_status.rackcraft.empty.hint": "Put Pi Nodes, 1U Servers, GPU Blades or a Quantum Core into the bays on the left.",
+        "rack_status.rackcraft.empty.hint": "Put Pi Nodes, 1U Servers, ASIC Miners, GPU Blades or a Quantum Core into the bays on the left.",
         "rack_status.rackcraft.tripped": "Stopped: breaker tripped",
         "rack_status.rackcraft.tripped.hint": "Power dropped below 50%. The rack restarts once power is back and the intake is under 32 C.",
         "rack_status.rackcraft.no_power": "Stopped: no power",
@@ -362,6 +402,19 @@ def main():
             {"type": "minecraft:biome"}
         ]
     })
+    write_json(RESOURCES / "data/rackcraft/worldgen/configured_feature/abandoned_data_center.json", {
+        "type": "rackcraft:abandoned_data_center", "config": {}
+    })
+    write_json(RESOURCES / "data/rackcraft/worldgen/placed_feature/abandoned_data_center.json", {
+        "feature": "rackcraft:abandoned_data_center",
+        "placement": [
+            {"type": "minecraft:rarity_filter", "chance": DATA_CENTER_RARITY},
+            {"type": "minecraft:in_square"},
+            {"type": "minecraft:heightmap", "heightmap": "WORLD_SURFACE_WG"},
+            {"type": "minecraft:biome"}
+        ]
+    })
+    write_json(RESOURCES / "data/rackcraft/loot_tables/chests/abandoned_data_center.json", data_center_loot())
     write_json(RESOURCES / "data/rackcraft/tags/blocks/airflow_blocking.json", {
         "replace": False,
         "values": [f"rackcraft:{identifier}" for identifier in sorted(AIRFLOW_BLOCKING)]

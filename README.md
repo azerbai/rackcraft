@@ -20,11 +20,21 @@ Install `build/libs/rackcraft-1.0.0.jar` with Fabric Loader for Minecraft 1.20.1
 
 Mine bauxite ore and smelt it into aluminum. Blast iron into steel, then craft copper wire, silicon components, and server modules. Place a server rack, insert up to 8 U of modules, and connect its power face through a PDU and power cable to a generator or solar source. Diesel generators accept vanilla furnace fuel and the Rackcraft fuels below. Cooling fans remove heat from their front cell; CRAC units require a powered coolant loop and a cooling tower.
 
-The machine screens open by right-clicking. Rack bays accept `pi_node`, `server_1u`, `gpu_blade`, and `quantum_core`; a quantum core only contributes load when a CDU is adjacent. Power, coolant, and fiber cables form independent networks.
+The machine screens open by right-clicking. Rack bays accept `pi_node`, `server_1u`, `asic_miner`, `gpu_blade`, and `quantum_core`; a quantum core only contributes load when a CDU is adjacent. Power, coolant, and fiber cables form independent networks.
 
 ## Mining RackCoin and the Crypto Exchange
 
-Racks mine RackCoin (RC) into one balance shared by the whole world. A rack mines when it has modules, at least 50% power, a fiber link to a router, and an intake below 40 C. Open a rack to see its live RC/s, or the reason it has stopped and how to fix it. Spend RackCoin at a **Crypto Exchange**: its recipe is glass panes, two CPU chips, a circuit board, steel and an emerald. It sells resources, rare items (diamonds, netherite, nether stars) and Rackcraft parts. Shift-click buys ten. Prices live in `ExchangeOffers.java`.
+Racks mine RackCoin (RC) into one balance shared by the whole world. A rack mines when it has modules, at least 50% power, a fiber link to a router, and an intake below 40 C. Open a rack to see its live RC/s, or the reason it has stopped and how to fix it. Spend RackCoin at a **Crypto Exchange**: its recipe is glass panes, two CPU chips, a circuit board, steel and an emerald. Its curated tabs sell bundles of resources, rare items and Rackcraft parts (`ExchangeOffers.java`). The **All Items** tab sells almost every survival item, searchable, priced from base values plus recipe costs (`ExchangeCatalog.java`); creative-only items are excluded. Click buys one, Shift-click ten, Ctrl-click a stack.
+
+## Abandoned Data Centers
+
+Rare ruined data centers generate on the surface of plains, meadows, savannas, forests, taigas, snowy plains and deserts (about one per 360 chunks there, on flat ground only). Each one has two loaded racks, a fuelled generator, a router, an exhaust fan and a Crypto Exchange. Only one cut power cable and one cut fiber cable keep it from mining. The chest holds a Repair Kit, the Field Manual, a Multimeter and a Maintenance Log that walks new players through the fix. Operators can place one with `/rackcraft structure datacenter`.
+
+## Tools and HUD
+
+- **Multimeter:** right-click a machine or cable for a readout (power delivered against demand, fuel, charge, rack status, fiber bandwidth, coolant loop). Sneak-right-click a machine to rotate it.
+- **RackCoin HUD:** your balance and mining rate, shown top-left while you are within 32 blocks of a rack or holding the Field Manual, Multimeter or Thermal Scanner. Set `hud.enabled` to `false` in `config/rackcraft.json` to hide it.
+- **Cut cables** spark and smoke, and cable-cut alerts include the coordinates.
 
 ## Cables
 

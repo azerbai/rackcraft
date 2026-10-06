@@ -1201,7 +1201,35 @@ def item_book(base, key):
     return canvas
 
 
+def item_asic(base, key):
+    """A 1U chassis topped with gold heat-sink fins."""
+    canvas = item_server(base, key)
+    for x in range(1, 15):
+        canvas.vline(x, 2, 4, GOLD if x % 2 else darken(GOLD, 0.35))
+    canvas.hline(1, 14, 2, lighten(GOLD, 0.35))
+    return canvas
+
+
+def item_multimeter(base, key):
+    canvas = Canvas()
+    canvas.rect(3, 1, 12, 14, base)
+    canvas.vline(3, 1, 14, lighten(base, 0.3))
+    canvas.vline(12, 1, 14, darken(base, 0.35))
+    canvas.hline(3, 12, 14, darken(base, 0.35))
+    canvas.rect(5, 2, 10, 5, (190, 210, 170))
+    canvas.hline(6, 9, 3, (40, 50, 40))
+    canvas.disc(7.5, 9, 2.2, (40, 40, 44))
+    canvas.line(7, 9, 8, 7, lighten(STEEL, 0.4))
+    canvas.set(5, 12, LED_RED)
+    canvas.set(10, 12, BLACK)
+    canvas.line(5, 13, 1, 15, LED_RED)
+    canvas.line(10, 13, 14, 15, BLACK)
+    return canvas
+
+
 ITEM_STYLES = {
+    "asic": item_asic,
+    "multimeter": item_multimeter,
     "lump": lambda base, key: item_lump(base, key),
     "coke": lambda base, key: item_lump(base, key, glints=True),
     "ingot": item_ingot,

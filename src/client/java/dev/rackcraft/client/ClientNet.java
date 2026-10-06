@@ -36,7 +36,7 @@ public final class ClientNet {
 	public static void buyItem(BlockPos pos, String itemId, int times) {
 		PacketByteBuf buf = PacketByteBufs.create();
 		buf.writeBlockPos(pos);
-		buf.writeString(itemId, 32);
+		buf.writeString(itemId, 96);
 		buf.writeVarInt(times);
 		ClientPlayNetworking.send(BUY_ITEM, buf);
 	}

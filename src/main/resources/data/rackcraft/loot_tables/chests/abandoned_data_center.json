@@ -1,0 +1,169 @@
+{
+  "pools": [
+    {
+      "entries": [
+        {
+          "name": "rackcraft:repair_kit",
+          "type": "minecraft:item",
+          "weight": 1
+        }
+      ],
+      "rolls": 1
+    },
+    {
+      "entries": [
+        {
+          "name": "rackcraft:field_manual",
+          "type": "minecraft:item",
+          "weight": 1
+        }
+      ],
+      "rolls": 1
+    },
+    {
+      "entries": [
+        {
+          "name": "rackcraft:multimeter",
+          "type": "minecraft:item",
+          "weight": 1
+        }
+      ],
+      "rolls": 1
+    },
+    {
+      "entries": [
+        {
+          "functions": [
+            {
+              "function": "minecraft:set_nbt",
+              "tag": "{title:\"Maintenance Log\",author:\"Site Engineer\",pages:['{\"text\": \"MAINTENANCE LOG\\\\nSite 7\\\\n\\\\nA storm cut two lines and the site went dark. The racks are still loaded and the generator still has fuel.\\\\n\\\\nThe Repair Kit in this chest can splice them.\"}','{\"text\": \"1) Find the sparking cables. One is the red POWER cable beside the generator, the other the purple FIBER cable beside the router.\\\\n\\\\n2) Right-click each one with the Repair Kit.\"}','{\"text\": \"3) Open a rack. It should say Mining. RackCoin flows into one shared balance.\\\\n\\\\n4) Spend it at the Crypto Exchange by the door: diamonds, tools, almost anything.\\\\n\\\\nThe Field Manual explains the rest.\"}']}"
+            }
+          ],
+          "name": "minecraft:written_book",
+          "type": "minecraft:item"
+        }
+      ],
+      "rolls": 1
+    },
+    {
+      "entries": [
+        {
+          "functions": [
+            {
+              "count": {
+                "max": 10,
+                "min": 4,
+                "type": "minecraft:uniform"
+              },
+              "function": "minecraft:set_count"
+            }
+          ],
+          "name": "minecraft:coal",
+          "type": "minecraft:item",
+          "weight": 4
+        },
+        {
+          "functions": [
+            {
+              "count": {
+                "max": 4,
+                "min": 1,
+                "type": "minecraft:uniform"
+              },
+              "function": "minecraft:set_count"
+            }
+          ],
+          "name": "rackcraft:coke",
+          "type": "minecraft:item",
+          "weight": 2
+        },
+        {
+          "functions": [
+            {
+              "count": {
+                "max": 6,
+                "min": 2,
+                "type": "minecraft:uniform"
+              },
+              "function": "minecraft:set_count"
+            }
+          ],
+          "name": "rackcraft:copper_wire",
+          "type": "minecraft:item",
+          "weight": 3
+        },
+        {
+          "functions": [
+            {
+              "count": {
+                "max": 6,
+                "min": 2,
+                "type": "minecraft:uniform"
+              },
+              "function": "minecraft:set_count"
+            }
+          ],
+          "name": "rackcraft:silicon",
+          "type": "minecraft:item",
+          "weight": 3
+        },
+        {
+          "functions": [
+            {
+              "count": {
+                "max": 2,
+                "min": 1,
+                "type": "minecraft:uniform"
+              },
+              "function": "minecraft:set_count"
+            }
+          ],
+          "name": "rackcraft:circuit_board",
+          "type": "minecraft:item",
+          "weight": 2
+        },
+        {
+          "functions": [
+            {
+              "count": {
+                "max": 5,
+                "min": 2,
+                "type": "minecraft:uniform"
+              },
+              "function": "minecraft:set_count"
+            }
+          ],
+          "name": "rackcraft:steel_ingot",
+          "type": "minecraft:item",
+          "weight": 2
+        },
+        {
+          "name": "rackcraft:pi_node",
+          "type": "minecraft:item",
+          "weight": 1
+        },
+        {
+          "functions": [
+            {
+              "count": {
+                "max": 2,
+                "min": 1,
+                "type": "minecraft:uniform"
+              },
+              "function": "minecraft:set_count"
+            }
+          ],
+          "name": "minecraft:emerald",
+          "type": "minecraft:item",
+          "weight": 1
+        }
+      ],
+      "rolls": {
+        "max": 5,
+        "min": 3,
+        "type": "minecraft:uniform"
+      }
+    }
+  ],
+  "type": "minecraft:chest"
+}

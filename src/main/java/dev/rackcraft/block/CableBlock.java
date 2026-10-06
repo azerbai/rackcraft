@@ -128,6 +128,24 @@ public final class CableBlock extends Block implements BlockEntityProvider {
 		super.onStateReplaced(state, world, pos, newState, moved);
 	}
 
+	/** Cut cables spark so breaks are easy to spot. */
+	@Override
+	public void randomDisplayTick(BlockState state, World world, BlockPos pos, net.minecraft.util.math.random.Random random) {
+		if (!state.get(CUT)) return;
+		world.addParticle(net.minecraft.particle.ParticleTypes.ELECTRIC_SPARK,
+				pos.getX() + 0.5 + (random.nextDouble() - 0.5) * 0.3, pos.getY() + 0.5,
+				pos.getZ() + 0.5 + (random.nextDouble() - 0.5) * 0.3, 0, 0.05, 0);
+		if (random.nextInt(4) == 0) {
+			world.addParticle(net.minecraft.particle.ParticleTypes.SMOKE, pos.getX() + 0.5, pos.getY() + 0.6,
+					pos.getZ() + 0.5, 0, 0.02, 0);
+		}
+		if (random.nextInt(10) == 0) {
+			world.playSound(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5,
+					net.minecraft.sound.SoundEvents.BLOCK_REDSTONE_TORCH_BURNOUT, net.minecraft.sound.SoundCategory.BLOCKS,
+					0.15f, 1.8f, false);
+		}
+	}
+
 	public static void setCut(ServerWorld world, BlockPos pos, boolean cut) {
 		BlockState state = world.getBlockState(pos);
 		if (!(state.getBlock() instanceof CableBlock) || state.get(CUT) == cut) return;

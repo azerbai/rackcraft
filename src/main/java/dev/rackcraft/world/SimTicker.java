@@ -178,6 +178,7 @@ public final class SimTicker {
 		applyMachineHeat(world, machines, heat, dt);
 		heat.step(dt, false);
 		RackcraftNetworking.sendHeatCells(world, heat);
+		if (world.getTime() % 20 < Math.max(1, RackcraftConfig.values.sim.stepTicks)) RackcraftNetworking.sendHud(world, machines);
 		awardCredits(world, machines, rackSteps, networks, satisfaction, dt);
 		FacilityManager facility = FacilityManager.get(world);
 		long previousEventTick = facility.eventTicks();
@@ -426,8 +427,9 @@ public final class SimTicker {
 			default -> 1_200_000;
 		};
 		facility.triggerEvent(event, duration);
-		if (event.equals("cable_cut")) cutRandomCable(world, networksFor(world));
-		String alert = "Rackcraft event: " + event.replace('_', ' ');
+		BlockPos cutAt = event.equals("cable_cut") ? cutRandomCable(world, networksFor(world)) : null;
+		String alert = "Rackcraft event: " + event.replace('_', ' ')
+				+ (cutAt == null ? "" : " at " + cutAt.getX() + " " + cutAt.getY() + " " + cutAt.getZ());
 		for (ServerPlayerEntity player : world.getPlayers()) {
 			boolean nearby = machines.stream().filter(machine -> machine.blockId().equals("facility_controller"))
 					.anyMatch(controller -> controller.getPos().getSquaredDistance(player.getBlockPos()) <= 4096);
@@ -439,7 +441,7 @@ public final class SimTicker {
 		return NetworkManager.get(world);
 	}
 
-	private static void cutRandomCable(ServerWorld world, NetworkManager networks) {
+	private static BlockPos cutRandomCable(ServerWorld world, NetworkManager networks) {
 		List<BlockPos> cables = new ArrayList<>();
 		for (NetKind kind : List.of(NetKind.POWER, NetKind.DATA)) {
 			for (BlockPos pos : networks.endpoints(kind)) {
@@ -447,7 +449,10 @@ public final class SimTicker {
 						&& !world.getBlockState(pos).get(CableBlock.CUT)) cables.add(pos);
 			}
 		}
-		if (!cables.isEmpty()) CableBlock.setCut(world, cables.get(FacilityManager.get(world).nextRandomInt(cables.size())), true);
+		if (cables.isEmpty()) return null;
+		BlockPos target = cables.get(FacilityManager.get(world).nextRandomInt(cables.size()));
+		CableBlock.setCut(world, target, true);
+		return target;
 	}
 
 	private static ThermalGrid.CellPos intake(BlockPos pos) {

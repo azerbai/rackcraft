@@ -132,7 +132,7 @@ public final class MachineBlockEntity extends BlockEntity implements Inventory, 
 		String blockId = Registries.BLOCK.getId(getCachedState().getBlock()).getPath();
 		if (blockId.equals("server_rack")) {
 			String itemId = Registries.ITEM.getId(stack.getItem()).getPath();
-			if (!List.of("pi_node", "server_1u", "gpu_blade", "quantum_core").contains(itemId)) return false;
+			if (!List.of("pi_node", "server_1u", "asic_miner", "gpu_blade", "quantum_core").contains(itemId)) return false;
 			int moduleUnits = moduleUnits(itemId);
 			int installedUnits = 0;
 			for (int index = 0; index < inventory.size(); index++) {
@@ -176,6 +176,7 @@ public final class MachineBlockEntity extends BlockEntity implements Inventory, 
 			ServerModel.Module module = switch (itemId) {
 				case "pi_node" -> ServerModel.Module.PI_NODE;
 				case "server_1u" -> ServerModel.Module.SERVER_1U;
+				case "asic_miner" -> ServerModel.Module.ASIC_MINER;
 				case "gpu_blade" -> ServerModel.Module.GPU_BLADE;
 				case "quantum_core" -> ServerModel.Module.QUANTUM_CORE;
 				default -> null;
@@ -253,6 +254,7 @@ public final class MachineBlockEntity extends BlockEntity implements Inventory, 
 	@Override
 	public void writeScreenOpeningData(ServerPlayerEntity player, PacketByteBuf buf) {
 		buf.writeBlockPos(pos);
+		if (blockId().equals("crypto_exchange")) dev.rackcraft.ExchangeCatalog.write(buf);
 		if (blockId().equals("facility_controller") && world instanceof ServerWorld serverWorld) {
 			buf.writeString(FacilityManager.get(serverWorld).activeContract(), 64);
 			buf.writeString(FacilityManager.get(serverWorld).activeEvent(), 64);

@@ -8,6 +8,7 @@ public final class ServerModel {
 	public enum Module {
 		PI_NODE(1, 0.05, 0.15, 0.5),
 		SERVER_1U(1, 0.2, 0.6, 2),
+		ASIC_MINER(1, 0.4, 1.2, 5),
 		GPU_BLADE(2, 1, 3, 12),
 		QUANTUM_CORE(4, 3, 9, 60);
 

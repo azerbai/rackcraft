@@ -3,6 +3,7 @@ package dev.rackcraft;
 import dev.rackcraft.block.MachineBlockEntity;
 import dev.rackcraft.block.CableBlock;
 import dev.rackcraft.block.MachineBlock;
+import dev.rackcraft.world.AbandonedDataCenterFeature;
 import dev.rackcraft.block.CableBlockEntity;
 import dev.rackcraft.block.RackStatus;
 import net.minecraft.block.ConnectingBlock;
@@ -28,7 +29,7 @@ public final class RackcraftSelfTest {
 
 	private static void run(MinecraftServer server) {
 		int[] failures = {0};
-		check("S0.a", RcBlocks.BLOCKS.size() == 26 && RcItems.ITEMS.size() == 23,
+		check("S0.a", RcBlocks.BLOCKS.size() == 26 && RcItems.ITEMS.size() == 25,
 				"blocks=" + RcBlocks.BLOCKS.size() + " items=" + RcItems.ITEMS.size(), failures);
 		ServerWorld world = server.getOverworld();
 		BlockPos generatorPos = new BlockPos(0, 80, 0);
@@ -70,7 +71,7 @@ public final class RackcraftSelfTest {
 						&& world.getBlockEntity(cablePos) instanceof CableBlockEntity,
 				"cable=" + cableState, failures);
 		check("S6.b", rack.rackStatus() == RackStatus.MINING && rack.miningRate() > 15.9
-						&& FacilityManager.get(world).miningRacks() == 1,
+						&& FacilityManager.get(world).miningRacks() >= 1, // the dev world keeps earlier runs' racks
 				"status=" + rack.rackStatus() + " rate=" + rack.miningRate(), failures);
 		check("S6.c", generator.powerKw() > 0 && generator.fuelBurnTotal() >= generator.fuelBurnTicks()
 						&& generator.networkDemandKw() > 0 && generator.networkCapacityKw() >= 40,
@@ -93,8 +94,51 @@ public final class RackcraftSelfTest {
 				"power=" + rack.powerSatisfaction(), failures);
 		check("S6.e", rack.rackStatus() != RackStatus.MINING && rack.miningRate() == 0,
 				"statusAfterCut=" + rack.rackStatus(), failures);
+		checkDataCenter(world, failures);
 		Rackcraft.LOGGER.info("RACKCRAFT_SELFTEST DONE failures={}", failures[0]);
 		server.stop(false);
+	}
+
+	/** The abandoned data center is a tutorial: it must be broken in exactly the advertised way, and fixable. */
+	private static void checkDataCenter(ServerWorld world, int[] failures) {
+		BlockPos base = new BlockPos(64, 120, 64);
+		world.getChunk(base);
+		world.getChunk(base.add(8, 0, 6));
+		AbandonedDataCenterFeature.place(world, base, world.getRandom(), true);
+		BlockPos power = base.add(2, 0, 3);
+		BlockPos fiber = base.add(5, 0, 3);
+		MachineBlockEntity rackA = machine(world, base.add(3, 0, 3));
+		MachineBlockEntity rackB = machine(world, base.add(4, 0, 3));
+		for (int step = 0; step < 4; step++) SimTicker.stepNow(world);
+		check("S7.a", world.getBlockState(power).get(CableBlock.CUT) && world.getBlockState(fiber).get(CableBlock.CUT)
+						&& !rackA.rackStatus().mining() && rackA.modules().size() == 4 && rackB.modules().size() == 4
+						&& world.getBlockState(base.add(7, 0, 1)).isOf(RcBlocks.get("crypto_exchange")),
+				"before repair: " + rackA.rackStatus(), failures);
+		boolean kit = false;
+		boolean log = false;
+		if (world.getBlockEntity(base.add(1, 0, 1)) instanceof net.minecraft.block.entity.ChestBlockEntity chest) {
+			for (int slot = 0; slot < chest.size(); slot++) {
+				kit |= chest.getStack(slot).isOf(RcItems.ITEMS.get("repair_kit"));
+				log |= chest.getStack(slot).isOf(Items.WRITTEN_BOOK) && chest.getStack(slot).hasNbt();
+			}
+		}
+		check("S7.b", kit && log, "repairKit=" + kit + " maintenanceLog=" + log, failures);
+		CableBlock.setCut(world, power, false);
+		CableBlock.setCut(world, fiber, false);
+		for (int step = 0; step < 40; step++) SimTicker.stepNow(world);
+		check("S7.c", rackA.rackStatus().mining() && rackB.rackStatus().mining()
+						&& rackA.miningRate() + rackB.miningRate() > 6.9,
+				"after repair: " + rackA.rackStatus() + "/" + rackB.rackStatus() + " rate="
+						+ (rackA.miningRate() + rackB.miningRate()) + " inlet=" + rackA.inletCelsius(), failures);
+		check("S7.d", ExchangeCatalog.prices().size() > 900 && ExchangeCatalog.price(Items.DIAMOND) == 1000
+						&& ExchangeCatalog.price(Items.DIAMOND_SWORD) != null && ExchangeCatalog.price(Items.DIAMOND_SWORD) > 2000
+						&& ExchangeCatalog.price(Items.NETHERITE_SWORD) != null
+						&& ExchangeCatalog.price(Items.NETHERITE_SWORD) > ExchangeCatalog.price(Items.DIAMOND_SWORD)
+						&& ExchangeCatalog.price(Items.COMMAND_BLOCK) == null && ExchangeCatalog.price(Items.BEDROCK) == null,
+				"catalog=" + ExchangeCatalog.prices().size() + " diamondSword=" + ExchangeCatalog.price(Items.DIAMOND_SWORD)
+						+ " netheriteSword=" + ExchangeCatalog.price(Items.NETHERITE_SWORD)
+						+ " oakPlanks=" + ExchangeCatalog.price(Items.OAK_PLANKS) + " beacon=" + ExchangeCatalog.price(Items.BEACON),
+				failures);
 	}
 
 	private static MachineBlockEntity machine(ServerWorld world, BlockPos pos) {
