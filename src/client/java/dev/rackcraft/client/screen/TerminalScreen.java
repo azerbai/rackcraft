@@ -1,6 +1,7 @@
 package dev.rackcraft.client.screen;
 
 import dev.rackcraft.client.ClientNet;
+import dev.rackcraft.storage.Autocrafter;
 import dev.rackcraft.storage.ItemKey;
 import dev.rackcraft.storage.TerminalScreenHandler;
 import dev.rackcraft.storage.TerminalScreenHandler.Action;
@@ -17,6 +18,7 @@ import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.registry.Registries;
 import net.minecraft.screen.slot.Slot;
+import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import org.lwjgl.glfw.GLFW;
@@ -36,6 +38,8 @@ public final class TerminalScreen extends HandledScreen<TerminalScreenHandler> {
 	private static final int WARN = 0xFFE7A45D;
 	private static final int BAD = 0xFFE0645A;
 	private static final int MUTED = 0xFFAAB9BA;
+	/** The job row ends just short of the Cancel jobs button. */
+	private static final int JOB_ROW_RIGHT = 124;
 	private static String rememberedSearch = "";
 
 	private TextFieldWidget search;
@@ -150,9 +154,39 @@ public final class TerminalScreen extends HandledScreen<TerminalScreenHandler> {
 			}
 			if (hovered.craftable()) tooltip.add(Text.literal("Craftable: Ctrl-click to autocraft").formatted(Formatting.YELLOW));
 			context.drawTooltip(textRenderer, tooltip, mouseX, mouseY);
+		} else if (selected == null && !handler.jobs().isEmpty() && mouseX >= x + 4 && mouseX < x + JOB_ROW_RIGHT
+				&& mouseY >= y + 174 && mouseY < y + 192) {
+			context.drawOrderedTooltip(textRenderer, jobTooltip(), mouseX, mouseY);
 		} else {
 			drawMouseoverTooltip(context, mouseX, mouseY);
 		}
+	}
+
+	private List<OrderedText> jobTooltip() {
+		List<TerminalScreenHandler.JobView> jobs = handler.jobs();
+		TerminalScreenHandler.JobView job = jobs.get(0);
+		List<Text> tooltip = new ArrayList<>();
+		tooltip.add(Text.literal(job.amount() + " x ").append(job.target().toStack(1).getName()));
+		tooltip.add(Text.literal(String.format(Locale.ROOT, "%d of %d crafts done", job.done(), job.total()))
+				.formatted(Formatting.GRAY));
+		String status = "storage.rackcraft.status." + job.status();
+		tooltip.add(Text.translatable(status).append(": ").append(Text.translatable(status + ".hint"))
+				.styled(style -> style.withColor(statusColor(job) & 0xFFFFFF)));
+		if (job.compute() > 0) {
+			tooltip.add(Text.literal(String.format(Locale.ROOT, "Compute: %d (%.2f crafts/s)", job.compute(),
+					job.compute() * Autocrafter.CRAFTS_PER_COMPUTE_SECOND)).formatted(Formatting.GRAY));
+		}
+		if (jobs.size() > 1) {
+			tooltip.add(Text.literal("+" + (jobs.size() - 1) + " more job" + (jobs.size() == 2 ? "" : "s") + " queued")
+					.formatted(Formatting.DARK_GRAY));
+		}
+		List<OrderedText> wrapped = new ArrayList<>();
+		for (Text line : tooltip) wrapped.addAll(textRenderer.wrapLines(line, 200));
+		return wrapped;
+	}
+
+	private static int statusColor(TerminalScreenHandler.JobView job) {
+		return job.status().equals("crafting") ? GOOD : job.status().equals("queued") ? MUTED : WARN;
 	}
 
 	private void drawGrid(DrawContext context) {
@@ -201,13 +235,16 @@ public final class TerminalScreen extends HandledScreen<TerminalScreenHandler> {
 		if (selected != null) {
 			context.drawItem(selected.toStack(1), 7, 175);
 		} else if (!handler.jobs().isEmpty()) {
+			// Icon, short status and a progress bar; the details are in the row's tooltip.
 			TerminalScreenHandler.JobView job = handler.jobs().get(0);
-			String status = Text.translatable("storage.rackcraft.status." + job.status()).getString();
-			String line = String.format(Locale.ROOT, "%d/%d %s, %s", job.done(), job.total(),
-					job.target().toStack(1).getName().getString(), job.status().equals("crafting")
-							? job.compute() + " compute" : status);
-			context.drawText(textRenderer, textRenderer.trimToWidth(line, 118), 8, 179,
-					job.status().equals("crafting") ? GOOD : WARN, false);
+			int color = statusColor(job);
+			context.drawItem(job.target().toStack(1), 7, 175);
+			String line = Text.translatable("storage.rackcraft.status." + job.status()).getString()
+					+ String.format(Locale.ROOT, " %d/%d", job.done(), job.total());
+			context.drawText(textRenderer, textRenderer.trimToWidth(line, JOB_ROW_RIGHT - 26), 26, 177, color, false);
+			int filled = job.total() <= 0 ? 0 : (int) ((JOB_ROW_RIGHT - 26) * Math.min(1, (double) job.done() / job.total()));
+			context.fill(26, 187, JOB_ROW_RIGHT, 189, 0xFF3A525C);
+			context.fill(26, 187, 26 + filled, 189, color);
 		} else {
 			context.drawText(textRenderer, "Ctrl-click + items to autocraft", 8, 179, MUTED, false);
 		}
