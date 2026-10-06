@@ -16,25 +16,19 @@ public final class StorageScreen extends RackcraftHandledScreen {
 	}
 
 	@Override
-	protected void init() {
-		super.init();
-		playerInventoryTitleY = backgroundHeight - 94;
-	}
-
-	@Override
 	protected void drawDashboard(DrawContext context) {
 		boolean array = blockId().equals("storage_array");
 		int supplied = stat(Stat.SATISFACTION);
 		boolean overheated = array && stat(Stat.THERMAL) <= 0 && supplied >= 50;
 		boolean online = supplied >= 50 && !overheated;
 		Text state = Text.literal(online ? "Online" : overheated ? "Offline: overheated" : "Offline: no power");
-		context.drawText(textRenderer, state, 100, 24, online ? GOOD : BAD, false);
-		line(context, "Draw " + kw(stat(Stat.POWER)), 100, 36, TEXT);
+		context.drawText(textRenderer, state, 100, 30, online ? GOOD : BAD, false);
+		line(context, "Draw " + kw(stat(Stat.POWER)), 100, 42, TEXT);
 		if (array) {
-			line(context, "Inlet " + celsius(stat(Stat.INLET)), 100, 48, stat(Stat.INLET) > 270 ? WARN : TEXT);
-			line(context, "Exhaust " + celsius(stat(Stat.EXHAUST)), 100, 60, MUTED);
+			line(context, "Inlet " + celsius(stat(Stat.INLET)), 100, 54, stat(Stat.INLET) > 270 ? WARN : TEXT);
+			line(context, "Exhaust " + celsius(stat(Stat.EXHAUST)), 100, 66, MUTED);
 		} else {
-			line(context, "Cold storage: 2 s reads", 100, 48, MUTED);
+			line(context, "Cold storage: 2 s reads", 100, 54, MUTED);
 		}
 		long used = 0;
 		long capacity = 0;
@@ -47,6 +41,6 @@ public final class StorageScreen extends RackcraftHandledScreen {
 			capacity += drive.capacity();
 			bar(context, slot.x - 1, slot.y + 18, 18, fill, fill > 0.9 ? BAD : fill > 0.7 ? WARN : drive.cold() ? 0xFF5BA7E0 : GOOD);
 		}
-		line(context, String.format(java.util.Locale.ROOT, "%,d / %,d items", used, capacity), 8, 78, TEXT);
+		line(context, String.format(java.util.Locale.ROOT, "%,d / %,d items", used, capacity), 8, 80, TEXT);
 	}
 }

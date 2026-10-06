@@ -1646,3 +1646,123 @@ def side_wood(base, key):
 
 
 SIDE_STYLES["wood"] = side_wood
+
+
+# ---------------------------------------------------------------- smog: scrubber, respirator, offsets, effect icons
+
+SMOG = (107, 94, 62)
+
+
+def scrubber_face(base, key, on):
+    """Smog scrubber: a pleated filter behind a grille, with a dial that spins while it runs."""
+    frames = []
+    for frame in range(4 if on else 1):
+        canvas = plate(base, key)
+        canvas.inset(2, 2, 13, 10, darken(base, 0.55), lighten(base, 0.2), darken(base, 0.6))
+        for x in range(3, 13):
+            pleat = (230, 226, 210) if x % 2 == 0 else (196, 190, 170)
+            dirty = 0.35 if not on else 0.15 * ((x + frame) % 3)
+            canvas.vline(x, 3, 9, mix(pleat, SMOG, dirty))
+        for y in (4, 7):
+            canvas.hline(2, 13, y, darken(STEEL, 0.2))
+        canvas.disc(5, 13, 1.7, darken(STEEL, 0.1))
+        angle = frame * math.pi / 2
+        canvas.set(5 + round(math.cos(angle)), 13 + round(math.sin(angle)), LED_GREEN if on else LED_OFF)
+        canvas.rect(9, 12, 13, 13, LED_GREEN if on else LED_OFF)
+        frames.append(canvas)
+    return frames
+
+
+FRONT_STYLES["scrubber"] = scrubber_face
+
+
+def item_respirator(base, key):
+    """A half-face mask: a grey shell, two charcoal filter cans and a strap."""
+    canvas = Canvas()
+    canvas.hline(1, 14, 5, darken(base, 0.4))
+    canvas.hline(1, 14, 4, darken(base, 0.2))
+    canvas.poly([(4, 5), (11, 5), (13, 9), (10, 13), (5, 13), (2, 9)], base)
+    canvas.hline(5, 10, 6, lighten(base, 0.25))
+    canvas.vline(7, 9, 12, darken(base, 0.35))
+    for cx in (3.5, 11.5):
+        canvas.disc(cx, 11, 2.4, (54, 54, 58))
+        canvas.disc(cx, 11, 1.4, (30, 30, 32))
+        canvas.set(int(cx), 10, (90, 90, 96))
+    return outline(canvas, base)
+
+
+def item_carbon_offset(base, key):
+    """A green certificate with a gold seal and a leaf."""
+    canvas = Canvas()
+    canvas.rect(1, 3, 14, 12, (236, 240, 220))
+    canvas.frame(1, 3, 14, 12, base)
+    canvas.frame(2, 4, 13, 11, lighten(base, 0.4))
+    for y in (6, 8):
+        canvas.hline(4, 9, y, (120, 130, 120))
+    canvas.disc(11, 9, 2.2, GOLD)
+    canvas.set(11, 9, darken(GOLD, 0.3))
+    canvas.line(4, 10, 6, 9, lighten(base, 0.1))
+    canvas.set(4, 9, base)
+    canvas.set(11, 12, (200, 60, 50))
+    canvas.set(11, 13, (200, 60, 50))
+    return canvas
+
+
+ITEM_STYLES["respirator"] = item_respirator
+ITEM_STYLES["carbon_offset"] = item_carbon_offset
+
+
+def png_rgba(width, height, pixels):
+    """Encode an arbitrary-size image; pixels[y][x] is an (r, g, b, a) tuple or None for transparent."""
+    def chunk(kind, data):
+        return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data) & 0xFFFFFFFF)
+
+    rows = b"".join(b"\0" + bytes(channel for pixel in row for channel in (pixel or (0, 0, 0, 0))) for row in pixels)
+    header = struct.pack(">2I5B", width, height, 8, 6, 0, 0, 0)
+    return b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", header) + chunk(b"IDAT", zlib.compress(rows, 9)) + chunk(b"IEND", b"")
+
+
+def effect_icon(kind):
+    """18 x 18 status effect icons: a dizzy swirl, or a cough cloud."""
+    pixels = [[None] * 18 for _ in range(18)]
+
+    def put(x, y, colour):
+        if 0 <= x < 18 and 0 <= y < 18:
+            pixels[y][x] = (*colour, 255)
+
+    if kind == "dizzy":
+        for step in range(70):
+            t = step / 70 * 2.6 * math.pi
+            r = 1 + t * 0.85
+            put(round(9 + r * math.cos(t)), round(9 + r * math.sin(t)), mix((214, 200, 150), SMOG, step / 90))
+        for x, y in ((3, 3), (14, 4), (4, 14)):
+            put(x, y, (246, 222, 120))
+    else:
+        for cx, cy, radius in ((6, 10, 3.4), (10, 8, 4.0), (13, 11, 3.0), (9, 12, 3.2)):
+            for y in range(18):
+                for x in range(18):
+                    if (x - cx) ** 2 + (y - cy) ** 2 <= radius ** 2:
+                        shade = 0.25 + 0.5 * (y / 18)
+                        put(x, y, mix((170, 166, 156), (70, 66, 60), shade))
+        for x, y in ((2, 6), (1, 9), (3, 12)):
+            put(x, y, (120, 116, 108))
+    return png_rgba(18, 18, pixels)
+
+
+def respirator_armor_layer():
+    """The worn mask, on the 64 x 32 armor layout: only the helmet's front face, lower half, is painted."""
+    pixels = [[None] * 64 for _ in range(32)]
+    shell = (150, 156, 160, 255)
+    dark = (60, 62, 66, 255)
+    strap = (70, 60, 50, 255)
+    # Helmet front face is u 8..15, v 8..15; the strap wraps the sides (u 0..7 and 16..23) and back (24..31).
+    for x in range(0, 32):
+        pixels[11][x] = strap
+    for y in range(12, 16):
+        for x in range(9, 15):
+            pixels[y][x] = shell
+    for x, y in ((9, 14), (10, 14), (13, 14), (14, 14), (9, 15), (14, 15)):
+        pixels[y][x] = dark
+    pixels[13][11] = dark
+    pixels[13][12] = dark
+    return png_rgba(64, 32, pixels)

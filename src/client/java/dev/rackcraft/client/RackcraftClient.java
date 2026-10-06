@@ -22,6 +22,8 @@ public final class RackcraftClient implements ClientModInitializer {
 	public void onInitializeClient() {
 		HeatOverlay.register();
 		CoinHud.register();
+		ShackleChains.register();
+		DizzyView.register();
 		ScreenRegistry.register(RcScreenHandlers.RACK, RackScreen::new);
 		ScreenRegistry.register(RcScreenHandlers.SINGLE_SLOT, SingleSlotScreen::new);
 		ScreenRegistry.register(RcScreenHandlers.MACHINE_STATUS, MachineStatusScreen::new);

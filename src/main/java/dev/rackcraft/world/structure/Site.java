@@ -275,6 +275,18 @@ public final class Site {
 		return villager;
 	}
 
+	/** A wall sign with up to four lines of text, hanging on the block behind it (facing away from that block). */
+	public void sign(int x, int y, int z, Direction facing, String... lines) {
+		BlockPos pos = pos(x, y, z);
+		if (!inside(pos)) return;
+		set(x, y, z, Blocks.OAK_WALL_SIGN.getDefaultState().with(net.minecraft.block.WallSignBlock.FACING, facing));
+		if (world.getBlockEntity(pos) instanceof net.minecraft.block.entity.SignBlockEntity sign) {
+			net.minecraft.block.entity.SignText text = new net.minecraft.block.entity.SignText();
+			for (int line = 0; line < lines.length && line < 4; line++) text = text.withMessage(line, net.minecraft.text.Text.literal(lines[line]));
+			sign.setText(text, true);
+		}
+	}
+
 	/** Joins cables to their neighbours. Cables at a chunk edge are finished when the next chunk loads. */
 	public void finish() {
 		for (BlockPos pos : cables) {

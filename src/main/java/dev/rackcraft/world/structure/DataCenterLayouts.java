@@ -37,7 +37,10 @@ import net.minecraft.village.VillagerProfession;
  *   <li>{@code flooded_hall}: a swamp data hall half full of water.</li>
  *   <li>{@code overgrown_colo}: a jungle colocation facility with a tree growing through it.</li>
  *   <li>{@code arctic_vault}: a snowbound site with a Quantum Core locked in a vault.</li>
- *   <li>{@code ai_lab}: a research lab, still with its librarian chained to the desk.</li>
+ *   <li>{@code ai_lab}: a research lab: a server room, an ops room, three librarians chained to their desks
+ *       and a fenced crayon corner of kids.</li>
+ *   <li>{@code content_mill}: a timber "data labelling" mill: six shackled librarians, a playroom of kids
+ *       at art tables, and a middle manager.</li>
  *   <li>{@code solar_farm}: rows of panels and a control hut.</li>
  *   <li>{@code tape_archive}: a cobwebbed vault of tape libraries.</li>
  *   <li>{@code hyperscale_campus}: 112 x 112 blocks: four data halls, an operations centre, a reservoir,
@@ -57,6 +60,7 @@ public final class DataCenterLayouts {
 	public static final Identifier AI_LAB_LOOT = Rackcraft.id("chests/data_center/ai_lab");
 	public static final Identifier ARCHIVE_LOOT = Rackcraft.id("chests/data_center/archive");
 	public static final Identifier OFFICE_LOOT = Rackcraft.id("chests/data_center/office");
+	public static final Identifier MILL_LOOT = Rackcraft.id("chests/data_center/content_mill");
 
 	private static final Map<String, Layout> LAYOUTS = new LinkedHashMap<>();
 
@@ -69,7 +73,8 @@ public final class DataCenterLayouts {
 		add(new Layout("flooded_hall", 15, 7, 11, Placement.SURFACE, 0, 4, true, false, DataCenterLayouts::floodedHall));
 		add(new Layout("overgrown_colo", 17, 11, 13, Placement.SURFACE, 0, 5, false, false, DataCenterLayouts::overgrownColo));
 		add(new Layout("arctic_vault", 13, 7, 11, Placement.SURFACE, 0, 4, false, false, DataCenterLayouts::arcticVault));
-		add(new Layout("ai_lab", 17, 7, 13, Placement.SURFACE, 0, 4, false, false, DataCenterLayouts::aiLab));
+		add(new Layout("ai_lab", 25, 8, 18, Placement.SURFACE, 0, 4, false, false, DataCenterLayouts::aiLab));
+		add(new Layout("content_mill", 27, 9, 19, Placement.SURFACE, 0, 4, false, false, DataCenterLayouts::contentMill));
 		add(new Layout("solar_farm", 23, 5, 15, Placement.SURFACE, 0, 4, false, false, DataCenterLayouts::solarFarm));
 		add(new Layout("tape_archive", 13, 7, 11, Placement.SURFACE, 0, 4, false, false, DataCenterLayouts::tapeArchive));
 		add(new Layout("hyperscale_campus", 112, 24, 112, Placement.SURFACE, 0, 14, false, true, DataCenterLayouts::campus));
@@ -358,42 +363,183 @@ public final class DataCenterLayouts {
 		s.chest(7, 1, 9, N, COMMON_LOOT);
 	}
 
+	/**
+	 * 25 x 18, twice the old lab: a glass-fronted research lab with a server room (NW), an ops room (NE), a
+	 * training wing of three chained librarians (SE) and a fenced crayon corner of kids (SW). "AGI" is
+	 * painted on the west wall, in the hand of someone who believed it.
+	 */
 	private static void aiLab(Site s) {
-		s.pad(0, 0, 16, 12, 7, 6, b(Blocks.STONE));
-		s.fill(0, 0, 0, 16, 0, 12, (x, y, z) -> s.chance(x, y, z, 1, 6) ? b(Blocks.POLISHED_DIORITE) : b(Blocks.SMOOTH_QUARTZ));
-		s.walls(0, 1, 0, 16, 4, 12, (x, y, z) -> (z == 0 || z == 12) && (y == 2 || y == 3) && x % 3 == 1
+		int x1 = 24;
+		int z1 = 17;
+		s.pad(0, 0, x1, z1, 7, 6, b(Blocks.STONE));
+		s.fill(0, 0, 0, x1, 0, z1, (x, y, z) -> s.chance(x, y, z, 1, 6) ? b(Blocks.POLISHED_DIORITE) : b(Blocks.SMOOTH_QUARTZ));
+		s.walls(0, 1, 0, x1, 5, z1, (x, y, z) -> (z == 0 || z == z1) && (y == 2 || y == 3) && x % 3 == 1
 				? b(Blocks.GLASS_PANE).with(Properties.EAST, true).with(Properties.WEST, true) : b(Blocks.WHITE_CONCRETE));
-		s.fill(0, 5, 0, 16, 5, 12, (x, y, z) -> x % 5 == 2 && z % 4 == 2 ? b(Blocks.GLASS) : b(Blocks.LIGHT_GRAY_CONCRETE));
-		s.fill(8, 1, 0, 8, 2, 0, AIR);
-		// "AGI" on the west wall, in the hand of someone who believed it.
+		s.fill(0, 6, 0, x1, 6, z1, (x, y, z) -> x % 5 == 2 && z % 4 == 2 ? b(Blocks.GLASS) : b(Blocks.LIGHT_GRAY_CONCRETE));
+		s.fill(12, 1, 0, 13, 2, 0, AIR);
 		String[][] letters = {
 				{" # ", "# #", "###", "# #"}, {"###", "#  ", "# #", "###"}, {"###", " # ", " # ", "###"}};
 		for (int letter = 0; letter < letters.length; letter++) {
 			for (int row = 0; row < 4; row++) {
 				for (int column = 0; column < 3; column++) {
-					if (letters[letter][row].charAt(column) != '#') continue;
-					s.set(0, 4 - row, 11 - letter * 4 - column, b(Blocks.BLACK_CONCRETE));
+					if (letters[letter][row].charAt(column) == '#') s.set(0, 5 - row, 16 - letter * 4 - column, b(Blocks.BLACK_CONCRETE));
 				}
 			}
 		}
-		// Server corner.
-		for (int x = 2; x <= 4; x++) s.rack(x, 1, 10, N, "tensor_accelerator:3,gpu_blade:2,failed_module:1");
-		s.machine(5, 1, 10, "uplink_router", N);
-		s.machine(8, 1, 11, "operations_terminal", N);
-		// Training corner: the art table is stocked; the librarian is still at the desk.
-		s.machine(12, 1, 3, "art_table", S, new ItemStack(Items.PAPER, 12), Site.item("crayons", 1));
-		s.machine(15, 1, 7, "writing_desk", W, new ItemStack(Items.PAPER, 20), new ItemStack(Items.INK_SAC, 2),
-				Site.item("text_corpus", 1));
-		var scribe = s.villager(14, 1, 7, villager -> {
+		Site.Material partition = (x, y, z) -> y == 2 || y == 3
+				? b(Blocks.GLASS_PANE).with(Properties.NORTH, true).with(Properties.SOUTH, true).with(Properties.EAST, true)
+						.with(Properties.WEST, true) : b(Blocks.WHITE_CONCRETE);
+
+		// Server room: two rows of AI racks facing a shared cold aisle, a CRAC unit blowing down it.
+		s.fill(1, 0, 1, 8, 0, 7, b(dev.rackcraft.RcBlocks.get("raised_floor_tile")));
+		s.fill(9, 1, 1, 9, 5, 8, partition);
+		s.fill(1, 1, 8, 9, 5, 8, partition);
+		s.fill(5, 1, 8, 5, 2, 8, AIR);
+		for (int x = 2; x <= 6; x++) {
+			s.rack(x, 1, 2, S, "tensor_accelerator:3,gpu_blade:2,failed_module:1");
+			s.rack(x, 1, 6, N, "tensor_accelerator:3,gpu_blade:2,failed_module:1");
+		}
+		s.machine(7, 1, 2, "uplink_router", S);
+		s.machine(7, 1, 6, "uplink_router", N);
+		s.machine(8, 1, 4, "crac_unit", W);
+		s.cableRun(2, 4, 4, 7, 4, 4, "coolant_pipe");
+		s.set(1, 1, 7, b(Blocks.COBWEB));
+
+		// Ops room: the terminal under a wall of monitors, and a chair nobody got up from.
+		s.fill(15, 1, 1, 15, 5, 7, partition);
+		s.fill(15, 1, 7, x1 - 1, 5, 7, partition);
+		s.fill(19, 1, 7, 19, 2, 7, AIR);
+		s.machine(19, 1, 1, "operations_terminal", S);
+		for (int x = 17; x <= 21; x++) if (x != 19) s.machine(x, 2, 1, "monitoring_wall", S);
+		s.machine(19, 2, 1, "monitoring_wall", S);
+		s.machine(17, 1, 1, "facility_controller", S);
+		s.set(19, 1, 3, stairs(Blocks.QUARTZ_STAIRS, S));
+		s.chest(23, 1, 6, W, AI_LAB_LOOT);
+
+		// Reception by the door, and the lab benches in the middle: coffee, cake, unfinished experiments.
+		s.fill(11, 1, 3, 14, 1, 3, b(Blocks.QUARTZ_SLAB));
+		s.set(11, 2, 3, b(Blocks.POTTED_FERN));
+		for (int x = 11; x <= 13; x++) s.set(x, 1, 11, b(Blocks.CRAFTING_TABLE));
+		s.set(11, 2, 11, b(Blocks.BREWING_STAND));
+		s.set(13, 2, 11, b(Blocks.CAKE));
+		s.set(12, 1, 12, stairs(Blocks.QUARTZ_STAIRS, N));
+
+		// Training wing: three Scriptorium Desks, a chained librarian at each.
+		for (int x : new int[] {16, 19, 22}) {
+			s.machine(x, 1, 11, "writing_desk", S, new ItemStack(Items.PAPER, 24), new ItemStack(Items.INK_SAC, 3));
+			shackledLibrarian(s, x, 1, 12, x, 1, 11);
+		}
+		s.fill(15, 1, 14, 23, 3, 16, (x, y, z) -> z == 16 && y <= 2 && x % 2 == 0 ? b(Blocks.BOOKSHELF) : null);
+
+		// The crayon corner: a fenced playroom of kids at two art tables.
+		s.fill(1, 0, 11, 8, 0, 16, (x, y, z) -> (x + z) % 2 == 0 ? b(Blocks.YELLOW_WOOL) : b(Blocks.LIGHT_BLUE_WOOL));
+		s.fill(9, 1, 10, 9, 1, 16, run(Blocks.OAK_FENCE, false));
+		s.fill(1, 1, 10, 8, 1, 10, run(Blocks.OAK_FENCE, true));
+		s.set(9, 1, 10, b(Blocks.OAK_FENCE).with(Properties.WEST, true).with(Properties.SOUTH, true));
+		s.set(5, 1, 10, b(Blocks.OAK_FENCE_GATE));
+		s.machine(3, 1, 12, "art_table", S, new ItemStack(Items.PAPER, 16), Site.item("crayons", 1));
+		s.machine(6, 1, 12, "art_table", S, new ItemStack(Items.PAPER, 16), Site.item("crayons", 1));
+		for (int[] kid : new int[][] {{2, 14}, {4, 15}, {6, 14}, {7, 16}}) kid(s, kid[0], 1, kid[1]);
+		s.chest(1, 1, 16, E, AI_LAB_LOOT);
+		s.sign(6, 2, 16, N, "CRAYON CORNER", "", "Training data", "in progress");
+
+		for (int[] lamp : new int[][] {{4, 4}, {12, 6}, {12, 14}, {19, 4}, {19, 13}, {4, 13}}) {
+			s.set(lamp[0], 5, lamp[1], hangingLantern());
+		}
+	}
+
+	/**
+	 * A timber mill turned data-labelling sweatshop, 27 x 19 under a pitched roof. The north hall is six
+	 * Scriptorium Desks against the bookshelves, a chained librarian at each; the south is a fenced playroom
+	 * of kids at three art tables; the middle manager has the office in the corner, with the racks.
+	 */
+	private static void contentMill(Site s) {
+		int x1 = 26;
+		int z1 = 18;
+		s.pad(0, 0, x1, z1, 8, 6, b(Blocks.COBBLESTONE));
+		s.fill(0, 0, 0, x1, 0, z1, (x, y, z) -> x == 0 || z == 0 || x == x1 || z == z1 ? b(Blocks.COBBLESTONE)
+				: s.chance(x, y, z, 1, 5) ? b(Blocks.DARK_OAK_PLANKS) : b(Blocks.SPRUCE_PLANKS));
+		s.walls(0, 1, 0, x1, 4, z1, (x, y, z) -> {
+			boolean post = (x % 6 == 0 && (z == 0 || z == z1)) || ((x == 0 || x == x1) && z % 6 == 0);
+			if (post) return b(Blocks.STRIPPED_SPRUCE_LOG);
+			if (y == 1) return b(Blocks.COBBLESTONE);
+			if (y == 3 && (z == 0 || z == z1) && x % 6 == 3) return b(Blocks.GLASS_PANE).with(Properties.EAST, true).with(Properties.WEST, true);
+			if (y == 3 && (x == 0 || x == x1) && z % 6 == 3) return b(Blocks.GLASS_PANE).with(Properties.NORTH, true).with(Properties.SOUTH, true);
+			return b(Blocks.WHITE_TERRACOTTA);
+		});
+		// A pitched roof along the length, with gable ends.
+		for (int z = 0; z <= z1; z++) {
+			int ridge = Math.min(z, z1 - z) / 3;
+			int h = 5 + ridge;
+			BlockState roof = z == z1 / 2 ? b(Blocks.DARK_OAK_PLANKS) : stairs(Blocks.DARK_OAK_STAIRS, z < z1 / 2 ? S : N);
+			s.fill(0, h, z, x1, h, z, roof);
+			if (h > 5) {
+				s.fill(0, 5, z, 0, h - 1, z, b(Blocks.SPRUCE_PLANKS));
+				s.fill(x1, 5, z, x1, h - 1, z, b(Blocks.SPRUCE_PLANKS));
+			}
+		}
+		// The way in is a fence gate: players can open it, the kids can't.
+		s.set(13, 1, z1, b(Blocks.SPRUCE_FENCE_GATE));
+		s.set(13, 2, z1, AIR);
+		s.sign(12, 2, z1 - 1, N, "ACME CONTENT", "MILL", "", "Now hiring");
+
+		// The scriptorium hall: bookshelves, and six desks facing each other across the aisle.
+		s.fill(1, 1, 1, x1 - 1, 3, 1, b(Blocks.BOOKSHELF));
+		for (int x : new int[] {5, 13, 21}) {
+			s.machine(x, 1, 2, "writing_desk", S, new ItemStack(Items.PAPER, 32), new ItemStack(Items.INK_SAC, 4));
+			shackledLibrarian(s, x, 1, 3, x, 1, 2);
+			s.machine(x, 1, 7, "writing_desk", N, new ItemStack(Items.PAPER, 32), new ItemStack(Items.INK_SAC, 4));
+			shackledLibrarian(s, x, 1, 6, x, 1, 7);
+		}
+		for (int x = 3; x <= x1 - 3; x += 4) s.set(x, 4, 1, b(Blocks.LANTERN));
+		s.sign(9, 3, 2, S, "DAYS WITHOUT", "A BREAK:", "", "ALL OF THEM");
+
+		// The playroom: fenced off from the hall, kids at three stocked art tables.
+		s.fill(1, 1, 9, 20, 1, 9, run(Blocks.SPRUCE_FENCE, true));
+		s.set(13, 1, 9, b(Blocks.SPRUCE_FENCE_GATE));
+		s.fill(1, 0, 10, 20, 0, 17, (x, y, z) -> (x / 2 + z / 2) % 2 == 0 ? b(Blocks.RED_WOOL) : b(Blocks.WHITE_WOOL));
+		for (int x : new int[] {4, 10, 16}) s.machine(x, 1, 13, "art_table", S, new ItemStack(Items.PAPER, 24), Site.item("crayons", 1));
+		for (int[] kid : new int[][] {{3, 15}, {5, 16}, {9, 15}, {11, 16}, {15, 15}, {17, 16}}) kid(s, kid[0], 1, kid[1]);
+		for (int x = 2; x <= 20; x += 6) s.set(x, 2, 9, b(Blocks.LANTERN));
+		s.set(1, 1, 17, b(Blocks.HAY_BLOCK));
+		s.set(2, 1, 17, b(Blocks.NOTE_BLOCK));
+
+		// The office, glassed off in the corner: the racks, the terminal and the manager.
+		s.fill(21, 1, 9, 21, 4, z1 - 1, partitionGlass());
+		s.rack(x1 - 1, 1, 11, W, "tensor_accelerator:3,gpu_blade:1,server_1u:2");
+		s.rack(x1 - 1, 1, 12, W, "tensor_accelerator:3,gpu_blade:1,server_1u:2");
+		s.machine(x1 - 1, 1, 13, "uplink_router", W);
+		s.machine(x1 - 1, 1, 15, "operations_terminal", W);
+		s.set(23, 1, 15, stairs(Blocks.SPRUCE_STAIRS, W));
+		s.villager(23, 1, 16, villager -> {
+			villager.setVillagerData(villager.getVillagerData().withProfession(VillagerProfession.NITWIT));
+			villager.setCustomName(net.minecraft.text.Text.literal("Middle Manager"));
+			villager.setCustomNameVisible(true);
+		});
+		s.chest(22, 1, z1 - 1, N, MILL_LOOT);
+		s.set(24, 3, 14, b(Blocks.LANTERN));
+		s.set(24, 2, 14, b(Blocks.SPRUCE_FENCE));
+	}
+
+	private static Site.Material partitionGlass() {
+		return (x, y, z) -> y == 1 || y == 4 ? b(Blocks.STRIPPED_SPRUCE_LOG)
+				: b(Blocks.GLASS_PANE).with(Properties.NORTH, true).with(Properties.SOUTH, true);
+	}
+
+	/** A librarian standing at (x, y, z), shackled to the Scriptorium Desk at (deskX, deskY, deskZ). */
+	private static void shackledLibrarian(Site s, int x, int y, int z, int deskX, int deskY, int deskZ) {
+		var scribe = s.villager(x, y, z, villager -> {
 			villager.setVillagerData(villager.getVillagerData().withProfession(VillagerProfession.LIBRARIAN));
 			villager.setExperience(1);
 			villager.addCommandTag(TrainingStations.SHACKLED_TAG);
 		});
-		MachineBlockEntity desk = s.machineAt(15, 1, 7);
+		MachineBlockEntity desk = s.machineAt(deskX, deskY, deskZ);
 		if (scribe != null && desk != null) desk.setBoundVillager(scribe.getUuid());
-		s.set(10, 1, 6, stairs(Blocks.QUARTZ_STAIRS, E));
-		s.set(11, 1, 6, b(Blocks.WHITE_CARPET));
-		s.chest(15, 1, 11, W, AI_LAB_LOOT);
+	}
+
+	/** A baby villager; a stocked art table nearby keeps them busy (and young). */
+	private static void kid(Site s, int x, int y, int z) {
+		s.villager(x, y, z, villager -> villager.setBaby(true));
 	}
 
 	private static void solarFarm(Site s) {

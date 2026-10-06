@@ -1,0 +1,32 @@
+{
+  "key": {
+    "A": {
+      "item": "rackcraft:aluminum_ingot"
+    },
+    "B": {
+      "item": "rackcraft:circuit_board"
+    },
+    "F": {
+      "item": "rackcraft:exhaust_fan"
+    },
+    "I": {
+      "item": "minecraft:iron_bars"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    },
+    "W": {
+      "item": "minecraft:white_wool"
+    }
+  },
+  "pattern": [
+    "IAI",
+    "WFW",
+    "SBS"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:smog_scrubber"
+  },
+  "type": "minecraft:crafting_shaped"
+}

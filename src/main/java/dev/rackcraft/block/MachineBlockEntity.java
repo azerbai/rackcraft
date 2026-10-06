@@ -67,6 +67,8 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 	private int toolUses;
 	private int workers;
 	private java.util.UUID boundVillager;
+	// Smog scrubbers: smog removed per second in the last step; not saved.
+	private double scrubRate;
 
 	public MachineBlockEntity(BlockPos pos, BlockState state) {
 		super(RcBlocks.MACHINE_ENTITY, pos, state);
@@ -95,7 +97,7 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 		java.util.EnumSet<NetKind> kinds = java.util.EnumSet.noneOf(NetKind.class);
 		if (List.of("diesel_generator", "solar_panel", "wind_turbine", "pdu", "server_rack",
 				"exhaust_fan", "cooling_tower", "crac_unit", "battery_bank", "utility_intake",
-				"facility_controller", "cdu", "modular_reactor", "freshwater_pump").contains(id)) kinds.add(NetKind.POWER);
+				"facility_controller", "cdu", "modular_reactor", "freshwater_pump", "smog_scrubber").contains(id)) kinds.add(NetKind.POWER);
 		// Racks join the coolant network for freshwater cooling from pumps.
 		if (List.of("cooling_tower", "crac_unit", "cdu", "freshwater_pump", "server_rack").contains(id)) kinds.add(NetKind.COOLANT);
 		if (List.of("server_rack", "uplink_router", "core_router", "facility_controller",
@@ -165,17 +167,8 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 	public boolean isValid(int slot, ItemStack stack) {
 		String blockId = Registries.BLOCK.getId(getCachedState().getBlock()).getPath();
 		if (blockId.equals("server_rack")) {
-			String itemId = Registries.ITEM.getId(stack.getItem()).getPath();
-			ServerModel.Module module = ServerModel.Module.byItemId(itemId);
-			if (module == null) return false;
-			int installedUnits = 0;
-			for (int index = 0; index < inventory.size(); index++) {
-				if (index == slot || inventory.get(index).isEmpty()) continue;
-				ServerModel.Module installed = ServerModel.Module.byItemId(
-						Registries.ITEM.getId(inventory.get(index).getItem()).getPath());
-				installedUnits += installed == null ? 1 : installed.units();
-			}
-			return installedUnits + module.units() <= 8;
+			// Eight bays, one module each: GPU Blades and Quantum Cores fill a bay like anything else.
+			return slot < ServerModel.BAYS && ServerModel.Module.byItemId(Registries.ITEM.getId(stack.getItem()).getPath()) != null;
 		}
 		if (blockId.equals("diesel_generator") || blockId.equals("modular_reactor")) return slot == 0;
 		if (blockId.equals("storage_array")) {
@@ -274,6 +267,8 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 	/** Villagers working at this table or desk right now; refreshed every step, not saved. */
 	public int workers() { return workers; }
 	public void setWorkers(int value) { workers = value; }
+	public double scrubRate() { return scrubRate; }
+	public void setScrubRate(double value) { scrubRate = Math.max(0, value); }
 	public java.util.UUID boundVillager() { return boundVillager; }
 	public void setBoundVillager(java.util.UUID villager) { boundVillager = villager; markDirty(); }
 

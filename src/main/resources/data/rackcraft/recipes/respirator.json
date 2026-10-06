@@ -1,0 +1,22 @@
+{
+  "key": {
+    "C": {
+      "item": "minecraft:charcoal"
+    },
+    "I": {
+      "item": "minecraft:iron_ingot"
+    },
+    "L": {
+      "item": "minecraft:leather"
+    }
+  },
+  "pattern": [
+    "L L",
+    "CIC"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:respirator"
+  },
+  "type": "minecraft:crafting_shaped"
+}

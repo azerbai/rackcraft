@@ -9,15 +9,15 @@ import net.minecraft.text.Text;
 /** Diesel generator, modular reactor and fire suppression tank: one input slot plus a live dashboard. */
 public final class SingleSlotScreen extends RackcraftHandledScreen {
 	public SingleSlotScreen(MachineScreenHandler handler, PlayerInventory inventory, Text title) {
-		super(handler, inventory, title, 176, 184);
+		super(handler, inventory, title, 176, 200);
 	}
 
 	@Override
 	protected void drawDashboard(DrawContext context) {
 		String id = blockId();
 		if (id.equals("fire_suppression_tank")) {
-			line(context, "Canister", 76, 30, MUTED);
-			wrapped(context, Text.translatable("screen.rackcraft.suppression_hint"), 8, 64, 160, MUTED);
+			line(context, "Canister", 66, 34, MUTED);
+			wrapped(context, Text.translatable("screen.rackcraft.suppression_hint"), 8, 68, 160, MUTED);
 			return;
 		}
 		boolean diesel = id.equals("diesel_generator");
@@ -42,22 +42,22 @@ public final class SingleSlotScreen extends RackcraftHandledScreen {
 			state = Text.translatable("generator.rackcraft.standby");
 			color = MUTED;
 		}
-		context.drawText(textRenderer, state, 8, 20, color, false);
+		context.drawText(textRenderer, state, 8, 30, color, false);
 
-		line(context, "Output", 8, 32, MUTED);
-		bar(context, 8, 42, 64, output / (double) capacityTenths, GOOD);
-		line(context, kw(output), 8, 51, TEXT);
+		line(context, "Output", 8, 44, MUTED);
+		bar(context, 8, 54, 64, output / (double) capacityTenths, GOOD);
+		line(context, kw(output), 8, 63, TEXT);
 		if (diesel) {
-			line(context, "Fuel", 104, 32, MUTED);
+			line(context, "Fuel", 104, 44, MUTED);
 			int total = Math.max(1, stat(Stat.FUEL_TOTAL));
-			bar(context, 104, 42, 64, fuel / (double) total, WARN);
-			line(context, fuel / 20 + " s left", 104, 51, TEXT);
-			line(context, "Spin-up", 104, 62, MUTED);
-			bar(context, 104, 72, 64, spinup / 20.0, 0xFF5BA7E0);
+			bar(context, 104, 54, 64, fuel / (double) total, WARN);
+			line(context, fuel / 20 + " s left", 104, 63, TEXT);
+			line(context, "Spin-up", 104, 76, MUTED);
+			bar(context, 104, 86, 64, spinup / 20.0, 0xFF5BA7E0);
 		}
 		int delivered = stat(Stat.NETWORK_DELIVERED);
 		int demand = stat(Stat.NETWORK_DEMAND);
-		line(context, "Grid " + kw(delivered) + " / " + kw(demand), 8, 66, TEXT);
-		line(context, "Capacity " + kw(stat(Stat.NETWORK_CAPACITY)), 8, 77, MUTED);
+		line(context, "Grid " + kw(delivered) + " / " + kw(demand), 8, 76, TEXT);
+		line(context, "Capacity " + kw(stat(Stat.NETWORK_CAPACITY)), 8, 87, MUTED);
 	}
 }

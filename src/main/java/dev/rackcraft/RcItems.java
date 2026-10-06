@@ -36,6 +36,9 @@ public final class RcItems {
 				case "recipe_pattern" -> new dev.rackcraft.storage.PatternItem(settings);
 				case "wireless_terminal" -> new dev.rackcraft.storage.WirelessTerminalItem(settings);
 				case "generated_image", "generated_document" -> new dev.rackcraft.compute.GeneratedWorkItem(settings);
+				case "respirator" -> new net.minecraft.item.ArmorItem(dev.rackcraft.item.RespiratorMaterial.INSTANCE,
+						net.minecraft.item.ArmorItem.Type.HELMET, settings);
+				case "carbon_offset" -> new dev.rackcraft.item.CarbonOffsetItem(settings);
 				case "drive_1k", "drive_4k", "drive_16k", "drive_64k", "tape_cartridge" -> new dev.rackcraft.storage.DriveItem(settings,
 						ContentIds.DRIVE_CAPACITY.get(id), id.equals("tape_cartridge"));
 				default -> new Item(settings);

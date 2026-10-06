@@ -21,8 +21,8 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.world.PersistentState;
 
 /**
- * The facility's AI business, one per dimension like its RackCoin balance: the contract board, the two
- * models and their training queues, the outbox of finished work, cluster policies and earnings.
+ * The facility's AI business, one per dimension like its RackCoin balance: the contract board, the model
+ * lineup and each model's training queue, the outbox of finished work, cluster policies and earnings.
  */
 public final class ComputeMarket extends PersistentState {
 	private static final String STATE_KEY = "rackcraft_market";
@@ -36,12 +36,15 @@ public final class ComputeMarket extends PersistentState {
 	private final Map<Long, Cluster.Policy> policies = new HashMap<>();
 	private final List<ItemStack> outbox = new ArrayList<>();
 	private final Deque<long[]> earnings = new ArrayDeque<>();
-	public final AiModel imageModel = new AiModel("SketchDiffusion");
-	public final AiModel textModel = new AiModel("Large Librarian Model");
+	private final Map<String, AiModel> models = new java.util.LinkedHashMap<>();
 	private int nextId = 1;
 	private long nextOfferTick;
 	private long totalEarned;
 	private long seed = 0x41494D4B54L;
+
+	public ComputeMarket() {
+		for (AiModel.Spec spec : AiModel.SPECS) models.put(spec.id(), new AiModel(spec));
+	}
 
 	public static ComputeMarket get(ServerWorld world) {
 		return world.getPersistentStateManager().getOrCreate(ComputeMarket::fromNbt, ComputeMarket::new, STATE_KEY);
@@ -51,7 +54,44 @@ public final class ComputeMarket extends PersistentState {
 	public List<ItemStack> outbox() { return outbox; }
 	public long totalEarned() { return totalEarned; }
 
-	public AiModel model(Contract.Kind kind) { return kind == Contract.Kind.IMAGE ? imageModel : textModel; }
+	/** Every model, in lineup order. */
+	public List<AiModel> models() { return List.copyOf(models.values()); }
+
+	public AiModel model(String id) { return models.get(id); }
+
+	public List<AiModel> models(Contract.Kind kind) {
+		return models.values().stream().filter(model -> model.kind() == kind).toList();
+	}
+
+	/**
+	 * The model that generates this contract: the one chosen for it, or on Auto the one that makes an item
+	 * with the least compute. If no model can reach the quality yet, Auto returns the best-trained one, so
+	 * the terminal can say how far short it falls.
+	 */
+	public AiModel modelFor(Contract contract) {
+		AiModel chosen = models.get(contract.model);
+		if (chosen != null && chosen.kind() == contract.kind) return chosen;
+		AiModel fastest = null;
+		AiModel best = null;
+		for (AiModel model : models(contract.kind)) {
+			if (best == null || model.cap() > best.cap()) best = model;
+			double work = model.workFor(contract.scale(), contract.quality);
+			if (Double.isFinite(work) && (fastest == null || work < fastest.workFor(contract.scale(), contract.quality))) fastest = model;
+		}
+		return fastest != null ? fastest : best;
+	}
+
+	/** Steps a contract's model choice: Auto, then each model of its kind, then back to Auto. */
+	public void cycleModel(int id) {
+		Contract contract = find(id);
+		if (contract == null) return;
+		List<String> options = new ArrayList<>();
+		options.add(Contract.AUTO_MODEL);
+		models(contract.kind).forEach(model -> options.add(model.id()));
+		int index = options.indexOf(contract.model);
+		contract.model = options.get((index + 1) % options.size());
+		markDirty();
+	}
 
 	public long earnedSince(long tick) {
 		return earnings.stream().filter(entry -> entry[0] >= tick).mapToLong(entry -> entry[1]).sum();
@@ -184,7 +224,7 @@ public final class ComputeMarket extends PersistentState {
 	void produce(Contract contract, int quality) {
 		Item item = RcItems.ITEMS.get(contract.kind == Contract.Kind.IMAGE ? "generated_image" : "generated_document");
 		outbox.add(GeneratedWorkItem.create(item, contract.docType, contract.prompt, quality,
-				model(contract.kind).versionName()));
+				modelFor(contract).versionName()));
 		if (contract.state == Contract.State.STOCK) {
 			contracts.remove(contract);
 		}
@@ -262,17 +302,22 @@ public final class ComputeMarket extends PersistentState {
 		markDirty();
 	}
 
-	/** Moves every Art Aggregate and Text Corpus from a player's inventory into the training queues. */
-	public int uploadTrainingData(PlayerEntity player) {
-		Item art = RcItems.ITEMS.get("art_aggregate");
-		Item text = RcItems.ITEMS.get("text_corpus");
+	/** The training data a model learns from: Art Aggregates for image models, Text Corpora for language models. */
+	public static Item dataFor(Contract.Kind kind) {
+		return RcItems.ITEMS.get(kind == Contract.Kind.IMAGE ? "art_aggregate" : "text_corpus");
+	}
+
+	/** Moves every item of a model's training data from a player's inventory into its queue. Returns how many. */
+	public int uploadTrainingData(PlayerEntity player, String modelId) {
+		AiModel model = models.get(modelId);
+		if (model == null) return 0;
+		Item data = dataFor(model.kind());
 		int uploaded = 0;
 		var inventory = player.getInventory();
 		for (int slot = 0; slot < inventory.size(); slot++) {
 			ItemStack stack = inventory.getStack(slot);
-			if (stack.isOf(art)) imageModel.queued += stack.getCount();
-			else if (stack.isOf(text)) textModel.queued += stack.getCount();
-			else continue;
+			if (!stack.isOf(data)) continue;
+			model.queued += stack.getCount();
 			uploaded += stack.getCount();
 			inventory.setStack(slot, ItemStack.EMPTY);
 		}
@@ -280,8 +325,10 @@ public final class ComputeMarket extends PersistentState {
 		return uploaded;
 	}
 
-	public void toggleTraining(Contract.Kind kind) {
-		model(kind).training = !model(kind).training;
+	public void toggleTraining(String modelId) {
+		AiModel model = models.get(modelId);
+		if (model == null) return;
+		model.training = !model.training;
 		markDirty();
 	}
 
@@ -313,8 +360,9 @@ public final class ComputeMarket extends PersistentState {
 			earned.add(tag);
 		});
 		nbt.put("Earnings", earned);
-		nbt.put("ImageModel", imageModel.toNbt());
-		nbt.put("TextModel", textModel.toNbt());
+		NbtCompound modelTag = new NbtCompound();
+		models.forEach((id, model) -> modelTag.put(id, model.toNbt()));
+		nbt.put("Models", modelTag);
 		nbt.putInt("NextId", nextId);
 		nbt.putLong("NextOffer", nextOfferTick);
 		nbt.putLong("TotalEarned", totalEarned);
@@ -346,8 +394,16 @@ public final class ComputeMarket extends PersistentState {
 			NbtCompound tag = earned.getCompound(index);
 			market.earnings.addLast(new long[] {tag.getLong("Tick"), tag.getLong("Amount")});
 		}
-		market.imageModel.readNbt(nbt.getCompound("ImageModel"));
-		market.textModel.readNbt(nbt.getCompound("TextModel"));
+		if (nbt.contains("Models")) {
+			NbtCompound modelTag = nbt.getCompound("Models");
+			market.models.forEach((id, model) -> {
+				if (modelTag.contains(id)) model.readNbt(modelTag.getCompound(id));
+			});
+		} else {
+			// Saves from before the lineup had one model per kind; their curves match the Pro models.
+			market.models.get("nano_melon_pro").readNbt(nbt.getCompound("ImageModel"));
+			market.models.get("gemerald_pro").readNbt(nbt.getCompound("TextModel"));
+		}
 		market.nextId = Math.max(1, nbt.getInt("NextId"));
 		market.nextOfferTick = nbt.getLong("NextOffer");
 		market.totalEarned = nbt.getLong("TotalEarned");

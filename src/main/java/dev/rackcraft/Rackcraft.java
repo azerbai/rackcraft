@@ -21,6 +21,7 @@ public final class Rackcraft implements ModInitializer {
 		RackcraftConfig.load();
 		RcBlocks.register();
 		RcItems.register();
+		RcEffects.register();
 		ItemGroup group = net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup.builder()
 				.displayName(Text.literal("Rackcraft"))
 				.icon(() -> new ItemStack(RcBlocks.get("server_rack")))

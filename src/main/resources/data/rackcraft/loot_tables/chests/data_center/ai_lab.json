@@ -91,7 +91,7 @@
           "functions": [
             {
               "function": "minecraft:set_nbt",
-              "tag": "{Kind:\"image\",Prompt:\"a creeper at a job interview in crayon\",Quality:55,Model:\"SketchDiffusion v2.4\"}"
+              "tag": "{Kind:\"image\",Prompt:\"a creeper at a job interview in crayon\",Quality:55,Model:\"Nano Melon 2.4\"}"
             }
           ],
           "name": "rackcraft:generated_image",
@@ -102,7 +102,7 @@
           "functions": [
             {
               "function": "minecraft:set_nbt",
-              "tag": "{Kind:\"image\",Prompt:\"a pig in a business suit as a stock photo\",Quality:62,Model:\"SketchDiffusion v2.4\"}"
+              "tag": "{Kind:\"image\",Prompt:\"a pig in a business suit as a stock photo\",Quality:62,Model:\"Nano Melon 2.4\"}"
             }
           ],
           "name": "rackcraft:generated_image",
@@ -113,7 +113,7 @@
           "functions": [
             {
               "function": "minecraft:set_nbt",
-              "tag": "{Kind:\"image\",Prompt:\"Steve's LinkedIn headshot as a blurry phone photo\",Quality:69,Model:\"SketchDiffusion v2.4\"}"
+              "tag": "{Kind:\"image\",Prompt:\"Steve's LinkedIn headshot as a blurry phone photo\",Quality:69,Model:\"Nano Melon 2.4\"}"
             }
           ],
           "name": "rackcraft:generated_image",
@@ -124,7 +124,7 @@
           "functions": [
             {
               "function": "minecraft:set_nbt",
-              "tag": "{Kind:\"image\",Prompt:\"a cat asleep on a server rack in pixel art\",Quality:76,Model:\"SketchDiffusion v2.4\"}"
+              "tag": "{Kind:\"image\",Prompt:\"a cat asleep on a server rack in pixel art\",Quality:76,Model:\"Nano Melon 2.4\"}"
             }
           ],
           "name": "rackcraft:generated_image",
@@ -135,7 +135,7 @@
           "functions": [
             {
               "function": "minecraft:set_nbt",
-              "tag": "{Kind:\"image\",Prompt:\"a fox stealing a GPU as a motivational poster\",Quality:83,Model:\"SketchDiffusion v2.4\"}"
+              "tag": "{Kind:\"image\",Prompt:\"a fox stealing a GPU as a motivational poster\",Quality:83,Model:\"Nano Melon 2.4\"}"
             }
           ],
           "name": "rackcraft:generated_image",
@@ -146,7 +146,7 @@
           "functions": [
             {
               "function": "minecraft:set_nbt",
-              "tag": "{Kind:\"homework\",Prompt:\"the water cycle (Nether edition)\",Quality:90,Model:\"Large Librarian Model v3.1\"}"
+              "tag": "{Kind:\"homework\",Prompt:\"the water cycle (Nether edition)\",Quality:90,Model:\"Gemerald 3.1 Pro\"}"
             }
           ],
           "name": "rackcraft:generated_document",
@@ -157,7 +157,7 @@
           "functions": [
             {
               "function": "minecraft:set_nbt",
-              "tag": "{Kind:\"essay\",Prompt:\"five hundred words about gravel\",Quality:57,Model:\"Large Librarian Model v3.1\"}"
+              "tag": "{Kind:\"essay\",Prompt:\"five hundred words about gravel\",Quality:57,Model:\"Gemerald 3.1 Pro\"}"
             }
           ],
           "name": "rackcraft:generated_document",
@@ -168,7 +168,7 @@
           "functions": [
             {
               "function": "minecraft:set_nbt",
-              "tag": "{Kind:\"legal\",Prompt:\"a lease for a dirt hut\",Quality:64,Model:\"Large Librarian Model v3.1\"}"
+              "tag": "{Kind:\"legal\",Prompt:\"a lease for a dirt hut\",Quality:64,Model:\"Gemerald 3.1 Pro\"}"
             }
           ],
           "name": "rackcraft:generated_document",
@@ -179,7 +179,7 @@
           "functions": [
             {
               "function": "minecraft:set_nbt",
-              "tag": "{Kind:\"cover_letter\",Prompt:\"a villager applying for any job but librarian\",Quality:71,Model:\"Large Librarian Model v3.1\"}"
+              "tag": "{Kind:\"cover_letter\",Prompt:\"a villager applying for any job but librarian\",Quality:71,Model:\"Gemerald 3.1 Pro\"}"
             }
           ],
           "name": "rackcraft:generated_document",
@@ -190,7 +190,7 @@
           "functions": [
             {
               "function": "minecraft:set_nbt",
-              "tag": "{Kind:\"tos\",Prompt:\"Steve's minecart rentals\",Quality:78,Model:\"Large Librarian Model v3.1\"}"
+              "tag": "{Kind:\"tos\",Prompt:\"Steve's minecart rentals\",Quality:78,Model:\"Gemerald 3.1 Pro\"}"
             }
           ],
           "name": "rackcraft:generated_document",
@@ -201,7 +201,7 @@
           "functions": [
             {
               "function": "minecraft:set_nbt",
-              "tag": "{Kind:\"patch_notes\",Prompt:\"reality\",Quality:85,Model:\"Large Librarian Model v3.1\"}"
+              "tag": "{Kind:\"patch_notes\",Prompt:\"reality\",Quality:85,Model:\"Gemerald 3.1 Pro\"}"
             }
           ],
           "name": "rackcraft:generated_document",

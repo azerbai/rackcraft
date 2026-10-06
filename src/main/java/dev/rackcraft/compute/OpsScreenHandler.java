@@ -44,7 +44,8 @@ public final class OpsScreenHandler extends ScreenHandler {
 	private static final int SYNC_INTERVAL = 10;
 	private static final int MAX_ALERTS = 60;
 
-	public enum Action { ACCEPT, DECLINE, ABANDON, GENERATE, STOP, DELIVER, PRINT, POLICY, UPLOAD, COLLECT, TRAINING }
+	/** UPLOAD and TRAINING take a model index in {@code id}; MODEL cycles a contract's model choice. */
+	public enum Action { ACCEPT, DECLINE, ABANDON, GENERATE, STOP, DELIVER, PRINT, POLICY, UPLOAD, COLLECT, TRAINING, MODEL }
 
 	private final BlockPos pos;
 	private final PlayerEntity player;
@@ -115,16 +116,27 @@ public final class OpsScreenHandler extends ScreenHandler {
 				}
 			}
 			case UPLOAD -> {
-				int uploaded = market.uploadTrainingData(player);
-				player.sendMessage(Text.literal(uploaded > 0 ? "Uploaded " + uploaded + " items of training data"
-						: "No Art Aggregates or Text Corpora in your inventory").formatted(uploaded > 0 ? Formatting.GREEN
-						: Formatting.RED), true);
+				AiModel model = modelAt(market, id);
+				if (model == null) break;
+				int uploaded = market.uploadTrainingData(player, model.id());
+				String data = model.kind() == Contract.Kind.IMAGE ? "Art Aggregates" : "Text Corpora";
+				player.sendMessage(Text.literal(uploaded > 0 ? "Uploaded " + uploaded + " " + data + " to " + model.versionName()
+						: "No " + data + " in your inventory").formatted(uploaded > 0 ? Formatting.GREEN : Formatting.RED), true);
 			}
 			case COLLECT -> market.collectOutbox(player);
-			case TRAINING -> market.toggleTraining(id == 0 ? Contract.Kind.IMAGE : Contract.Kind.TEXT);
+			case TRAINING -> {
+				AiModel model = modelAt(market, id);
+				if (model != null) market.toggleTraining(model.id());
+			}
+			case MODEL -> market.cycleModel(id);
 		}
 		syncCountdown = 0;
 		sendContentUpdates();
+	}
+
+	private static AiModel modelAt(ComputeMarket market, int index) {
+		List<AiModel> models = market.models();
+		return index >= 0 && index < models.size() ? models.get(index) : null;
 	}
 
 	public static void registerServer() {
@@ -175,29 +187,33 @@ public final class OpsScreenHandler extends ScreenHandler {
 		market.contracts().stream().filter(contract -> contract.state == Contract.State.DONE || contract.state == Contract.State.FAILED)
 				.forEach(ordered::add);
 		for (Contract contract : ordered) {
-			AiModel model = market.model(contract.kind);
+			AiModel model = market.modelFor(contract);
 			long left = switch (contract.state) {
 				case OFFERED -> contract.offerExpires - now;
 				case ACCEPTED -> contract.deadline - now;
 				default -> 0;
 			};
 			contracts.add(new OpsSnapshot.ContractView(contract.id, contract.state.ordinal(), contract.kind.ordinal(), contract.title(),
-					contract.client, contract.quantity, contract.delivered, contract.quality, contract.qualityNow(model.cap()),
+					contract.client, contract.quantity, contract.delivered, contract.quality, contract.qualityNow(model),
 					(int) Math.floor(model.cap() * 100), contract.payout, contract.earned, left, contract.durationTicks,
-					contract.generating, contract.cluster, (float) contract.computeRate, contract.status));
+					contract.generating, contract.cluster, (float) contract.computeRate, contract.status, model.versionName(),
+					market.model(contract.model) == null));
 			if (contract.state == Contract.State.ACCEPTED) {
 				if (left < 0) alerts.add(new OpsSnapshot.Alert(2, "Late: " + contract.title() + " (half pay now)"));
 				else if (left < 20 * 120) alerts.add(new OpsSnapshot.Alert(1, "Due in " + left / 20 + " s: " + contract.title()));
 				if (contract.quality >= model.cap() * 100) {
-					alerts.add(new OpsSnapshot.Alert(2, model.name + " is too weak for " + contract.title() + ": train it"));
+					alerts.add(new OpsSnapshot.Alert(2, model.versionName() + " is too weak for " + contract.title() + ": train it"));
 				}
 			}
 		}
 
 		List<OpsSnapshot.ModelView> models = new ArrayList<>();
-		for (AiModel model : List.of(market.imageModel, market.textModel)) {
-			models.add(new OpsSnapshot.ModelView(model.versionName(), (int) Math.floor(model.cap() * 100), model.trained, model.queued,
-					(int) Math.floor(model.progress / AiModel.WORK_PER_ITEM * 100), model.training, (float) model.computeRate));
+		for (AiModel model : market.models()) {
+			AiModel.Spec spec = model.spec;
+			models.add(new OpsSnapshot.ModelView(spec.id(), spec.kind().ordinal(), model.versionName(), spec.tier(),
+					(int) Math.floor(model.cap() * 100), (int) Math.floor(spec.maxCap() * 100), model.trained, model.queued,
+					(int) Math.floor(model.progress / spec.trainWork() * 100), model.training, (float) model.computeRate,
+					(float) spec.speed(), (int) spec.trainWork(), spec.blurb()));
 		}
 
 		machineAlerts(world, machines, alerts);

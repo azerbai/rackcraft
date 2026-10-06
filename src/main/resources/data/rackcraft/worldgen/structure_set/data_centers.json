@@ -43,6 +43,10 @@
       "weight": 4
     },
     {
+      "structure": "rackcraft:content_mill",
+      "weight": 4
+    },
+    {
       "structure": "rackcraft:solar_farm",
       "weight": 4
     },

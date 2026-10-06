@@ -20,6 +20,8 @@ public final class Contract {
 	/** AI compute per second the deadline assumes: about one GPU Blade. */
 	private static final double REFERENCE_RATE = 10;
 	public static final long ANY_CLUSTER = Long.MIN_VALUE;
+	/** {@link #model} value meaning "the fastest model that can reach the quality". */
+	public static final String AUTO_MODEL = "auto";
 
 	public enum Kind { IMAGE, TEXT }
 
@@ -42,6 +44,8 @@ public final class Contract {
 	public long earned;
 	public boolean generating;
 	public long cluster = ANY_CLUSTER;
+	/** The model chosen to generate it: an {@link AiModel.Spec} id, or {@link #AUTO_MODEL}. */
+	public String model = AUTO_MODEL;
 	public double work;
 
 	// Live figures for the operations terminal; not saved.
@@ -63,9 +67,10 @@ public final class Contract {
 		return scale * Math.log(1 / (1 - target / cap));
 	}
 
-	/** Quality of the item in progress, from the work done so far. */
-	public int qualityNow(double cap) {
-		return (int) Math.floor(100 * cap * (1 - Math.exp(-work / scale())));
+	/** Quality of the item in progress, from the work done so far on this model. */
+	public int qualityNow(AiModel model) {
+		if (model == null) return 0;
+		return (int) Math.floor(100 * model.cap() * (1 - Math.exp(-work / (scale() * model.spec.cost()))));
 	}
 
 	public long payPerItem() {
@@ -138,6 +143,7 @@ public final class Contract {
 		tag.putBoolean("Generating", generating);
 		tag.putLong("Cluster", cluster);
 		tag.putDouble("Work", work);
+		tag.putString("Model", model);
 		return tag;
 	}
 
@@ -164,6 +170,7 @@ public final class Contract {
 		contract.generating = tag.getBoolean("Generating");
 		contract.cluster = tag.getLong("Cluster");
 		contract.work = tag.getDouble("Work");
+		contract.model = AiModel.spec(tag.getString("Model")) != null ? tag.getString("Model") : AUTO_MODEL;
 		return contract;
 	}
 }

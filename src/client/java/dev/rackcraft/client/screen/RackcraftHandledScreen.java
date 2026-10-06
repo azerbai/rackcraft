@@ -14,6 +14,27 @@ abstract class RackcraftHandledScreen extends HandledScreen<MachineScreenHandler
 		backgroundHeight = panelHeight;
 	}
 
+	/**
+	 * Puts the title in the header bar and the "Inventory" label just above the player's inventory, wherever
+	 * this screen put it (vanilla assumes a 166-pixel panel). Screens without one get no label.
+	 */
+	@Override
+	protected void init() {
+		super.init();
+		titleX = 8;
+		titleY = 7;
+		int top = Integer.MAX_VALUE;
+		int left = 8;
+		for (net.minecraft.screen.slot.Slot slot : handler.slots) {
+			if (slot.inventory instanceof net.minecraft.entity.player.PlayerInventory && slot.y < top) {
+				top = slot.y;
+				left = slot.x;
+			}
+		}
+		playerInventoryTitleX = left;
+		playerInventoryTitleY = top == Integer.MAX_VALUE ? -10_000 : top - 11;
+	}
+
 	@Override
 	protected void drawBackground(DrawContext context, float delta, int mouseX, int mouseY) {
 		int left = (width - backgroundWidth) / 2;
@@ -32,7 +53,9 @@ abstract class RackcraftHandledScreen extends HandledScreen<MachineScreenHandler
 
 	@Override
 	protected void drawForeground(DrawContext context, int mouseX, int mouseY) {
-		super.drawForeground(context, mouseX, mouseY);
+		// Vanilla draws both labels in dark grey, which vanishes on these dark panels.
+		context.drawText(textRenderer, title, titleX, titleY, TEXT, false);
+		context.drawText(textRenderer, playerInventoryTitle, playerInventoryTitleX, playerInventoryTitleY, MUTED, false);
 		drawDashboard(context);
 	}
 
@@ -72,6 +95,32 @@ abstract class RackcraftHandledScreen extends HandledScreen<MachineScreenHandler
 			y += 10;
 		}
 		return y;
+	}
+
+	/**
+	 * Wrapped text cut to {@code maxLines}; a cut-off last line ends in "...". Returns whether anything was cut,
+	 * so the caller can offer the whole text as a tooltip.
+	 */
+	protected boolean wrappedClamped(DrawContext context, Text text, int x, int y, int width, int maxLines, int color) {
+		java.util.List<net.minecraft.text.OrderedText> rows = textRenderer.wrapLines(text, width);
+		boolean cut = rows.size() > maxLines;
+		if (cut) {
+			// Re-wrap all but the last visible line, then squeeze the rest of the text into it.
+			String plain = text.getString();
+			java.util.List<net.minecraft.text.StringVisitable> parts = textRenderer.getTextHandler()
+					.wrapLines(plain, width, net.minecraft.text.Style.EMPTY);
+			StringBuilder shown = new StringBuilder();
+			for (int index = 0; index < maxLines - 1; index++) shown.append(parts.get(index).getString());
+			String rest = plain.substring(Math.min(plain.length(), shown.length())).trim();
+			String last = textRenderer.trimToWidth(rest, width - textRenderer.getWidth("...")).trim() + "...";
+			for (int index = 0; index < maxLines - 1; index++) {
+				context.drawText(textRenderer, rows.get(index), x, y + index * 10, color, false);
+			}
+			context.drawText(textRenderer, last, x, y + (maxLines - 1) * 10, color, false);
+		} else {
+			for (int index = 0; index < rows.size(); index++) context.drawText(textRenderer, rows.get(index), x, y + index * 10, color, false);
+		}
+		return cut;
 	}
 
 	protected static final int TEXT = 0xFFE5ECEB;

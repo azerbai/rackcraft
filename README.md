@@ -18,9 +18,9 @@ Install `build/libs/rackcraft-1.0.0.jar` with Fabric Loader for Minecraft 1.20.1
 
 ## Progression
 
-Mine bauxite ore and smelt it into aluminum. Blast iron into steel, then craft copper wire, silicon components, and server modules. Place a server rack, insert up to 8 U of modules, and connect its power face through a PDU and power cable to a generator or solar source. Diesel generators accept vanilla furnace fuel and the Rackcraft fuels below. Cooling fans remove heat from their front cell; CRAC units require a powered coolant loop and a cooling tower.
+Mine bauxite ore and smelt it into aluminum. Blast iron into steel, then craft copper wire, silicon components, and server modules. Place a server rack, fill its eight bays (one module per bay, any size), and connect its power face through a PDU and power cable to a generator or solar source. Diesel generators accept vanilla furnace fuel and the Rackcraft fuels below. Cooling fans remove heat from their front cell; CRAC units require a powered coolant loop and a cooling tower.
 
-The machine screens open by right-clicking. Rack bays accept `pi_node`, `server_1u`, `asic_miner`, `gpu_blade`, and `quantum_core`; a quantum core only contributes load when a CDU is adjacent. Power, coolant, and fiber cables form independent networks.
+The machine screens open by right-clicking. Rack bays accept `pi_node`, `server_1u`, `asic_miner`, `gpu_blade`, `tensor_accelerator` and `quantum_core`, one per bay; a quantum core only contributes load when a CDU is adjacent. Power, coolant, and fiber cables form independent networks.
 
 ## Mining RackCoin and the Crypto Exchange
 
@@ -28,7 +28,7 @@ Racks mine RackCoin (RC) into one balance shared by the whole world. A rack mine
 
 ## Abandoned Data Centers
 
-Twelve kinds of ruined data center generate as real structures (so `/locate structure #rackcraft:data_centers` works too). Most have racks, a cut cable or two, and a loot chest:
+Thirteen kinds of ruined data center generate as real structures (so `/locate structure #rackcraft:data_centers` works too). Most have racks, a cut cable or two, and a loot chest:
 
 | Variant | Where | What's there |
 | --- | --- | --- |
@@ -40,7 +40,8 @@ Twelve kinds of ruined data center generate as real structures (so `/locate stru
 | `flooded_hall` | Swamps | A data hall half under water |
 | `overgrown_colo` | Jungles, dark forests | Colocation cages with a tree growing through the roof |
 | `arctic_vault` | Snowy biomes | A Quantum Core locked in a vault, cooling towers in the snow |
-| `ai_lab` | Temperate | Tensor racks, an Operations Terminal, and a librarian still shackled to a desk |
+| `ai_lab` | Temperate | 25 x 18: a server room of AI racks, an ops room, three librarians shackled to their desks and a fenced crayon corner of kids |
+| `content_mill` | Temperate | A timber "data labelling" mill: six shackled librarians, a playroom of kids at three art tables, and a Middle Manager |
 | `solar_farm` | Deserts, savannas, plains | Rows of panels and a control hut |
 | `tape_archive` | Temperate | Tape libraries and storage arrays behind the cobwebs |
 | `hyperscale_campus` | Plains, savannas, deserts, snowy plains, meadows (rare) | **112 x 112 blocks**: four data halls (160 racks), an operations centre with an AI wing, a reservoir with pumps, cooling towers, a substation, a generator yard and a car park |
@@ -60,9 +61,11 @@ Racks on one fiber network form a **cluster**. Each step the facility hands out 
 | Pi Node | 0.5 | 1 | 0.4 | no |
 | 1U Server | 2 | 2 | 1.6 | no |
 | ASIC Miner | 5 | 0 | 0 | 1 unit |
-| GPU Blade (2 U) | 12 | 6 | 10 | 2 units |
-| Tensor Accelerator (2 U) | 0 | 3 | 12 | 2 units |
-| Quantum Core (4 U) | 60 | 20 | 50 | 4 units |
+| GPU Blade | 12 | 6 | 10 | 2 units |
+| Tensor Accelerator | 0 | 3 | 12 | 2 units |
+| Quantum Core | 60 | 20 | 50 | 4 units |
+
+A rack has eight bays and every module takes one, so a rack holds eight GPU Blades (24 kW, 16 units of water) or eight Quantum Cores (72 kW, 32 units, and a CDU).
 
 Contracts pay 1.35 RC per AI-compute-second against a well-trained reference model, so AI work earns about 10% more than mining on GPUs and Quantum Cores, and about a third more with Tensor Accelerators (which can't mine). That holds even on free solar power.
 
@@ -70,18 +73,30 @@ Contracts pay 1.35 RC per AI-compute-second against a well-trained reference mod
 
 Clients post work to the **Operations Terminal** every one to three minutes: "Image of a pig in a business suit as a stock photo", or an Essay, Legal Document, Homework, Cover Letter, Wedding Speech, Product Review, Apology Letter, Terms of Service, Fan Fiction or Patch Notes. Each offer shows the client, quantity, the quality required, the pay and how long you have once accepted. Offers lapse after ten minutes.
 
-1. **Accept** it (up to five at once).
-2. **Generate**: pick a cluster (or *any* online Auto cluster) and press Generate. Its racks work until each item reaches the required quality, then finished work goes to the outbox and is delivered and paid automatically. Or **Deliver** a finished Generated Image or Document from your inventory if you already have one with the same prompt and enough quality.
-3. Late work earns half; quality above the requirement earns up to 20% more. Contracts more than one full duration overdue fail.
+1. **Accept** it (up to five at once). Long prompts wrap on the card, so the pay, deadline and buttons stay visible.
+2. **Model**: leave it on *Auto* (the fastest model that can reach the quality) or pick one.
+3. **Generate**: pick a cluster (or *any* online Auto cluster) and press Generate. Its racks work until each item reaches the required quality, then finished work goes to the outbox and is delivered and paid automatically. Or **Deliver** a finished Generated Image or Document from your inventory if you already have one with the same prompt and enough quality.
+4. Late work earns half; quality above the requirement earns up to 20% more. Contracts more than one full duration overdue fail.
 
 Clients often order the same thing again, and some prompts are perennial classics. **Make a spare** on a finished contract generates another copy for stock, and abandoned data centers sometimes hold finished work.
 
 ### Models and training data
 
-Quality depends on the model. The image model (*SketchDiffusion*) and the language model (*Large Librarian Model*) start with a 12% quality cap, reaching about 66% after 24 items of training data and 94% after 72. Upload data at the terminal; idle racks on Auto clusters train on it at 1,500 AI-compute-seconds per item.
+Each kind of work has a lineup, like a real lab's. Every model trains separately, on its own queue: upload Art Aggregates or Text Corpora to a specific model at the terminal, and idle racks on Auto clusters train the queued models, sharing the free compute. A model's quality cap starts at 12% and climbs toward its ceiling as it trains (two thirds of the way after its "learns from" count of items).
+
+| Model | Kind | Speed | Ceiling | Learns from | Training per item | Overdelivers |
+| --- | --- | --- | --- | --- | --- | --- |
+| SketchDiffusion | image | 2.0x | 62% | 6 items | 600 AI-s | 0-1% |
+| Nano Melon | image | 1.33x | 85% | 14 items | 1,200 AI-s | 0-4% |
+| Nano Melon Pro | image | 0.77x | 99% | 30 items | 2,400 AI-s | 3-10% |
+| Gemerald Flash-Lite | text | 2.0x | 60% | 6 items | 500 AI-s | 0-1% |
+| Gemerald Flash | text | 1.33x | 84% | 14 items | 1,100 AI-s | 0-4% |
+| Gemerald Pro | text | 0.77x | 98% | 30 items | 2,200 AI-s | 3-10% |
+
+Speed is compute per item against the reference model the pay is set by: a Flash model finishes the same item in three quarters of the compute, a Pro in 1.3 times as much but at a much higher cap. Overdelivered quality earns the quality bonus, so Pro work pays a little extra. Saves from before the lineup carry their two models' training over to the Pro models.
 
 - **Kids' Art Table** (image data): stock it with paper and **Crayons** and baby villagers come over to draw. Each kid draws every 20 seconds (up to four kids), and four drawings make a **Crayon Art Aggregate**. Kids at a stocked table never seem to grow up.
-- **Scriptorium Desk** (text data): use **Shackles** on a librarian within six blocks to chain them to the desk, then stock it with paper and ink sacs. They write a **Librarian Text Corpus** every 30 seconds, can't leave, and complain constantly. Sneak-right-click them with an empty hand to set them free; breaking the desk frees them too.
+- **Scriptorium Desk** (text data): use **Shackles** on a librarian within six blocks to chain them to the desk, then stock it with paper and ink sacs. They write a **Librarian Text Corpus** every 30 seconds, can't leave, and complain constantly. You can see the chain running from their wrists to the desk. Sneak-right-click them with an empty hand to set them free; breaking the desk frees them too.
 
 ### The Operations Terminal
 
@@ -90,7 +105,7 @@ One screen for the whole dimension, needing no power or cables. Its tabs:
 - **Overview:** income, clusters, model caps, air quality and the top problems.
 - **Contracts:** offers, accepted work with progress bars and deadlines, and history.
 - **Clusters:** each cluster's racks, compute, online state, what its racks are doing, mining rate and policy.
-- **Models:** quality caps, training queues and the upload button.
+- **Models:** every model's cap and ceiling, speed, training queue, and its own upload and pause buttons.
 - **Alerts:** every rack that is unpowered, tripped, overheated, offline or needs water; offline storage and drives over 90% full; pumps that are dry or on salt water; cut cables; generators out of fuel; art tables and desks out of supplies; late contracts; smog.
 
 ## Freshwater Cooling
@@ -99,7 +114,17 @@ Tier 3 and up hardware (ASIC Miners, GPU Blades, Tensor Accelerators and Quantum
 
 ## Smog
 
-Exhaust fans dump waste heat straight outside and pollute heavily. Each running fan pours smoke out of its back and adds smog to its chunk, more the more heat it moves. Smog drifts into neighbouring chunks and clears over a few minutes. From 35 players get hungry, and from 70 they feel sick and villagers weaken. Smog also dims solar panels by up to 60%. The Operations Terminal shows the air where you stand and lists smoggy chunks.
+Exhaust fans dump waste heat straight outside and pollute heavily. Each running fan pours smoke out of its back and adds smog to its chunk, more the more heat it moves. Smog drifts into neighbouring chunks and clears over a few minutes. Breathing it gets worse in steps:
+
+| Smog | Effect |
+| --- | --- |
+| over 30 | **Smog Dizziness**: a slow, gentle sway of the view and a brown haze (much lighter than Nausea; stronger from 60; follows the Distortion Effects slider) |
+| 45 | Spells of blindness, more often the thicker it gets |
+| 55 | **Smoker's Cough**: coughing fits that stop you sprinting and cost stamina. Villagers cough too |
+| 70 | Poison and hunger. Villagers weaken and are poisoned |
+| 88 | Poison II |
+
+A **Respirator** (helmet slot) keeps all of it out until its charcoal filter clogs, about 40 minutes of smog; repair it with charcoal. A **Smog Scrubber** draws 6 kW and removes 1.5 smog per second from its chunk and 0.75 from each neighbour. **Carbon Offset Certificates** remove exactly one point of smog each. Smog also dims solar panels by up to 60%. The Operations Terminal shows the air where you stand and lists smoggy chunks.
 
 ## Tools and HUD
 

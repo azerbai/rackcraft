@@ -1,0 +1,280 @@
+{
+  "pools": [
+    {
+      "entries": [
+        {
+          "functions": [
+            {
+              "count": {
+                "max": 4,
+                "min": 2,
+                "type": "minecraft:uniform"
+              },
+              "function": "minecraft:set_count"
+            }
+          ],
+          "name": "rackcraft:text_corpus",
+          "type": "minecraft:item",
+          "weight": 1
+        }
+      ],
+      "rolls": 1
+    },
+    {
+      "entries": [
+        {
+          "functions": [
+            {
+              "count": {
+                "max": 24,
+                "min": 8,
+                "type": "minecraft:uniform"
+              },
+              "function": "minecraft:set_count"
+            }
+          ],
+          "name": "minecraft:paper",
+          "type": "minecraft:item",
+          "weight": 5
+        },
+        {
+          "functions": [
+            {
+              "count": {
+                "max": 8,
+                "min": 2,
+                "type": "minecraft:uniform"
+              },
+              "function": "minecraft:set_count"
+            }
+          ],
+          "name": "minecraft:ink_sac",
+          "type": "minecraft:item",
+          "weight": 4
+        },
+        {
+          "name": "rackcraft:crayons",
+          "type": "minecraft:item",
+          "weight": 3
+        },
+        {
+          "functions": [
+            {
+              "count": {
+                "max": 4,
+                "min": 1,
+                "type": "minecraft:uniform"
+              },
+              "function": "minecraft:set_count"
+            }
+          ],
+          "name": "rackcraft:text_corpus",
+          "type": "minecraft:item",
+          "weight": 4
+        },
+        {
+          "functions": [
+            {
+              "count": {
+                "max": 4,
+                "min": 1,
+                "type": "minecraft:uniform"
+              },
+              "function": "minecraft:set_count"
+            }
+          ],
+          "name": "rackcraft:art_aggregate",
+          "type": "minecraft:item",
+          "weight": 4
+        },
+        {
+          "functions": [
+            {
+              "count": {
+                "max": 2,
+                "min": 1,
+                "type": "minecraft:uniform"
+              },
+              "function": "minecraft:set_count"
+            }
+          ],
+          "name": "rackcraft:shackles",
+          "type": "minecraft:item",
+          "weight": 2
+        },
+        {
+          "functions": [
+            {
+              "count": {
+                "max": 8,
+                "min": 2,
+                "type": "minecraft:uniform"
+              },
+              "function": "minecraft:set_count"
+            }
+          ],
+          "name": "minecraft:cookie",
+          "type": "minecraft:item",
+          "weight": 3
+        },
+        {
+          "functions": [
+            {
+              "count": {
+                "max": 3,
+                "min": 1,
+                "type": "minecraft:uniform"
+              },
+              "function": "minecraft:set_count"
+            }
+          ],
+          "name": "rackcraft:carbon_offset",
+          "type": "minecraft:item",
+          "weight": 2
+        },
+        {
+          "functions": [
+            {
+              "count": {
+                "max": 3,
+                "min": 1,
+                "type": "minecraft:uniform"
+              },
+              "function": "minecraft:set_count"
+            }
+          ],
+          "name": "minecraft:emerald",
+          "type": "minecraft:item",
+          "weight": 1
+        },
+        {
+          "functions": [
+            {
+              "function": "minecraft:set_nbt",
+              "tag": "{Kind:\"image\",Prompt:\"a creeper at a job interview in crayon\",Quality:55,Model:\"Nano Melon 2.4\"}"
+            }
+          ],
+          "name": "rackcraft:generated_image",
+          "type": "minecraft:item",
+          "weight": 1
+        },
+        {
+          "functions": [
+            {
+              "function": "minecraft:set_nbt",
+              "tag": "{Kind:\"image\",Prompt:\"a pig in a business suit as a stock photo\",Quality:62,Model:\"Nano Melon 2.4\"}"
+            }
+          ],
+          "name": "rackcraft:generated_image",
+          "type": "minecraft:item",
+          "weight": 1
+        },
+        {
+          "functions": [
+            {
+              "function": "minecraft:set_nbt",
+              "tag": "{Kind:\"image\",Prompt:\"Steve's LinkedIn headshot as a blurry phone photo\",Quality:69,Model:\"Nano Melon 2.4\"}"
+            }
+          ],
+          "name": "rackcraft:generated_image",
+          "type": "minecraft:item",
+          "weight": 1
+        },
+        {
+          "functions": [
+            {
+              "function": "minecraft:set_nbt",
+              "tag": "{Kind:\"image\",Prompt:\"a cat asleep on a server rack in pixel art\",Quality:76,Model:\"Nano Melon 2.4\"}"
+            }
+          ],
+          "name": "rackcraft:generated_image",
+          "type": "minecraft:item",
+          "weight": 1
+        },
+        {
+          "functions": [
+            {
+              "function": "minecraft:set_nbt",
+              "tag": "{Kind:\"image\",Prompt:\"a fox stealing a GPU as a motivational poster\",Quality:83,Model:\"Nano Melon 2.4\"}"
+            }
+          ],
+          "name": "rackcraft:generated_image",
+          "type": "minecraft:item",
+          "weight": 1
+        },
+        {
+          "functions": [
+            {
+              "function": "minecraft:set_nbt",
+              "tag": "{Kind:\"homework\",Prompt:\"the water cycle (Nether edition)\",Quality:90,Model:\"Gemerald 3.1 Pro\"}"
+            }
+          ],
+          "name": "rackcraft:generated_document",
+          "type": "minecraft:item",
+          "weight": 1
+        },
+        {
+          "functions": [
+            {
+              "function": "minecraft:set_nbt",
+              "tag": "{Kind:\"essay\",Prompt:\"five hundred words about gravel\",Quality:57,Model:\"Gemerald 3.1 Pro\"}"
+            }
+          ],
+          "name": "rackcraft:generated_document",
+          "type": "minecraft:item",
+          "weight": 1
+        },
+        {
+          "functions": [
+            {
+              "function": "minecraft:set_nbt",
+              "tag": "{Kind:\"legal\",Prompt:\"a lease for a dirt hut\",Quality:64,Model:\"Gemerald 3.1 Pro\"}"
+            }
+          ],
+          "name": "rackcraft:generated_document",
+          "type": "minecraft:item",
+          "weight": 1
+        },
+        {
+          "functions": [
+            {
+              "function": "minecraft:set_nbt",
+              "tag": "{Kind:\"cover_letter\",Prompt:\"a villager applying for any job but librarian\",Quality:71,Model:\"Gemerald 3.1 Pro\"}"
+            }
+          ],
+          "name": "rackcraft:generated_document",
+          "type": "minecraft:item",
+          "weight": 1
+        },
+        {
+          "functions": [
+            {
+              "function": "minecraft:set_nbt",
+              "tag": "{Kind:\"tos\",Prompt:\"Steve's minecart rentals\",Quality:78,Model:\"Gemerald 3.1 Pro\"}"
+            }
+          ],
+          "name": "rackcraft:generated_document",
+          "type": "minecraft:item",
+          "weight": 1
+        },
+        {
+          "functions": [
+            {
+              "function": "minecraft:set_nbt",
+              "tag": "{Kind:\"patch_notes\",Prompt:\"reality\",Quality:85,Model:\"Gemerald 3.1 Pro\"}"
+            }
+          ],
+          "name": "rackcraft:generated_document",
+          "type": "minecraft:item",
+          "weight": 1
+        }
+      ],
+      "rolls": {
+        "max": 7,
+        "min": 4,
+        "type": "minecraft:uniform"
+      }
+    }
+  ],
+  "type": "minecraft:chest"
+}

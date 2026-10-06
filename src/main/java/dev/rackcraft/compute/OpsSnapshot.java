@@ -16,9 +16,11 @@ public record OpsSnapshot(long credits, float miningRate, long earnedHour, long 
 	/** {@code ticksLeft}: until the deadline for accepted work, until the offer lapses for offers. */
 	public record ContractView(int id, int state, int kind, String title, String client, int quantity, int delivered,
 			int quality, int qualityNow, int modelCap, long payout, long earned, long ticksLeft, long duration,
-			boolean generating, long cluster, float rate, String status) {}
+			boolean generating, long cluster, float rate, String status, String model, boolean autoModel) {}
 
-	public record ModelView(String name, int cap, int trained, int queued, int progress, boolean training, float rate) {}
+	/** {@code kind}: a {@link Contract.Kind} ordinal. {@code speed}: items per unit of compute against a cost-1 model. */
+	public record ModelView(String id, int kind, String name, String tier, int cap, int maxCap, int trained, int queued,
+			int progress, boolean training, float rate, float speed, int dataWork, String blurb) {}
 
 	/** Severity 0 info, 1 warning, 2 problem. */
 	public record Alert(int severity, String text) {}
@@ -66,16 +68,25 @@ public record OpsSnapshot(long credits, float miningRate, long earnedHour, long 
 			buf.writeLong(contract.cluster());
 			buf.writeFloat(contract.rate());
 			buf.writeString(contract.status());
+			buf.writeString(contract.model());
+			buf.writeBoolean(contract.autoModel());
 		}
 		buf.writeVarInt(models.size());
 		for (ModelView model : models) {
+			buf.writeString(model.id());
+			buf.writeVarInt(model.kind());
 			buf.writeString(model.name());
+			buf.writeString(model.tier());
 			buf.writeVarInt(model.cap());
+			buf.writeVarInt(model.maxCap());
 			buf.writeVarInt(model.trained());
 			buf.writeVarInt(model.queued());
 			buf.writeVarInt(model.progress());
 			buf.writeBoolean(model.training());
 			buf.writeFloat(model.rate());
+			buf.writeFloat(model.speed());
+			buf.writeVarInt(model.dataWork());
+			buf.writeString(model.blurb());
 		}
 		buf.writeVarInt(alerts.size());
 		for (Alert alert : alerts) {
@@ -103,12 +114,13 @@ public record OpsSnapshot(long credits, float miningRate, long earnedHour, long 
 			contracts.add(new ContractView(buf.readVarInt(), buf.readVarInt(), buf.readVarInt(), buf.readString(), buf.readString(),
 					buf.readVarInt(), buf.readVarInt(), buf.readVarInt(), buf.readVarInt(), buf.readVarInt(), buf.readVarLong(),
 					buf.readVarLong(), buf.readLong(), buf.readVarLong(), buf.readBoolean(), buf.readLong(), buf.readFloat(),
-					buf.readString()));
+					buf.readString(), buf.readString(), buf.readBoolean()));
 		}
 		List<ModelView> models = new ArrayList<>();
 		for (int count = buf.readVarInt(); count > 0; count--) {
-			models.add(new ModelView(buf.readString(), buf.readVarInt(), buf.readVarInt(), buf.readVarInt(), buf.readVarInt(),
-					buf.readBoolean(), buf.readFloat()));
+			models.add(new ModelView(buf.readString(), buf.readVarInt(), buf.readString(), buf.readString(), buf.readVarInt(),
+					buf.readVarInt(), buf.readVarInt(), buf.readVarInt(), buf.readVarInt(), buf.readBoolean(), buf.readFloat(),
+					buf.readFloat(), buf.readVarInt(), buf.readString()));
 		}
 		List<Alert> alerts = new ArrayList<>();
 		for (int count = buf.readVarInt(); count > 0; count--) alerts.add(new Alert(buf.readVarInt(), buf.readString()));

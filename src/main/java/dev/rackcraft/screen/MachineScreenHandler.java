@@ -75,13 +75,14 @@ public final class MachineScreenHandler extends ScreenHandler {
 			@Override public void set(int index, int value) {}
 		};
 		if (mode == Mode.RACK) {
-			for (int index = 0; index < 8; index++) addSlot(new MachineSlot(machineInventory, index, 10, 18 + index * 18));
-			addPlayerInventory(playerInventory, 10, 170);
+			// Two columns of four bays, below the header.
+			for (int index = 0; index < 8; index++) addSlot(new MachineSlot(machineInventory, index, 13 + (index % 2) * 20, 46 + (index / 2) * 20));
+			addPlayerInventory(playerInventory, 13, 180);
 		} else if (mode == Mode.STORAGE_ARRAY) {
-			for (int index = 0; index < 8; index++) addSlot(new MachineSlot(machineInventory, index, 8 + (index % 4) * 22, 24 + (index / 4) * 22));
+			for (int index = 0; index < 8; index++) addSlot(new MachineSlot(machineInventory, index, 8 + (index % 4) * 22, 30 + (index / 4) * 22));
 			addPlayerInventory(playerInventory, 8, 102);
 		} else if (mode == Mode.TAPE_LIBRARY) {
-			for (int index = 0; index < 4; index++) addSlot(new MachineSlot(machineInventory, index, 8 + index * 22, 24));
+			for (int index = 0; index < 4; index++) addSlot(new MachineSlot(machineInventory, index, 8 + index * 22, 30));
 			addPlayerInventory(playerInventory, 8, 102);
 		} else if (mode == Mode.WORKSTATION) {
 			addSlot(new MachineSlot(machineInventory, 0, 26, 40));
@@ -89,8 +90,8 @@ public final class MachineScreenHandler extends ScreenHandler {
 			addSlot(new MachineSlot(machineInventory, 2, 134, 40));
 			addPlayerInventory(playerInventory, 8, 102);
 		} else if (mode == Mode.SINGLE_SLOT) {
-			addSlot(new MachineSlot(machineInventory, 0, 80, 42));
-			addPlayerInventory(playerInventory, 8, 92);
+			addSlot(new MachineSlot(machineInventory, 0, 80, 46));
+			addPlayerInventory(playerInventory, 8, 108);
 		}
 		addProperties(properties);
 	}
@@ -177,6 +178,8 @@ public final class MachineScreenHandler extends ScreenHandler {
 			case Stat.PUMP_USED -> tenths(machine.pumpUsed());
 			case Stat.SMOG -> machine.getWorld() instanceof ServerWorld world
 					? tenths(dev.rackcraft.world.AirQuality.get(world).smogAt(machine.getPos())) : 0;
+			case Stat.LOAD_LIMIT -> machine.loadLimitPercent();
+			case Stat.SCRUB_RATE -> (int) Math.round(machine.scrubRate() * 100);
 			default -> 0;
 		};
 	}
@@ -217,7 +220,9 @@ public final class MachineScreenHandler extends ScreenHandler {
 		public static final int PUMP_STATUS = 27;       // FreshwaterCooling.PumpStatus ordinal
 		public static final int PUMP_USED = 28;         // tenths of a unit
 		public static final int SMOG = 29;              // tenths
-		static final int COUNT = 30;
+		public static final int LOAD_LIMIT = 30;        // percent
+		public static final int SCRUB_RATE = 31;        // hundredths of smog per second
+		static final int COUNT = 32;
 
 		private Stat() {}
 	}

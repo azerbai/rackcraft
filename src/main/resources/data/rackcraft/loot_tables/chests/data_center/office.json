@@ -96,7 +96,7 @@
           "functions": [
             {
               "function": "minecraft:set_nbt",
-              "tag": "{Kind:\"homework\",Prompt:\"the water cycle (Nether edition)\",Quality:90,Model:\"Large Librarian Model v3.1\"}"
+              "tag": "{Kind:\"homework\",Prompt:\"the water cycle (Nether edition)\",Quality:90,Model:\"Gemerald 3.1 Pro\"}"
             }
           ],
           "name": "rackcraft:generated_document",
@@ -107,7 +107,7 @@
           "functions": [
             {
               "function": "minecraft:set_nbt",
-              "tag": "{Kind:\"essay\",Prompt:\"five hundred words about gravel\",Quality:57,Model:\"Large Librarian Model v3.1\"}"
+              "tag": "{Kind:\"essay\",Prompt:\"five hundred words about gravel\",Quality:57,Model:\"Gemerald 3.1 Pro\"}"
             }
           ],
           "name": "rackcraft:generated_document",
@@ -118,7 +118,7 @@
           "functions": [
             {
               "function": "minecraft:set_nbt",
-              "tag": "{Kind:\"legal\",Prompt:\"a lease for a dirt hut\",Quality:64,Model:\"Large Librarian Model v3.1\"}"
+              "tag": "{Kind:\"legal\",Prompt:\"a lease for a dirt hut\",Quality:64,Model:\"Gemerald 3.1 Pro\"}"
             }
           ],
           "name": "rackcraft:generated_document",
@@ -129,7 +129,7 @@
           "functions": [
             {
               "function": "minecraft:set_nbt",
-              "tag": "{Kind:\"cover_letter\",Prompt:\"a villager applying for any job but librarian\",Quality:71,Model:\"Large Librarian Model v3.1\"}"
+              "tag": "{Kind:\"cover_letter\",Prompt:\"a villager applying for any job but librarian\",Quality:71,Model:\"Gemerald 3.1 Pro\"}"
             }
           ],
           "name": "rackcraft:generated_document",
@@ -140,7 +140,7 @@
           "functions": [
             {
               "function": "minecraft:set_nbt",
-              "tag": "{Kind:\"tos\",Prompt:\"Steve's minecart rentals\",Quality:78,Model:\"Large Librarian Model v3.1\"}"
+              "tag": "{Kind:\"tos\",Prompt:\"Steve's minecart rentals\",Quality:78,Model:\"Gemerald 3.1 Pro\"}"
             }
           ],
           "name": "rackcraft:generated_document",
@@ -151,7 +151,7 @@
           "functions": [
             {
               "function": "minecraft:set_nbt",
-              "tag": "{Kind:\"patch_notes\",Prompt:\"reality\",Quality:85,Model:\"Large Librarian Model v3.1\"}"
+              "tag": "{Kind:\"patch_notes\",Prompt:\"reality\",Quality:85,Model:\"Gemerald 3.1 Pro\"}"
             }
           ],
           "name": "rackcraft:generated_document",
@@ -162,7 +162,7 @@
           "functions": [
             {
               "function": "minecraft:set_nbt",
-              "tag": "{Kind:\"homework\",Prompt:\"the water cycle (Nether edition)\",Quality:90,Model:\"Large Librarian Model v3.1\"}"
+              "tag": "{Kind:\"homework\",Prompt:\"the water cycle (Nether edition)\",Quality:90,Model:\"Gemerald 3.1 Pro\"}"
             }
           ],
           "name": "rackcraft:generated_document",
@@ -173,7 +173,7 @@
           "functions": [
             {
               "function": "minecraft:set_nbt",
-              "tag": "{Kind:\"essay\",Prompt:\"five hundred words about gravel\",Quality:57,Model:\"Large Librarian Model v3.1\"}"
+              "tag": "{Kind:\"essay\",Prompt:\"five hundred words about gravel\",Quality:57,Model:\"Gemerald 3.1 Pro\"}"
             }
           ],
           "name": "rackcraft:generated_document",
@@ -184,7 +184,7 @@
           "functions": [
             {
               "function": "minecraft:set_nbt",
-              "tag": "{Kind:\"legal\",Prompt:\"a lease for a dirt hut\",Quality:64,Model:\"Large Librarian Model v3.1\"}"
+              "tag": "{Kind:\"legal\",Prompt:\"a lease for a dirt hut\",Quality:64,Model:\"Gemerald 3.1 Pro\"}"
             }
           ],
           "name": "rackcraft:generated_document",
@@ -195,7 +195,7 @@
           "functions": [
             {
               "function": "minecraft:set_nbt",
-              "tag": "{Kind:\"cover_letter\",Prompt:\"a villager applying for any job but librarian\",Quality:71,Model:\"Large Librarian Model v3.1\"}"
+              "tag": "{Kind:\"cover_letter\",Prompt:\"a villager applying for any job but librarian\",Quality:71,Model:\"Gemerald 3.1 Pro\"}"
             }
           ],
           "name": "rackcraft:generated_document",
@@ -206,7 +206,7 @@
           "functions": [
             {
               "function": "minecraft:set_nbt",
-              "tag": "{Kind:\"tos\",Prompt:\"Steve's minecart rentals\",Quality:78,Model:\"Large Librarian Model v3.1\"}"
+              "tag": "{Kind:\"tos\",Prompt:\"Steve's minecart rentals\",Quality:78,Model:\"Gemerald 3.1 Pro\"}"
             }
           ],
           "name": "rackcraft:generated_document",
@@ -217,7 +217,7 @@
           "functions": [
             {
               "function": "minecraft:set_nbt",
-              "tag": "{Kind:\"patch_notes\",Prompt:\"reality\",Quality:85,Model:\"Large Librarian Model v3.1\"}"
+              "tag": "{Kind:\"patch_notes\",Prompt:\"reality\",Quality:85,Model:\"Gemerald 3.1 Pro\"}"
             }
           ],
           "name": "rackcraft:generated_document",

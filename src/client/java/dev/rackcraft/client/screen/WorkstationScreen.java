@@ -13,12 +13,6 @@ public final class WorkstationScreen extends RackcraftHandledScreen {
 	}
 
 	@Override
-	protected void init() {
-		super.init();
-		playerInventoryTitleY = backgroundHeight - 94;
-	}
-
-	@Override
 	protected void drawDashboard(DrawContext context) {
 		boolean table = blockId().equals("art_table");
 		line(context, "Paper", 22, 30, MUTED);

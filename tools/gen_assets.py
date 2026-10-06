@@ -168,6 +168,7 @@ DATA_CENTERS = [
     ("overgrown_colo", "jungle", "beard_thin", 5),
     ("arctic_vault", "cold", "beard_thin", 5),
     ("ai_lab", "temperate", "beard_thin", 4),
+    ("content_mill", "temperate", "beard_thin", 4),
     ("solar_farm", "dry", "beard_thin", 4),
     ("tape_archive", "temperate", "beard_thin", 3),
 ]
@@ -238,7 +239,7 @@ def loot_item(name, low=1, high=1, weight=1, nbt=None):
 def generated_work(kind, prompt, quality, weight):
     """A finished image or document, as a chest might hold it. Quotes in prompts are escaped for SNBT."""
     item = "rackcraft:generated_image" if kind == "image" else "rackcraft:generated_document"
-    model = "SketchDiffusion v2.4" if kind == "image" else "Large Librarian Model v3.1"
+    model = "Nano Melon 2.4" if kind == "image" else "Gemerald 3.1 Pro"
     escaped = prompt.replace("\\", "\\\\").replace('"', '\\"')
     return loot_item(item, weight=weight, nbt=f'{{Kind:"{kind}",Prompt:"{escaped}",Quality:{quality},Model:"{model}"}}')
 
@@ -273,6 +274,11 @@ def data_center_loot_tables():
             loot_item("rackcraft:crayons", 1, 1, 4), loot_item("rackcraft:shackles", 1, 1, 3), loot_item("minecraft:paper", 6, 16, 4),
             loot_item("minecraft:ink_sac", 2, 6, 3), loot_item("rackcraft:tensor_accelerator", 1, 1, 1), loot_item("rackcraft:art_aggregate", 1, 3, 3),
             loot_item("rackcraft:text_corpus", 1, 3, 3), *classics], guaranteed=[loot_item("rackcraft:shackles")]),
+        "content_mill": chest_loot((4, 7), [
+            loot_item("minecraft:paper", 8, 24, 5), loot_item("minecraft:ink_sac", 2, 8, 4), loot_item("rackcraft:crayons", 1, 1, 3),
+            loot_item("rackcraft:text_corpus", 1, 4, 4), loot_item("rackcraft:art_aggregate", 1, 4, 4), loot_item("rackcraft:shackles", 1, 2, 2),
+            loot_item("minecraft:cookie", 2, 8, 3), loot_item("rackcraft:carbon_offset", 1, 3, 2), loot_item("minecraft:emerald", 1, 3, 1),
+            *classics], guaranteed=[loot_item("rackcraft:text_corpus", 2, 4)]),
         "archive": chest_loot((4, 6), [
             loot_item("rackcraft:tape_cartridge", 1, 1, 4), loot_item("rackcraft:drive_1k", 1, 1, 3), loot_item("rackcraft:drive_4k", 1, 1, 2),
             loot_item("rackcraft:drive_16k", 1, 1, 1), loot_item("minecraft:book", 1, 3, 3), loot_item("minecraft:paper", 4, 12, 3),
@@ -473,7 +479,7 @@ def main():
         "rack_status.rackcraft.network_limited": "Mining %s RC/s (bandwidth-limited)",
         "rack_status.rackcraft.network_limited.hint": "The routers on this fiber network can't carry every rack. Add another Uplink Router or a Core Router.",
         "rack_status.rackcraft.empty": "Idle: no modules",
-        "rack_status.rackcraft.empty.hint": "Put Pi Nodes, 1U Servers, ASIC Miners, GPU Blades or a Quantum Core into the bays on the left.",
+        "rack_status.rackcraft.empty.hint": "Put Pi Nodes, 1U Servers, ASIC Miners, GPU Blades, Tensor Accelerators or Quantum Cores into the eight bays on the left. Each module takes one bay.",
         "rack_status.rackcraft.tripped": "Stopped: breaker tripped",
         "rack_status.rackcraft.tripped.hint": "Power dropped below 50%. The rack restarts once power is back and the intake is under 32 C.",
         "rack_status.rackcraft.no_power": "Stopped: no power",
@@ -551,6 +557,8 @@ def main():
         "creative.rackcraft.live_rack": "Mining %s RC/s; drawing %s",
         "creative.rackcraft.live_cooler": "Holds the air in front of and behind this block at the set temperature. Air can't go below the world's ambient temperature (%s C).",
         "creative.rackcraft.live_router": "Adds this bandwidth to every rack on its fiber network.",
+        "effect.rackcraft.dizzy": "Smog Dizziness",
+        "effect.rackcraft.coughing": "Smoker's Cough",
     })
     for entry in blocks + items:
         lang[f"guide.rackcraft.entry.{entry['id']}"] = entry["desc"]
@@ -587,6 +595,14 @@ def main():
     })
     write_json(RESOURCES / "data/rackcraft/loot_tables/chests/abandoned_data_center.json", data_center_loot())
     data_center_worldgen()
+    effect_textures = RESOURCES / "assets/rackcraft/textures/mob_effect"
+    effect_textures.mkdir(parents=True, exist_ok=True)
+    for effect in ("dizzy", "coughing"):
+        (effect_textures / f"{effect}.png").write_bytes(textures.effect_icon(effect))
+    # Armor materials in 1.20.1 can only name textures in the minecraft namespace.
+    armor = RESOURCES / "assets/minecraft/textures/models/armor/rackcraft_respirator_layer_1.png"
+    armor.parent.mkdir(parents=True, exist_ok=True)
+    armor.write_bytes(textures.respirator_armor_layer())
     write_json(RESOURCES / "data/rackcraft/tags/blocks/airflow_blocking.json", {
         "replace": False,
         "values": [f"rackcraft:{identifier}" for identifier in sorted(AIRFLOW_BLOCKING)]

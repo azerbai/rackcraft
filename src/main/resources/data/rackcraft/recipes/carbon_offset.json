@@ -1,0 +1,21 @@
+{
+  "ingredients": [
+    {
+      "item": "minecraft:paper"
+    },
+    {
+      "item": "minecraft:paper"
+    },
+    {
+      "item": "minecraft:oak_sapling"
+    },
+    {
+      "item": "minecraft:emerald"
+    }
+  ],
+  "result": {
+    "count": 4,
+    "item": "rackcraft:carbon_offset"
+  },
+  "type": "minecraft:crafting_shapeless"
+}

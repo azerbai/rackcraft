@@ -32,7 +32,7 @@ public final class RackcraftSelfTest {
 
 	private static void run(MinecraftServer server) {
 		int[] failures = {0};
-		check("S0.a", RcBlocks.BLOCKS.size() == 38 && RcItems.ITEMS.size() == 40,
+		check("S0.a", RcBlocks.BLOCKS.size() == 39 && RcItems.ITEMS.size() == 42,
 				"blocks=" + RcBlocks.BLOCKS.size() + " items=" + RcItems.ITEMS.size(), failures);
 		ServerWorld world = server.getOverworld();
 		BlockPos generatorPos = new BlockPos(0, 80, 0);
@@ -338,7 +338,7 @@ public final class RackcraftSelfTest {
 
 		// A contract on the cluster: generate, deliver from the outbox, get paid.
 		var market = dev.rackcraft.compute.ComputeMarket.get(world);
-		market.imageModel.trained = Math.max(market.imageModel.trained, 60);
+		for (var model : market.models(dev.rackcraft.compute.Contract.Kind.IMAGE)) model.trained = Math.max(model.trained, 60);
 		var contract = market.postOffer(world.getTime());
 		contract.kind = dev.rackcraft.compute.Contract.Kind.IMAGE;
 		contract.docType = "image";
@@ -358,14 +358,55 @@ public final class RackcraftSelfTest {
 				"accepted=" + accepted + " generating=" + generating + " state=" + contract.state + " earned=" + contract.earned
 						+ " status=" + contract.status, failures);
 
-		// Training: one queued item almost done finishes on the next step.
-		int trained = market.textModel.trained;
-		market.textModel.queued = 1;
-		market.textModel.progress = dev.rackcraft.compute.AiModel.WORK_PER_ITEM - 0.1;
-		market.textModel.training = true;
+		// Training: one queued item almost done finishes on the next step, and only that model learns.
+		var flash = market.model("gemerald_flash");
+		var pro = market.model("gemerald_pro");
+		int trained = flash.trained;
+		int proTrained = pro.trained;
+		flash.queued = 1;
+		flash.progress = flash.spec.trainWork() - 0.1;
+		flash.training = true;
 		SimTicker.stepNow(world);
-		check("C4.a", market.textModel.trained == trained + 1 && market.textModel.queued == 0,
-				"trained=" + market.textModel.trained + " queued=" + market.textModel.queued, failures);
+		check("C4.a", flash.trained == trained + 1 && flash.queued == 0 && pro.trained == proTrained,
+				"trained=" + flash.trained + " queued=" + flash.queued + " pro=" + pro.trained, failures);
+
+		// Models: Auto picks a fast model for easy work and the Pro for work only it can reach; caps differ.
+		var lite = market.model("gemerald_flash_lite");
+		int[] saved = {lite.trained, flash.trained, pro.trained};
+		lite.trained = 40;
+		flash.trained = 40;
+		pro.trained = 120;
+		var easy = new dev.rackcraft.compute.Contract();
+		easy.kind = dev.rackcraft.compute.Contract.Kind.TEXT;
+		easy.docType = "homework";
+		easy.quality = 40;
+		var hard = new dev.rackcraft.compute.Contract();
+		hard.kind = dev.rackcraft.compute.Contract.Kind.TEXT;
+		hard.docType = "legal";
+		hard.quality = 90;
+		var easyModel = market.modelFor(easy);
+		var hardModel = market.modelFor(hard);
+		check("C7.a", easyModel.spec.cost() < 1 && hardModel == pro && lite.cap() < flash.cap() && flash.cap() < pro.cap()
+						&& market.models().size() == 6,
+				"easy=" + easyModel.versionName() + " hard=" + hardModel.versionName() + " caps=" + lite.cap() + "/" + flash.cap()
+						+ "/" + pro.cap(), failures);
+		lite.trained = saved[0];
+		flash.trained = saved[1];
+		pro.trained = saved[2];
+
+		// Eight bays, one module each: eight GPU Blades fit; a ninth slot never takes a module.
+		ItemStack gpu = new ItemStack(RcItems.ITEMS.get("gpu_blade"));
+		boolean fits = true;
+		for (int slot = 0; slot < 8; slot++) {
+			fits &= rack.isValid(slot, gpu);
+			rack.setStack(slot, gpu.copy());
+		}
+		boolean ninth = rack.isValid(8, gpu);
+		int modules = rack.modules().size();
+		double demand = dev.rackcraft.sim.ServerModel.calculate(rack.modules(), 100, 1, 20, true, true).demandKw();
+		check("C8.a", fits && !ninth && modules == 8 && demand > 20, "fits=" + fits + " ninth=" + ninth + " modules=" + modules
+				+ " demandKw=" + demand, failures);
+		for (int slot = 0; slot < 8; slot++) rack.setStack(slot, new ItemStack(RcItems.ITEMS.get("server_1u")));
 
 		// A kid draws at a stocked art table; a shackled librarian writes at a desk.
 		BlockPos table = origin.add(4, 0, 14);
@@ -413,6 +454,27 @@ public final class RackcraftSelfTest {
 		check("C6.a", smog > 5, "smog=" + smog, failures);
 		air.set(fan, 0);
 		world.setBlockState(fan, Blocks.AIR.getDefaultState());
+
+		// A scrubber cleans its chunk; villagers in choking smog cough and are poisoned.
+		BlockPos scrubber = fan;
+		world.setBlockState(scrubber, RcBlocks.get("smog_scrubber").getDefaultState());
+		air.set(scrubber, 80);
+		var victim = net.minecraft.entity.EntityType.VILLAGER.create(world);
+		victim.refreshPositionAndAngles(scrubber.getX() + 0.5, scrubber.getY(), scrubber.getZ() + 2.5, 0, 0);
+		world.spawnEntity(victim);
+		SimTicker.stepNow(world);
+		air.set(scrubber, 80);
+		air.applyEffectsNextStep();
+		SimTicker.stepNow(world);
+		MachineBlockEntity scrubberEntity = machine(world, scrubber);
+		boolean coughing = victim.hasStatusEffect(RcEffects.COUGHING);
+		boolean poisoned = victim.hasStatusEffect(net.minecraft.entity.effect.StatusEffects.POISON);
+		check("C9.a", scrubberEntity.scrubRate() > 1 && coughing && poisoned, "scrubRate=" + scrubberEntity.scrubRate()
+				+ " coughing=" + coughing + " poisoned=" + poisoned, failures);
+		victim.discard();
+		air.set(scrubber, 0);
+		world.setBlockState(scrubber, Blocks.AIR.getDefaultState());
+		world.setBlockState(scrubber.east(), Blocks.AIR.getDefaultState());
 	}
 
 	/** A pump on fresh water runs a GPU rack and drains the pool from its edge. Finds a non-ocean spot first. */
@@ -500,8 +562,14 @@ public final class RackcraftSelfTest {
 		var scribes = world.getEntitiesByClass(net.minecraft.entity.passive.VillagerEntity.class,
 				new net.minecraft.util.math.Box(new BlockPos(4096, 120, 4096)).expand(2400, 64, 200),
 				villager -> villager.getCommandTags().contains(dev.rackcraft.compute.TrainingStations.SHACKLED_TAG));
-		check("D3.a", scribes.size() >= 3, "shackled librarians in the AI lab and campus=" + scribes.size(), failures);
-		scribes.forEach(net.minecraft.entity.Entity::discard);
+		var kids = world.getEntitiesByClass(net.minecraft.entity.passive.VillagerEntity.class,
+				new net.minecraft.util.math.Box(new BlockPos(4096, 120, 4096)).expand(2400, 64, 200),
+				net.minecraft.entity.passive.VillagerEntity::isBaby);
+		check("D3.a", scribes.size() >= 11 && kids.size() >= 10, "shackled librarians in the AI lab, content mill and campus="
+				+ scribes.size() + ", kids=" + kids.size(), failures);
+		world.getEntitiesByClass(net.minecraft.entity.passive.VillagerEntity.class,
+				new net.minecraft.util.math.Box(new BlockPos(4096, 120, 4096)).expand(2400, 64, 200), entity -> true)
+				.forEach(net.minecraft.entity.Entity::discard);
 		BlockPos found = world.locateStructure(Worldgen.DATA_CENTERS, BlockPos.ORIGIN, 100, false);
 		check("D4.a", found != null, "nearest data center to 0,0: " + found, failures);
 		if (found == null) return;

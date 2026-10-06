@@ -22,6 +22,7 @@ import net.minecraft.server.world.ServerWorld;
 public final class ComputeScheduler {
 	private static final Map<ServerWorld, List<Cluster>> LAST_CLUSTERS = new WeakHashMap<>();
 	private static final Map<ServerWorld, Map<MachineBlockEntity, RackStatus>> LAST_BUSY = new WeakHashMap<>();
+	private static final java.util.Random RANDOM = new java.util.Random();
 
 	private ComputeScheduler() {}
 
@@ -59,10 +60,13 @@ public final class ComputeScheduler {
 				contract.status = "Waiting: press Generate, or deliver finished work";
 				continue;
 			}
-			AiModel model = market.model(contract.kind);
+			AiModel model = market.modelFor(contract);
+			// Work is counted in reference units (a cost-1 model's AI-compute-seconds), so progress carries
+			// over if the contract switches models.
 			double perItem = Contract.workFor(contract.scale(), contract.quality, model.cap());
 			if (Double.isInfinite(perItem)) {
-				contract.status = "Model too weak: " + model.name + " tops out at " + (int) (model.cap() * 100) + "%";
+				contract.status = "Model too weak: " + model.versionName() + " tops out at " + (int) (model.cap() * 100)
+						+ "%. Train it, or pick a bigger model";
 				continue;
 			}
 			List<Cluster> eligible = new ArrayList<>();
@@ -82,12 +86,12 @@ public final class ComputeScheduler {
 				continue;
 			}
 			contract.computeRate = rate;
-			contract.work += rate * dt;
+			contract.work += rate * dt / model.spec.cost();
 			contract.status = "Generating";
 			int wanted = contract.state == Contract.State.STOCK ? 1 : contract.quantity - contract.delivered - pending(market, contract);
 			while (contract.work >= perItem && wanted > 0) {
 				contract.work -= perItem;
-				market.produce(contract, Math.min(100, contract.quality + (int) Math.floor(Math.random() * 3)));
+				market.produce(contract, model.finishedQuality(contract.quality, RANDOM));
 				wanted--;
 			}
 			if (wanted <= 0) {
@@ -103,21 +107,33 @@ public final class ComputeScheduler {
 		return (int) market.outbox().stream().filter(contract::matches).count();
 	}
 
+	/** Models with queued data share the free racks evenly; each trains on its own queue at its own cost per item. */
 	private static void runTraining(ComputeMarket market, List<Cluster> clusters, Map<MachineBlockEntity, RackStatus> busy, double dt) {
 		List<Cluster> eligible = clusters.stream().filter(cluster -> cluster.policy() == Cluster.Policy.AUTO).toList();
-		for (AiModel model : List.of(market.imageModel, market.textModel)) {
+		List<AiModel> learning = new ArrayList<>();
+		for (AiModel model : market.models()) {
 			model.computeRate = 0;
-			if (!model.training || model.queued <= 0) continue;
-			double rate = Cluster.take(eligible, Cluster.Kind.AI, Double.POSITIVE_INFINITY, busy, RackStatus.TRAINING, new ArrayList<>());
+			if (model.training && model.queued > 0) learning.add(model);
+		}
+		if (learning.isEmpty()) return;
+		double free = 0;
+		for (Cluster cluster : eligible) {
+			for (MachineBlockEntity rack : cluster.racks()) if (!busy.containsKey(rack)) free += Cluster.compute(rack, Cluster.Kind.AI);
+		}
+		for (int index = 0; index < learning.size(); index++) {
+			AiModel model = learning.get(index);
+			// The last model takes whatever is left, so no rack sits idle over rounding.
+			double wanted = index == learning.size() - 1 ? Double.POSITIVE_INFINITY : free / learning.size();
+			double rate = Cluster.take(eligible, Cluster.Kind.AI, wanted, busy, RackStatus.TRAINING, new ArrayList<>());
 			model.computeRate = rate;
 			model.progress += rate * dt;
-			while (model.progress >= AiModel.WORK_PER_ITEM && model.queued > 0) {
-				model.progress -= AiModel.WORK_PER_ITEM;
+			while (model.progress >= model.spec.trainWork() && model.queued > 0) {
+				model.progress -= model.spec.trainWork();
 				model.queued--;
 				model.trained++;
 			}
 			if (model.queued == 0) model.progress = 0;
-			market.markDirty();
 		}
+		market.markDirty();
 	}
 }

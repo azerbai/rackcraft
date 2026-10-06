@@ -21,13 +21,28 @@ import net.minecraft.world.PersistentState;
 /**
  * Smog. Exhaust fans dump a data center's waste heat straight outside, and they pollute heavily: each
  * running fan adds smog to its chunk (more the more heat it moves), smog drifts into neighbouring chunks
- * and clears over a few minutes. Levels run 0 to 100. From {@link #HAZY} players get hungry, from
- * {@link #CHOKING} they also feel sick and villagers weaken, and smog dims solar panels by up to 60%.
+ * and clears over a few minutes. Smog Scrubbers pull it back out. Levels run 0 to 100, and breathing it
+ * gets worse in steps:
+ *
+ * <ul>
+ *   <li>over {@link #HAZY} (30): dizziness, a gentle sway of the view (stronger from 60);</li>
+ *   <li>{@link #BLINDING} (45): spells of blindness, more often the thicker it gets;</li>
+ *   <li>{@link #COUGHING} (55): Smoker's Cough, for villagers too;</li>
+ *   <li>{@link #CHOKING} (70): poison and hunger; villagers weaken and are poisoned too;</li>
+ *   <li>{@link #TOXIC} (88): poison II.</li>
+ * </ul>
+ *
+ * A Respirator keeps all of it out while its filter lasts. Smog also dims solar panels by up to 60%.
  */
 public final class AirQuality extends PersistentState {
 	private static final String STATE_KEY = "rackcraft_air";
-	public static final float HAZY = 35;
+	public static final float HAZY = 30;
+	public static final float BLINDING = 45;
+	public static final float COUGHING = 55;
 	public static final float CHOKING = 70;
+	public static final float TOXIC = 88;
+	/** Smog a fully powered scrubber removes from its own chunk per second; half that from each neighbour. */
+	public static final double SCRUB_PER_SECOND = 1.5;
 	private static final double BASE_PER_FAN = 1.2;
 	private static final double PER_KW_REMOVED = 0.6;
 	private static final double CLEAR_SECONDS = 240;
@@ -56,8 +71,12 @@ public final class AirQuality extends PersistentState {
 		markDirty();
 	}
 
-	/** One simulation step: fans pollute, smog drifts and clears, and the air affects whoever breathes it. */
-	public void step(ServerWorld world, Map<MachineBlockEntity, Double> fanHeatRemoved, double dt) {
+	/**
+	 * One simulation step: fans pollute, scrubbers clean, smog drifts and clears, and the air affects whoever
+	 * breathes it. {@code scrubbers} maps each Smog Scrubber to the share of its power it is getting.
+	 */
+	public void step(ServerWorld world, Map<MachineBlockEntity, Double> fanHeatRemoved, Map<MachineBlockEntity, Double> scrubbers,
+			double dt) {
 		fanHeatRemoved.forEach((fan, removed) -> {
 			add(new ChunkPos(fan.getPos()).toLong(), (BASE_PER_FAN + PER_KW_REMOVED * removed) * dt);
 			// A thick column of smoke out of the back of every running fan.
@@ -67,6 +86,19 @@ public final class AirQuality extends PersistentState {
 					1 + (int) Math.round(removed), 0.15, 0.1, 0.15, 0.01);
 			world.spawnParticles(ParticleTypes.LARGE_SMOKE, out.getX() + 0.5, out.getY() + 0.5, out.getZ() + 0.5,
 					2, 0.2, 0.2, 0.2, 0.02);
+		});
+		scrubbers.forEach((scrubber, power) -> {
+			double strength = power >= 0.5 ? power : 0;
+			ChunkPos chunk = new ChunkPos(scrubber.getPos());
+			double removed = take(chunk.toLong(), SCRUB_PER_SECOND * strength * dt);
+			for (int[] offset : new int[][] {{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+				removed += take(ChunkPos.toLong(chunk.x + offset[0], chunk.z + offset[1]), SCRUB_PER_SECOND * 0.5 * strength * dt);
+			}
+			scrubber.setScrubRate(removed / dt);
+			if (removed > 0) {
+				BlockPos top = scrubber.getPos().up();
+				world.spawnParticles(ParticleTypes.CLOUD, top.getX() + 0.5, top.getY() + 0.1, top.getZ() + 0.5, 1, 0.15, 0.05, 0.15, 0.02);
+			}
 		});
 		if (!smog.isEmpty()) {
 			Map<Long, Float> next = new HashMap<>();
@@ -94,6 +126,27 @@ public final class AirQuality extends PersistentState {
 		smog.merge(chunk, (float) amount, (a, b) -> Math.min(100, a + b));
 	}
 
+	/** Removes up to {@code amount} smog from a chunk; returns how much there was to remove. */
+	private double take(long chunk, double amount) {
+		float level = smog.getOrDefault(chunk, 0f);
+		if (level <= 0 || amount <= 0) return 0;
+		double removed = Math.min(level, amount);
+		if (level - removed < 0.25) smog.remove(chunk);
+		else smog.put(chunk, (float) (level - removed));
+		markDirty();
+		return removed;
+	}
+
+	/** Makes the next step apply effects even if it's been under two seconds; for the self-test. */
+	public void applyEffectsNextStep() {
+		effectTick = Long.MIN_VALUE / 2;
+	}
+
+	/** Whether this entity's Respirator is keeping the smog out. */
+	public static boolean filtered(net.minecraft.entity.LivingEntity entity) {
+		return entity.getEquippedStack(net.minecraft.entity.EquipmentSlot.HEAD).isOf(dev.rackcraft.RcItems.ITEMS.get("respirator"));
+	}
+
 	private void breathe(ServerWorld world) {
 		long now = world.getTime();
 		boolean apply = now - effectTick >= 40;
@@ -104,23 +157,46 @@ public final class AirQuality extends PersistentState {
 			int haze = (int) (level / 12);
 			world.spawnParticles(player, ParticleTypes.WHITE_ASH, true, player.getX(), player.getY() + 1.5, player.getZ(),
 					haze * 3, 6, 3, 6, 0.01);
-			if (level >= 45) world.spawnParticles(player, ParticleTypes.SMOKE, true, player.getX(), player.getY() + 1.5,
+			if (level >= BLINDING) world.spawnParticles(player, ParticleTypes.SMOKE, true, player.getX(), player.getY() + 1.5,
 					player.getZ(), haze, 5, 2, 5, 0.005);
-			if (!apply || player.isCreative() || player.isSpectator()) continue;
-			if (level >= HAZY) player.addStatusEffect(new StatusEffectInstance(StatusEffects.HUNGER, 80, level >= CHOKING ? 1 : 0, true, false));
-			if (level >= CHOKING) player.addStatusEffect(new StatusEffectInstance(StatusEffects.NAUSEA, 100, 0, true, false));
+			if (!apply || player.isCreative() || player.isSpectator() || level <= HAZY) continue;
+			if (filtered(player)) {
+				// The filter clogs a little every two seconds in smog, faster the thicker it is.
+				net.minecraft.item.ItemStack mask = player.getEquippedStack(net.minecraft.entity.EquipmentSlot.HEAD);
+				mask.damage(level >= CHOKING ? 2 : 1, player, broken -> broken.sendEquipmentBreakStatus(net.minecraft.entity.EquipmentSlot.HEAD));
+				continue;
+			}
+			breathe(player, level, world.random);
 		}
 		if (!apply) return;
 		smog.forEach((key, level) -> {
-			if (level < CHOKING) return;
+			if (level < COUGHING) return;
 			ChunkPos chunk = new ChunkPos(key);
 			if (!world.isChunkLoaded(chunk.x, chunk.z)) return;
 			var box = new net.minecraft.util.math.Box(chunk.getStartX(), world.getBottomY(), chunk.getStartZ(),
 					chunk.getEndX() + 1, world.getTopY(), chunk.getEndZ() + 1);
 			for (VillagerEntity villager : world.getEntitiesByClass(VillagerEntity.class, box, VillagerEntity::isAlive)) {
+				villager.addStatusEffect(new StatusEffectInstance(dev.rackcraft.RcEffects.COUGHING, 100, 0, true, true));
+				if (level < CHOKING) continue;
 				villager.addStatusEffect(new StatusEffectInstance(StatusEffects.WEAKNESS, 80, 0, true, false));
+				villager.addStatusEffect(new StatusEffectInstance(StatusEffects.POISON, 60, 0, true, false));
 			}
 		});
+	}
+
+	/** What a player breathing this much smog gets, refreshed every two seconds. */
+	static void breathe(ServerPlayerEntity player, float level, net.minecraft.util.math.random.Random random) {
+		player.addStatusEffect(new StatusEffectInstance(dev.rackcraft.RcEffects.DIZZY, 100, level >= 60 ? 1 : 0, true, true));
+		if (level >= BLINDING && random.nextFloat() < 0.08f + (level - BLINDING) / 80f) {
+			player.addStatusEffect(new StatusEffectInstance(StatusEffects.BLINDNESS, 50, 0, true, false));
+		}
+		if (level >= COUGHING) {
+			player.addStatusEffect(new StatusEffectInstance(dev.rackcraft.RcEffects.COUGHING, 100, level >= CHOKING ? 1 : 0, true, true));
+		}
+		if (level >= CHOKING) {
+			player.addStatusEffect(new StatusEffectInstance(StatusEffects.HUNGER, 80, 0, true, false));
+			player.addStatusEffect(new StatusEffectInstance(StatusEffects.POISON, 100, level >= TOXIC ? 1 : 0, true, true));
+		}
 	}
 
 	@Override

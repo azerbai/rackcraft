@@ -51,6 +51,15 @@ public final class MachineStatusScreen extends RackcraftHandledScreen {
 			line(context, String.format(java.util.Locale.ROOT, "Cooling %.1f of %d units in use", stat(Stat.PUMP_USED) / 10.0,
 					stat(Stat.PUMP_UNITS)), 12, 44, TEXT);
 			line(context, stat(Stat.PUMP_SOURCES) + " water source blocks within reach", 12, 56, MUTED);
+		} else if (id.equals("smog_scrubber")) {
+			int satisfaction = stat(Stat.SATISFACTION);
+			double rate = stat(Stat.SCRUB_RATE) / 100.0;
+			double smog = stat(Stat.SMOG) / 10.0;
+			line(context, satisfaction < 50 ? "Off: needs power" : rate > 0 ? "Scrubbing" : "Idle: the air here is clean",
+					12, 30, satisfaction < 50 ? BAD : rate > 0 ? GOOD : MUTED);
+			line(context, String.format(java.util.Locale.ROOT, "Removing %.2f smog/s, draw %s", rate, kw(power)), 12, 44, TEXT);
+			line(context, String.format(java.util.Locale.ROOT, "Smog in this chunk: %.1f", smog),
+					12, 56, smog >= 55 ? BAD : smog > 30 ? WARN : MUTED);
 		} else if (id.equals("pdu")) {
 			boolean live = stat(Stat.NETWORK_CAPACITY) > 0;
 			line(context, live ? "Energised" : "Dead: no power source on this network", 12, 30, live ? GOOD : BAD);

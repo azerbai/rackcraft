@@ -1,0 +1,51 @@
+{
+  "elements": [
+    {
+      "faces": {
+        "down": {
+          "cullface": "down",
+          "texture": "#bottom"
+        },
+        "east": {
+          "cullface": "east",
+          "texture": "#side"
+        },
+        "north": {
+          "cullface": "north",
+          "texture": "#front"
+        },
+        "south": {
+          "cullface": "south",
+          "texture": "#back"
+        },
+        "up": {
+          "cullface": "up",
+          "texture": "#top"
+        },
+        "west": {
+          "cullface": "west",
+          "texture": "#side"
+        }
+      },
+      "from": [
+        0,
+        0,
+        0
+      ],
+      "to": [
+        16,
+        16,
+        16
+      ]
+    }
+  ],
+  "parent": "minecraft:block/block",
+  "textures": {
+    "back": "rackcraft:block/smog_scrubber_back",
+    "bottom": "rackcraft:block/smog_scrubber_bottom",
+    "front": "rackcraft:block/smog_scrubber_front_on",
+    "particle": "rackcraft:block/smog_scrubber_side",
+    "side": "rackcraft:block/smog_scrubber_side",
+    "top": "rackcraft:block/smog_scrubber_top"
+  }
+}

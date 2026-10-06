@@ -179,7 +179,7 @@ public final class SimTicker {
 					satisfaction.getOrDefault(rack, 0.0), inlet, hasCdu, watered.contains(rack));
 			if (satisfaction.getOrDefault(rack, 0.0) < 0.5) rack.setTripped(true);
 			if (rack.isTripped() && inlet < 32 && result.thermalFactor() > 0) rack.setTripped(false);
-			if (rack.isTripped()) result = new ServerModel.RackStep(result.usedUnits(), result.demandKw(),
+			if (rack.isTripped()) result = new ServerModel.RackStep(result.usedBays(), result.demandKw(),
 					0, 0, result.thermalFactor(), result.quantumBlocked(), result.tripped(), result.waterBlocked());
 			rackSteps.put(rack, result);
 			depositAcross(heat, exhaustCells, result.demandKw(), dt);
@@ -190,7 +190,12 @@ public final class SimTicker {
 		updateLitStates(world, machines, satisfaction, sourceOutput, energized, networks);
 		stepStorage(world, machines, heat, satisfaction, dt);
 		TrainingStations.step(world, machines, dt);
-		AirQuality.get(world).step(world, fanHeat, dt);
+		if (world.getTime() % 10 < Math.max(1, RackcraftConfig.values.sim.stepTicks)) TrainingStations.syncShackles(world, machines);
+		Map<MachineBlockEntity, Double> scrubbers = new HashMap<>();
+		for (MachineBlockEntity machine : machines) {
+			if (machine.blockId().equals("smog_scrubber")) scrubbers.put(machine, satisfaction.getOrDefault(machine, 0.0));
+		}
+		AirQuality.get(world).step(world, fanHeat, scrubbers, dt);
 		applyMachineHeat(world, machines, heat, dt);
 		heat.step(dt, false);
 		pinCreativeCoolers(world, machines, heat);
@@ -299,6 +304,7 @@ public final class SimTicker {
 			case "tape_library" -> 0.3;
 			case "wireless_transmitter" -> TransmitterUpgrades.drawKw(machine.transmitterLevel());
 			case "freshwater_pump" -> 1.5;
+			case "smog_scrubber" -> 6;
 			default -> 0;
 		};
 	}

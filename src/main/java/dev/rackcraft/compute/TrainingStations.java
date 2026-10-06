@@ -53,6 +53,32 @@ public final class TrainingStations {
 		}
 	}
 
+	/** Packet: every shackled librarian near a player and the desk they're chained to, so the client can draw the chain. */
+	public static final net.minecraft.util.Identifier SHACKLES = dev.rackcraft.Rackcraft.id("shackles");
+	private static final double CHAIN_SYNC_RANGE = 64;
+
+	/** Sends each player the chains within range: villager entity id, desk position and the side the chain leaves. */
+	public static void syncShackles(ServerWorld world, List<MachineBlockEntity> machines) {
+		List<Object[]> chains = new java.util.ArrayList<>();
+		for (MachineBlockEntity machine : machines) {
+			if (!machine.blockId().equals("writing_desk") || machine.boundVillager() == null) continue;
+			if (!(world.getEntity(machine.boundVillager()) instanceof VillagerEntity villager) || !villager.isAlive()) continue;
+			chains.add(new Object[] {villager.getId(), machine.getPos(), machine.getCachedState().get(MachineBlock.FACING)});
+		}
+		for (net.minecraft.server.network.ServerPlayerEntity player : world.getPlayers()) {
+			net.minecraft.network.PacketByteBuf buf = net.fabricmc.fabric.api.networking.v1.PacketByteBufs.create();
+			List<Object[]> near = chains.stream()
+					.filter(chain -> ((BlockPos) chain[1]).isWithinDistance(player.getPos(), CHAIN_SYNC_RANGE)).toList();
+			buf.writeVarInt(near.size());
+			for (Object[] chain : near) {
+				buf.writeVarInt((Integer) chain[0]);
+				buf.writeBlockPos((BlockPos) chain[1]);
+				buf.writeEnumConstant((Direction) chain[2]);
+			}
+			net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, SHACKLES, buf);
+		}
+	}
+
 	public static boolean active(MachineBlockEntity machine) {
 		return machine.workers() > 0 && !machine.getStack(0).isEmpty() && !machine.getStack(1).isEmpty();
 	}
