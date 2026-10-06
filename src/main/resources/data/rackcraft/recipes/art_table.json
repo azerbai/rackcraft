@@ -1,0 +1,23 @@
+{
+  "key": {
+    "D": {
+      "item": "minecraft:red_dye"
+    },
+    "P": {
+      "item": "minecraft:paper"
+    },
+    "W": {
+      "tag": "minecraft:planks"
+    }
+  },
+  "pattern": [
+    "PDP",
+    "WWW",
+    "W W"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:art_table"
+  },
+  "type": "minecraft:crafting_shaped"
+}

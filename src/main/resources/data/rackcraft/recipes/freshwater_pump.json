@@ -1,0 +1,29 @@
+{
+  "key": {
+    "B": {
+      "item": "minecraft:bucket"
+    },
+    "C": {
+      "item": "rackcraft:circuit_board"
+    },
+    "P": {
+      "item": "rackcraft:coolant_pipe"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    },
+    "W": {
+      "item": "rackcraft:copper_wire"
+    }
+  },
+  "pattern": [
+    "SBS",
+    "PCP",
+    "SWS"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:freshwater_pump"
+  },
+  "type": "minecraft:crafting_shaped"
+}

@@ -1,6 +1,7 @@
 {
   "replace": false,
   "values": [
+    "rackcraft:art_table",
     "rackcraft:blanking_panel",
     "rackcraft:cdu",
     "rackcraft:cooling_tower",
@@ -8,12 +9,14 @@
     "rackcraft:creative_cooler",
     "rackcraft:creative_rack",
     "rackcraft:exhaust_fan",
+    "rackcraft:freshwater_pump",
     "rackcraft:modular_reactor",
     "rackcraft:raised_floor_tile",
     "rackcraft:server_rack",
     "rackcraft:solar_panel",
     "rackcraft:storage_array",
     "rackcraft:tape_library",
-    "rackcraft:wind_turbine"
+    "rackcraft:wind_turbine",
+    "rackcraft:writing_desk"
   ]
 }

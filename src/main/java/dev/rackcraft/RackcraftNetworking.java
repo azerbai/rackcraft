@@ -62,6 +62,7 @@ public final class RackcraftNetworking {
 			});
 		});
 		dev.rackcraft.storage.TerminalScreenHandler.registerServer();
+		dev.rackcraft.compute.OpsScreenHandler.registerServer();
 		ServerPlayNetworking.registerGlobalReceiver(UPGRADE_TRANSMITTER, (server, player, handler, buf, responseSender) -> {
 			BlockPos pos = buf.readBlockPos();
 			boolean withRackCoin = buf.readBoolean();

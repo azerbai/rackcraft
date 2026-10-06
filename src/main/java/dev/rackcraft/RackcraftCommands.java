@@ -5,12 +5,16 @@ import com.mojang.brigadier.arguments.DoubleArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
-import dev.rackcraft.world.DataCenterLocator;
 import dev.rackcraft.world.FacilityManager;
 import dev.rackcraft.world.SimTicker;
+import dev.rackcraft.world.structure.DataCenterLayouts;
 import java.util.List;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.minecraft.registry.RegistryKey;
+import net.minecraft.registry.RegistryKeys;
+import net.minecraft.registry.entry.RegistryEntryList;
 import net.minecraft.server.command.ServerCommandSource;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.ClickEvent;
 import net.minecraft.text.HoverEvent;
 import net.minecraft.text.Text;
@@ -42,41 +46,85 @@ public final class RackcraftCommands {
 		root.then(facilityCommand());
 		root.then(simCommand());
 		root.then(locateCommand());
-		root.then(literal("structure").then(literal("datacenter").executes(context -> {
-			var source = context.getSource();
-			BlockPos origin = BlockPos.ofFloored(source.getPosition()).add(-4, 0, 1);
-			dev.rackcraft.world.AbandonedDataCenterFeature.place(source.getWorld(), origin, source.getWorld().getRandom(), true);
-			source.sendFeedback(() -> Text.literal("Placed an abandoned data center at " + origin.toShortString()), true);
-			return 1;
-		})));
+		root.then(structureCommand());
+		root.then(contractsCommand());
 		dispatcher.register(root);
 	}
 
+	private static final com.mojang.brigadier.suggestion.SuggestionProvider<ServerCommandSource> VARIANTS = (context, builder) ->
+			net.minecraft.command.CommandSource.suggestMatching(DataCenterLayouts.all().keySet(), builder);
+
 	private static LiteralArgumentBuilder<ServerCommandSource> locateCommand() {
 		return literal("locate").then(literal("datacenter")
-				.executes(context -> locateDataCenter(context.getSource(), DEFAULT_LOCATE_RADIUS))
-				.then(argument("radius", IntegerArgumentType.integer(1, 500))
-						.executes(context -> locateDataCenter(context.getSource(),
-								IntegerArgumentType.getInteger(context, "radius")))));
+				.executes(context -> locateDataCenter(context.getSource(), null, DEFAULT_LOCATE_RADIUS))
+				.then(argument("variant", StringArgumentType.word()).suggests(VARIANTS)
+						.executes(context -> locateDataCenter(context.getSource(), StringArgumentType.getString(context, "variant"),
+								DEFAULT_LOCATE_RADIUS))
+						.then(argument("radius", IntegerArgumentType.integer(1, 500))
+								.executes(context -> locateDataCenter(context.getSource(), StringArgumentType.getString(context, "variant"),
+										IntegerArgumentType.getInteger(context, "radius"))))));
 	}
 
-	private static int locateDataCenter(ServerCommandSource source, int radius) {
+	/** Finds the nearest abandoned data center (or one variant), without generating chunks: like /locate structure. */
+	private static int locateDataCenter(ServerCommandSource source, String variant, int radius) {
+		ServerWorld world = source.getWorld();
 		BlockPos from = BlockPos.ofFloored(source.getPosition());
-		var found = DataCenterLocator.nearest(source.getWorld(), from, radius);
-		if (found.isEmpty()) {
+		BlockPos site;
+		if (variant == null || variant.equals("any")) {
+			site = world.locateStructure(Worldgen.DATA_CENTERS, from, radius, false);
+		} else {
+			var registry = world.getRegistryManager().get(RegistryKeys.STRUCTURE);
+			var entry = registry.getEntry(RegistryKey.of(RegistryKeys.STRUCTURE, Rackcraft.id(variant)));
+			if (entry.isEmpty()) {
+				source.sendError(Text.literal("Unknown data center: " + variant + ". Try one of " + String.join(", ", DataCenterLayouts.all().keySet())));
+				return 0;
+			}
+			var found = world.getChunkManager().getChunkGenerator().locateStructure(world, RegistryEntryList.of(entry.get()), from, radius, false);
+			site = found == null ? null : found.getFirst();
+		}
+		if (site == null) {
 			source.sendError(Text.literal("No abandoned data center within " + radius + " chunks"));
 			return 0;
 		}
-		BlockPos site = found.get();
 		int distance = (int) Math.round(Math.sqrt(site.getSquaredDistance(from.getX(), site.getY(), from.getZ())));
-		Text coordinates = Texts.bracketed(Text.translatable("chat.coordinates", site.getX(), site.getY(), site.getZ()))
+		Text coordinates = Texts.bracketed(Text.translatable("chat.coordinates", site.getX(), "~", site.getZ()))
 				.styled(style -> style.withColor(Formatting.GREEN)
 						.withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND,
-								"/tp @s " + site.getX() + " " + site.getY() + " " + site.getZ()))
+								"/tp @s " + site.getX() + " ~ " + site.getZ()))
 						.withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.translatable("chat.coordinates.tooltip"))));
-		source.sendFeedback(() -> Text.literal("The nearest abandoned data center is at ").append(coordinates)
+		String name = variant == null ? "abandoned data center" : variant.replace('_', ' ');
+		source.sendFeedback(() -> Text.literal("The nearest " + name + " is at ").append(coordinates)
 				.append(" (" + distance + " blocks away)"), false);
 		return distance;
+	}
+
+	private static LiteralArgumentBuilder<ServerCommandSource> structureCommand() {
+		return literal("structure")
+				// The original command: the tutorial site in front of you.
+				.then(literal("datacenter").executes(context -> placeDataCenter(context.getSource(), "site_7")))
+				.then(literal("place").then(argument("variant", StringArgumentType.word()).suggests(VARIANTS)
+						.executes(context -> placeDataCenter(context.getSource(), StringArgumentType.getString(context, "variant")))));
+	}
+
+	private static int placeDataCenter(ServerCommandSource source, String variant) {
+		BlockPos origin = BlockPos.ofFloored(source.getPosition()).add(-4, -1, 1);
+		if (!dev.rackcraft.world.structure.DataCenterPiece.buildNow(source.getWorld(), variant, origin,
+				net.minecraft.util.BlockRotation.NONE, source.getWorld().getRandom().nextLong())) {
+			source.sendError(Text.literal("Unknown data center: " + variant + ". Try one of " + String.join(", ", DataCenterLayouts.all().keySet())));
+			return 0;
+		}
+		source.sendFeedback(() -> Text.literal("Placed " + variant.replace('_', ' ') + " at " + origin.toShortString()), true);
+		return 1;
+	}
+
+	/** /rackcraft contracts offer: post a contract offer right away instead of waiting for the next one. */
+	private static LiteralArgumentBuilder<ServerCommandSource> contractsCommand() {
+		return literal("contracts").then(literal("offer").executes(context -> {
+			ServerWorld world = context.getSource().getWorld();
+			var contract = dev.rackcraft.compute.ComputeMarket.get(world).postOffer(world.getTime());
+			context.getSource().sendFeedback(() -> Text.literal("Posted: " + contract.title() + " for " + contract.payout + " RC"), false);
+			return 1;
+		}));
 	}
 
 	private static LiteralArgumentBuilder<ServerCommandSource> creditsCommand() {

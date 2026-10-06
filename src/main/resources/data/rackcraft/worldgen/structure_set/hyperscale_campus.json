@@ -1,0 +1,14 @@
+{
+  "placement": {
+    "salt": 20761124,
+    "separation": 28,
+    "spacing": 72,
+    "type": "minecraft:random_spread"
+  },
+  "structures": [
+    {
+      "structure": "rackcraft:hyperscale_campus",
+      "weight": 1
+    }
+  ]
+}

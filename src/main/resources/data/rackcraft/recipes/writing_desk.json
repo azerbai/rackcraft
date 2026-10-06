@@ -1,0 +1,26 @@
+{
+  "key": {
+    "B": {
+      "item": "minecraft:book"
+    },
+    "F": {
+      "item": "minecraft:feather"
+    },
+    "I": {
+      "item": "minecraft:ink_sac"
+    },
+    "W": {
+      "tag": "minecraft:planks"
+    }
+  },
+  "pattern": [
+    "BIF",
+    "WWW",
+    "W W"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:writing_desk"
+  },
+  "type": "minecraft:crafting_shaped"
+}

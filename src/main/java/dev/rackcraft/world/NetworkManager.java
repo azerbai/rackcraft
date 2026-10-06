@@ -59,6 +59,11 @@ public final class NetworkManager {
 		return nodes.get(kind).stream().filter(this::isConnected).collect(java.util.stream.Collectors.toUnmodifiableSet());
 	}
 
+	/** Cut cables of this kind: they are registered but carry nothing until repaired. */
+	public Set<BlockPos> cutCables(NetKind kind) {
+		return nodes.get(kind).stream().filter(pos -> !isConnected(pos)).collect(java.util.stream.Collectors.toUnmodifiableSet());
+	}
+
 	public java.util.List<Set<BlockPos>> components(NetKind kind) {
 		rebuildIfDirty();
 		return graphs.get(kind).components();

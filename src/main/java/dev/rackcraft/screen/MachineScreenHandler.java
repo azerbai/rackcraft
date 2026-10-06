@@ -83,6 +83,11 @@ public final class MachineScreenHandler extends ScreenHandler {
 		} else if (mode == Mode.TAPE_LIBRARY) {
 			for (int index = 0; index < 4; index++) addSlot(new MachineSlot(machineInventory, index, 8 + index * 22, 24));
 			addPlayerInventory(playerInventory, 8, 102);
+		} else if (mode == Mode.WORKSTATION) {
+			addSlot(new MachineSlot(machineInventory, 0, 26, 40));
+			addSlot(new MachineSlot(machineInventory, 1, 50, 40));
+			addSlot(new MachineSlot(machineInventory, 2, 134, 40));
+			addPlayerInventory(playerInventory, 8, 102);
 		} else if (mode == Mode.SINGLE_SLOT) {
 			addSlot(new MachineSlot(machineInventory, 0, 80, 42));
 			addPlayerInventory(playerInventory, 8, 92);
@@ -161,6 +166,17 @@ public final class MachineScreenHandler extends ScreenHandler {
 			case Stat.TOTAL_RACKS -> facility != null ? facility.totalRacks() : 0;
 			case Stat.NETWORK_CAPACITY -> tenths(machine.networkCapacityKw());
 			case Stat.TRANSMITTER_LEVEL -> machine.transmitterLevel();
+			case Stat.WORKERS -> machine.workers();
+			case Stat.WORK_PROGRESS -> (int) Math.round(machine.workProgress() * 100);
+			case Stat.ITEMS_MADE -> machine.itemsMade();
+			case Stat.TOOL_USES -> machine.toolUses();
+			case Stat.BOUND -> machine.boundVillager() != null ? 1 : 0;
+			case Stat.PUMP_SOURCES -> machine.pumpSources();
+			case Stat.PUMP_UNITS -> machine.pumpUnits();
+			case Stat.PUMP_STATUS -> machine.pumpStatus();
+			case Stat.PUMP_USED -> tenths(machine.pumpUsed());
+			case Stat.SMOG -> machine.getWorld() instanceof ServerWorld world
+					? tenths(dev.rackcraft.world.AirQuality.get(world).smogAt(machine.getPos())) : 0;
 			default -> 0;
 		};
 	}
@@ -191,7 +207,17 @@ public final class MachineScreenHandler extends ScreenHandler {
 		public static final int TOTAL_RACKS = 17;
 		public static final int NETWORK_CAPACITY = 18;  // tenths of kW
 		public static final int TRANSMITTER_LEVEL = 19;
-		static final int COUNT = 20;
+		public static final int WORKERS = 20;           // villagers at an art table or desk
+		public static final int WORK_PROGRESS = 21;     // percent toward the next drawing or corpus
+		public static final int ITEMS_MADE = 22;        // drawings toward the next aggregate
+		public static final int TOOL_USES = 23;         // corpora written on the current ink sac
+		public static final int BOUND = 24;             // 1 if a desk has a shackled librarian
+		public static final int PUMP_SOURCES = 25;
+		public static final int PUMP_UNITS = 26;
+		public static final int PUMP_STATUS = 27;       // FreshwaterCooling.PumpStatus ordinal
+		public static final int PUMP_USED = 28;         // tenths of a unit
+		public static final int SMOG = 29;              // tenths
+		static final int COUNT = 30;
 
 		private Stat() {}
 	}
@@ -199,5 +225,5 @@ public final class MachineScreenHandler extends ScreenHandler {
 	public String activeEvent() { return activeEvent; }
 
 	public enum Mode { RACK, SINGLE_SLOT, MACHINE_STATUS, CONTROLLER, MONITOR_WALL, EXCHANGE, CREATIVE,
-		STORAGE_ARRAY, TAPE_LIBRARY, TRANSMITTER }
+		STORAGE_ARRAY, TAPE_LIBRARY, TRANSMITTER, WORKSTATION }
 }

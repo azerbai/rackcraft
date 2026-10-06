@@ -1,0 +1,236 @@
+{
+  "pools": [
+    {
+      "entries": [
+        {
+          "functions": [
+            {
+              "count": {
+                "max": 20,
+                "min": 6,
+                "type": "minecraft:uniform"
+              },
+              "function": "minecraft:set_count"
+            }
+          ],
+          "name": "minecraft:paper",
+          "type": "minecraft:item",
+          "weight": 4
+        },
+        {
+          "functions": [
+            {
+              "count": {
+                "max": 2,
+                "min": 1,
+                "type": "minecraft:uniform"
+              },
+              "function": "minecraft:set_count"
+            }
+          ],
+          "name": "minecraft:book",
+          "type": "minecraft:item",
+          "weight": 2
+        },
+        {
+          "functions": [
+            {
+              "count": {
+                "max": 6,
+                "min": 2,
+                "type": "minecraft:uniform"
+              },
+              "function": "minecraft:set_count"
+            }
+          ],
+          "name": "minecraft:cookie",
+          "type": "minecraft:item",
+          "weight": 2
+        },
+        {
+          "name": "rackcraft:field_manual",
+          "type": "minecraft:item",
+          "weight": 2
+        },
+        {
+          "name": "rackcraft:multimeter",
+          "type": "minecraft:item",
+          "weight": 2
+        },
+        {
+          "name": "rackcraft:repair_kit",
+          "type": "minecraft:item",
+          "weight": 3
+        },
+        {
+          "functions": [
+            {
+              "count": {
+                "max": 2,
+                "min": 1,
+                "type": "minecraft:uniform"
+              },
+              "function": "minecraft:set_count"
+            }
+          ],
+          "name": "rackcraft:ram_module",
+          "type": "minecraft:item",
+          "weight": 2
+        },
+        {
+          "functions": [
+            {
+              "count": {
+                "max": 4,
+                "min": 1,
+                "type": "minecraft:uniform"
+              },
+              "function": "minecraft:set_count"
+            }
+          ],
+          "name": "minecraft:emerald",
+          "type": "minecraft:item",
+          "weight": 2
+        },
+        {
+          "functions": [
+            {
+              "function": "minecraft:set_nbt",
+              "tag": "{Kind:\"homework\",Prompt:\"the water cycle (Nether edition)\",Quality:90,Model:\"Large Librarian Model v3.1\"}"
+            }
+          ],
+          "name": "rackcraft:generated_document",
+          "type": "minecraft:item",
+          "weight": 1
+        },
+        {
+          "functions": [
+            {
+              "function": "minecraft:set_nbt",
+              "tag": "{Kind:\"essay\",Prompt:\"five hundred words about gravel\",Quality:57,Model:\"Large Librarian Model v3.1\"}"
+            }
+          ],
+          "name": "rackcraft:generated_document",
+          "type": "minecraft:item",
+          "weight": 1
+        },
+        {
+          "functions": [
+            {
+              "function": "minecraft:set_nbt",
+              "tag": "{Kind:\"legal\",Prompt:\"a lease for a dirt hut\",Quality:64,Model:\"Large Librarian Model v3.1\"}"
+            }
+          ],
+          "name": "rackcraft:generated_document",
+          "type": "minecraft:item",
+          "weight": 1
+        },
+        {
+          "functions": [
+            {
+              "function": "minecraft:set_nbt",
+              "tag": "{Kind:\"cover_letter\",Prompt:\"a villager applying for any job but librarian\",Quality:71,Model:\"Large Librarian Model v3.1\"}"
+            }
+          ],
+          "name": "rackcraft:generated_document",
+          "type": "minecraft:item",
+          "weight": 1
+        },
+        {
+          "functions": [
+            {
+              "function": "minecraft:set_nbt",
+              "tag": "{Kind:\"tos\",Prompt:\"Steve's minecart rentals\",Quality:78,Model:\"Large Librarian Model v3.1\"}"
+            }
+          ],
+          "name": "rackcraft:generated_document",
+          "type": "minecraft:item",
+          "weight": 1
+        },
+        {
+          "functions": [
+            {
+              "function": "minecraft:set_nbt",
+              "tag": "{Kind:\"patch_notes\",Prompt:\"reality\",Quality:85,Model:\"Large Librarian Model v3.1\"}"
+            }
+          ],
+          "name": "rackcraft:generated_document",
+          "type": "minecraft:item",
+          "weight": 1
+        },
+        {
+          "functions": [
+            {
+              "function": "minecraft:set_nbt",
+              "tag": "{Kind:\"homework\",Prompt:\"the water cycle (Nether edition)\",Quality:90,Model:\"Large Librarian Model v3.1\"}"
+            }
+          ],
+          "name": "rackcraft:generated_document",
+          "type": "minecraft:item",
+          "weight": 1
+        },
+        {
+          "functions": [
+            {
+              "function": "minecraft:set_nbt",
+              "tag": "{Kind:\"essay\",Prompt:\"five hundred words about gravel\",Quality:57,Model:\"Large Librarian Model v3.1\"}"
+            }
+          ],
+          "name": "rackcraft:generated_document",
+          "type": "minecraft:item",
+          "weight": 1
+        },
+        {
+          "functions": [
+            {
+              "function": "minecraft:set_nbt",
+              "tag": "{Kind:\"legal\",Prompt:\"a lease for a dirt hut\",Quality:64,Model:\"Large Librarian Model v3.1\"}"
+            }
+          ],
+          "name": "rackcraft:generated_document",
+          "type": "minecraft:item",
+          "weight": 1
+        },
+        {
+          "functions": [
+            {
+              "function": "minecraft:set_nbt",
+              "tag": "{Kind:\"cover_letter\",Prompt:\"a villager applying for any job but librarian\",Quality:71,Model:\"Large Librarian Model v3.1\"}"
+            }
+          ],
+          "name": "rackcraft:generated_document",
+          "type": "minecraft:item",
+          "weight": 1
+        },
+        {
+          "functions": [
+            {
+              "function": "minecraft:set_nbt",
+              "tag": "{Kind:\"tos\",Prompt:\"Steve's minecart rentals\",Quality:78,Model:\"Large Librarian Model v3.1\"}"
+            }
+          ],
+          "name": "rackcraft:generated_document",
+          "type": "minecraft:item",
+          "weight": 1
+        },
+        {
+          "functions": [
+            {
+              "function": "minecraft:set_nbt",
+              "tag": "{Kind:\"patch_notes\",Prompt:\"reality\",Quality:85,Model:\"Large Librarian Model v3.1\"}"
+            }
+          ],
+          "name": "rackcraft:generated_document",
+          "type": "minecraft:item",
+          "weight": 1
+        }
+      ],
+      "rolls": {
+        "max": 7,
+        "min": 4,
+        "type": "minecraft:uniform"
+      }
+    }
+  ],
+  "type": "minecraft:chest"
+}

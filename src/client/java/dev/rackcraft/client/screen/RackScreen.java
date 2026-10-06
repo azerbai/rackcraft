@@ -31,7 +31,8 @@ public final class RackScreen extends RackcraftHandledScreen {
 	@Override
 	protected void drawDashboard(DrawContext context) {
 		RackStatus status = RackStatus.byOrdinal(stat(Stat.RACK_STATUS));
-		int color = status == RackStatus.MINING ? GOOD : status.mining() || status == RackStatus.CRAFTING ? WARN : BAD;
+		int color = status == RackStatus.MINING || status == RackStatus.GENERATING ? GOOD
+				: status.mining() || status == RackStatus.CRAFTING || status == RackStatus.TRAINING ? WARN : BAD;
 		Text headline = Text.translatable(status.translationKey(), coins(stat(Stat.MINING_RATE)));
 		context.drawText(textRenderer, headline, 102, 31, color, false);
 		wrapped(context, Text.translatable(status.hintKey()), 102, 43, 146, MUTED);

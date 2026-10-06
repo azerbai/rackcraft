@@ -5,29 +5,59 @@ import java.util.List;
 public final class ServerModel {
 	private ServerModel() {}
 
+	/**
+	 * Rack modules. Besides mining, each lends general compute (autocrafting) and AI compute (contract
+	 * generation and model training). AI compute is priced so general hardware earns a little more on
+	 * contracts than mining, and the Tensor Accelerator, which cannot mine, earns about a third more per U.
+	 */
 	public enum Module {
-		PI_NODE(1, 0.05, 0.15, 0.5),
-		SERVER_1U(1, 0.2, 0.6, 2),
-		ASIC_MINER(1, 0.4, 1.2, 5),
-		GPU_BLADE(2, 1, 3, 12),
-		QUANTUM_CORE(4, 3, 9, 60);
+		PI_NODE("pi_node", 1, 0.05, 0.15, 0.5, 1, 0.4, 0),
+		SERVER_1U("server_1u", 1, 0.2, 0.6, 2, 2, 1.6, 0),
+		ASIC_MINER("asic_miner", 1, 0.4, 1.2, 5, 0, 0, 1),
+		GPU_BLADE("gpu_blade", 2, 1, 3, 12, 6, 10, 2),
+		QUANTUM_CORE("quantum_core", 4, 3, 9, 60, 20, 50, 4),
+		TENSOR_ACCELERATOR("tensor_accelerator", 2, 0.8, 2.6, 0, 3, 12, 2);
 
+		private final String itemId;
 		private final int units;
 		private final double idleKw;
 		private final double maxKw;
 		private final double creditsPerSecond;
+		private final double compute;
+		private final double aiCompute;
+		private final int waterUnits;
 
-		Module(int units, double idleKw, double maxKw, double creditsPerSecond) {
+		Module(String itemId, int units, double idleKw, double maxKw, double creditsPerSecond, double compute, double aiCompute,
+				int waterUnits) {
+			this.itemId = itemId;
 			this.units = units;
 			this.idleKw = idleKw;
 			this.maxKw = maxKw;
 			this.creditsPerSecond = creditsPerSecond;
+			this.compute = compute;
+			this.aiCompute = aiCompute;
+			this.waterUnits = waterUnits;
 		}
 
+		public String itemId() { return itemId; }
 		public int units() { return units; }
 		public double idleKw() { return idleKw; }
 		public double maxKw() { return maxKw; }
 		public double creditsPerSecond() { return creditsPerSecond; }
+		/** General compute lent to autocrafting jobs, at full load. */
+		public double compute() { return compute; }
+		/** AI compute lent to contract generation and model training, at full load. */
+		public double aiCompute() { return aiCompute; }
+		/**
+		 * Freshwater cooling this module needs from a Freshwater Pump on the rack's coolant network. Tier 3 and
+		 * up (ASIC Miners, GPU Blades, Tensor Accelerators, Quantum Cores) need it; Pi Nodes and 1U Servers don't.
+		 */
+		public int waterUnits() { return waterUnits; }
+
+		public static Module byItemId(String itemId) {
+			for (Module module : values()) if (module.itemId.equals(itemId)) return module;
+			return null;
+		}
 	}
 
 	public static double thermalFactor(double inletCelsius) {
@@ -37,21 +67,32 @@ public final class ServerModel {
 		return 0;
 	}
 
+	public static int waterUnits(List<Module> modules) {
+		return modules.stream().mapToInt(Module::waterUnits).sum();
+	}
+
 	public static RackStep calculate(List<Module> modules, int loadLimitPercent,
 			double powerSatisfaction, double inletCelsius, boolean quantumHasCdu) {
+		return calculate(modules, loadLimitPercent, powerSatisfaction, inletCelsius, quantumHasCdu, true);
+	}
+
+	/** {@code waterSupplied}: whether the rack's freshwater cooling is met; water-cooled racks stop without it. */
+	public static RackStep calculate(List<Module> modules, int loadLimitPercent,
+			double powerSatisfaction, double inletCelsius, boolean quantumHasCdu, boolean waterSupplied) {
 		int usedUnits = modules.stream().mapToInt(Module::units).sum();
 		if (usedUnits > 8) throw new IllegalArgumentException("Rack capacity is 8 U");
 		boolean quantumBlocked = modules.contains(Module.QUANTUM_CORE) && !quantumHasCdu;
 		double thermal = thermalFactor(inletCelsius);
 		double power = clamp(powerSatisfaction, 0, 1);
 		double load = clamp(loadLimitPercent / 100.0, 0, 1) * power * thermal;
-		if (power < 0.5 || thermal == 0 || quantumBlocked) load = 0;
+		boolean waterBlocked = !waterSupplied && waterUnits(modules) > 0;
+		if (power < 0.5 || thermal == 0 || quantumBlocked || waterBlocked) load = 0;
 		final double effectiveLoad = load;
 		double demandKw = modules.stream().mapToDouble(module -> module.idleKw()
 				+ (module.maxKw() - module.idleKw()) * effectiveLoad).sum();
 		double creditsPerSecond = modules.stream().mapToDouble(Module::creditsPerSecond).sum() * effectiveLoad;
 		return new RackStep(usedUnits, demandKw, creditsPerSecond, load, thermal,
-				quantumBlocked, inletCelsius >= 40);
+				quantumBlocked, inletCelsius >= 40, waterBlocked);
 	}
 
 	private static double clamp(double value, double minimum, double maximum) {
@@ -59,5 +100,5 @@ public final class ServerModel {
 	}
 
 	public record RackStep(int usedUnits, double demandKw, double creditsPerSecond,
-			double load, double thermalFactor, boolean quantumBlocked, boolean tripped) {}
+			double load, double thermalFactor, boolean quantumBlocked, boolean tripped, boolean waterBlocked) {}
 }

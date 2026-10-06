@@ -1,0 +1,17 @@
+{
+  "replace": false,
+  "values": [
+    "rackcraft:site_7",
+    "rackcraft:server_closet",
+    "rackcraft:container_farm",
+    "rackcraft:crypto_garage",
+    "rackcraft:bunker",
+    "rackcraft:flooded_hall",
+    "rackcraft:overgrown_colo",
+    "rackcraft:arctic_vault",
+    "rackcraft:ai_lab",
+    "rackcraft:solar_farm",
+    "rackcraft:tape_archive",
+    "rackcraft:hyperscale_campus"
+  ]
+}

@@ -6,10 +6,13 @@ public enum RackStatus {
 	THROTTLED(true),
 	NETWORK_LIMITED(true),
 	CRAFTING(false),
+	GENERATING(false),
+	TRAINING(false),
 	EMPTY(false),
 	TRIPPED(false),
 	NO_POWER(false),
 	NEEDS_CDU(false),
+	NEEDS_WATER(false),
 	OVERHEATED(false),
 	NO_NETWORK(false);
 

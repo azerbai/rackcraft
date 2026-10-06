@@ -1,8 +1,9 @@
 package dev.rackcraft.storage;
 
 import dev.rackcraft.block.MachineBlockEntity;
+import dev.rackcraft.block.RackStatus;
+import dev.rackcraft.compute.Cluster;
 import dev.rackcraft.sim.NetKind;
-import dev.rackcraft.sim.ServerModel;
 import dev.rackcraft.world.NetworkManager;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -30,10 +31,10 @@ import net.minecraft.util.Formatting;
 import net.minecraft.util.math.BlockPos;
 
 /**
- * Autocrafting, run on your server racks. Each rack on the storage's fiber network lends compute
- * (Pi Node 1, 1U Server 2, GPU Blade 6, Quantum Core 20; ASIC Miners cannot craft). A job crafts
+ * Autocrafting, run on your server racks. Racks lend general compute (Pi Node 1, 1U Server 2, GPU Blade 6,
+ * Tensor Accelerator 3, Quantum Core 20; ASIC Miners cannot craft), scaled by their load. A job crafts
  * {@link #CRAFTS_PER_COMPUTE_SECOND} times per second per point of compute, and racks lending compute
- * stop mining while the job runs.
+ * stop mining while the job runs. See {@link dev.rackcraft.compute.ComputeScheduler}.
  */
 public final class Autocrafter {
 	public static final double CRAFTS_PER_COMPUTE_SECOND = 0.25;
@@ -177,31 +178,19 @@ public final class Autocrafter {
 		return world != null && NetworkManager.get(world).component(a.pos(), NetKind.DATA).contains(b.pos());
 	}
 
-	/** Compute each rack lends: zero for racks that are unpowered, tripped or overheated. */
-	public static int compute(MachineBlockEntity rack) {
-		if (rack.powerSatisfaction() < 0.5 || rack.isTripped() || rack.thermalFactor() <= 0) return 0;
-		int compute = 0;
-		for (ServerModel.Module module : rack.modules()) {
-			compute += switch (module) {
-				case PI_NODE -> 1;
-				case SERVER_1U -> 2;
-				case ASIC_MINER -> 0;
-				case GPU_BLADE -> 6;
-				case QUANTUM_CORE -> 20;
-			};
-		}
-		return compute;
-	}
-
-	/** Runs this world's jobs for one simulation step. Returns the racks busy crafting (they do not mine). */
-	public static Set<MachineBlockEntity> tick(ServerWorld world, List<MachineBlockEntity> racks, double dt) {
-		Set<MachineBlockEntity> busy = new HashSet<>();
+	/**
+	 * Runs this world's jobs for one simulation step. Each job borrows racks from its own storage network's
+	 * cluster first; if that has no free compute, from any online cluster set to lend (racks on another fiber
+	 * network reach the storage over the uplink). Borrowed racks are marked CRAFTING in {@code busy}.
+	 */
+	public static void tick(ServerWorld world, List<Cluster> clusters, Map<MachineBlockEntity, RackStatus> busy, double dt) {
 		List<Job> jobs = JOBS.get(world.getServer());
-		if (jobs == null || jobs.isEmpty()) return busy;
+		if (jobs == null || jobs.isEmpty()) return;
 		Iterator<Job> iterator = jobs.iterator();
 		while (iterator.hasNext()) {
 			Job job = iterator.next();
 			if (job.access.dimension() != world.getRegistryKey()) continue;
+			job.compute = 0;
 			if (!job.access.live(world.getServer())) {
 				job.status = "asleep";
 				continue;
@@ -211,14 +200,25 @@ public final class Autocrafter {
 				job.status = "offline";
 				continue;
 			}
-			Set<BlockPos> component = NetworkManager.get(world).component(job.access.pos(), NetKind.DATA);
-			List<MachineBlockEntity> lenders = racks.stream().filter(rack -> component.contains(rack.getPos()) && compute(rack) > 0).toList();
-			job.compute = lenders.stream().mapToInt(Autocrafter::compute).sum();
-			if (job.compute == 0) {
+			double remaining = 0;
+			for (int index = job.stepIndex; index < job.steps.size(); index++) remaining += job.steps.get(index).crafts();
+			remaining -= job.doneInStep;
+			double wanted = Math.min(remaining, MAX_CRAFTS_PER_STEP) / (CRAFTS_PER_COMPUTE_SECOND * dt);
+			List<MachineBlockEntity> lenders = new ArrayList<>();
+			List<Cluster> local = clusters.stream().filter(cluster -> cluster.contains(job.access.pos())
+					&& cluster.policy() == Cluster.Policy.AUTO).toList();
+			double compute = Cluster.take(local, Cluster.Kind.GENERAL, wanted, busy, RackStatus.CRAFTING, lenders);
+			if (compute < wanted) {
+				List<Cluster> remote = clusters.stream().filter(cluster -> !cluster.contains(job.access.pos())
+						&& cluster.online() && cluster.policy() == Cluster.Policy.AUTO).toList();
+				compute += Cluster.take(remote, Cluster.Kind.GENERAL, wanted - compute, busy, RackStatus.CRAFTING, lenders);
+			}
+			job.compute = (int) Math.round(compute);
+			if (compute <= 0) {
 				job.status = "no_compute";
 				continue;
 			}
-			job.budget = Math.min(job.budget + job.compute * CRAFTS_PER_COMPUTE_SECOND * dt, MAX_CRAFTS_PER_STEP);
+			job.budget = Math.min(job.budget + compute * CRAFTS_PER_COMPUTE_SECOND * dt, MAX_CRAFTS_PER_STEP);
 			boolean progressed = false;
 			while (job.budget >= 1 && job.stepIndex < job.steps.size()) {
 				Step step = job.steps.get(job.stepIndex);
@@ -236,7 +236,8 @@ public final class Autocrafter {
 				}
 				job.status = "crafting";
 			}
-			if (progressed || "crafting".equals(job.status)) busy.addAll(lenders);
+			// A stalled job gives its racks back so they can mine.
+			if (!progressed && !"crafting".equals(job.status)) lenders.forEach(busy::remove);
 			if (job.stepIndex >= job.steps.size()) {
 				iterator.remove();
 				ServerPlayerEntity owner = world.getServer().getPlayerManager().getPlayer(job.owner);
@@ -246,7 +247,6 @@ public final class Autocrafter {
 				}
 			}
 		}
-		return busy;
 	}
 
 	/** Performs one craft of a pattern. Returns null on success or a status key explaining the stall. */

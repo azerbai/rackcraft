@@ -1,0 +1,8 @@
+{
+  "biomes": "#rackcraft:has_structure/data_center_wet",
+  "spawn_overrides": {},
+  "step": "surface_structures",
+  "terrain_adaptation": "beard_thin",
+  "type": "rackcraft:data_center",
+  "variant": "flooded_hall"
+}

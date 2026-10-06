@@ -43,6 +43,14 @@ public final class MachineStatusScreen extends RackcraftHandledScreen {
 			line(context, trend, 12, 30, power < 0 ? WARN : GOOD);
 			line(context, "Charge " + permille / 10 + "%", 12, 44, TEXT);
 			bar(context, 12, 56, 206, permille / 1000.0, GOOD);
+		} else if (id.equals("freshwater_pump")) {
+			String[] states = {"Pumping fresh water", "No power", "Not touching water: place it beside a lake or river",
+					"Salt water: oceans and beaches don't count", "Too little water: needs 12 source blocks nearby"};
+			int state = Math.max(0, Math.min(states.length - 1, stat(Stat.PUMP_STATUS)));
+			line(context, states[state], 12, 30, state == 0 ? GOOD : BAD);
+			line(context, String.format(java.util.Locale.ROOT, "Cooling %.1f of %d units in use", stat(Stat.PUMP_USED) / 10.0,
+					stat(Stat.PUMP_UNITS)), 12, 44, TEXT);
+			line(context, stat(Stat.PUMP_SOURCES) + " water source blocks within reach", 12, 56, MUTED);
 		} else if (id.equals("pdu")) {
 			boolean live = stat(Stat.NETWORK_CAPACITY) > 0;
 			line(context, live ? "Energised" : "Dead: no power source on this network", 12, 30, live ? GOOD : BAD);

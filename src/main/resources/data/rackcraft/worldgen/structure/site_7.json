@@ -1,0 +1,8 @@
+{
+  "biomes": "#rackcraft:has_structure/data_center_temperate",
+  "spawn_overrides": {},
+  "step": "surface_structures",
+  "terrain_adaptation": "beard_thin",
+  "type": "rackcraft:data_center",
+  "variant": "site_7"
+}

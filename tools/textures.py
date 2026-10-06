@@ -1418,3 +1418,231 @@ def item_texture(entry):
     base = rgb(entry["color"])
     canvas = ITEM_STYLES[entry["pattern"]](base, entry["id"])
     return outline(canvas, base)
+
+
+# ---------------------------------------------------------------- AI contracts, training data, water
+
+PAPER = (236, 230, 210)
+INK = (40, 44, 60)
+CRAYON_COLOURS = [(226, 66, 58), (246, 192, 72), (92, 170, 255), (110, 196, 90), (200, 110, 220)]
+WATER = (64, 118, 228)
+
+
+def pump_face(base, key, on):
+    """Freshwater pump: an intake pipe, a pressure gauge, and water moving through a sight glass when running."""
+    frames = []
+    for frame in range(4 if on else 1):
+        canvas = plate(base, key)
+        canvas.inset(2, 2, 13, 6, GLASS_DARK, lighten(base, 0.2), darken(base, 0.6))
+        for x in range(3, 13):
+            if on and (x + frame) % 4 != 0:
+                canvas.set(x, 4, WATER)
+                canvas.set(x, 3, lighten(WATER, 0.3) if (x + frame) % 4 == 1 else WATER)
+        canvas.disc(5, 10.5, 2.6, lighten(STEEL, 0.2))
+        canvas.disc(5, 10.5, 1.8, (230, 230, 220))
+        canvas.line(5, 10, 6 if on else 4, 9, LED_RED)
+        canvas.rect(9, 8, 13, 13, darken(STEEL, 0.15))
+        canvas.disc(11, 10.5, 1.7, darken(base, 0.5))
+        canvas.set(11, 10, LED_GREEN if on else LED_OFF)
+        frames.append(canvas)
+    return frames
+
+
+def easel_face(base, key, on):
+    """Kids' art table: a sheet of paper on wood, crayon scribbles appearing while kids draw."""
+    frames = []
+    for frame in range(4 if on else 1):
+        canvas = noisy(base, key + ":wood", 0.08, streak=True)
+        canvas.rect(2, 2, 13, 12, PAPER)
+        canvas.bevel(2, 2, 13, 12, lighten(PAPER, 0.1), darken(PAPER, 0.2))
+        rng = rng_for(key + ":scribble")
+        strokes = 3 + (frame if on else 1)
+        for stroke in range(strokes):
+            colour = CRAYON_COLOURS[stroke % len(CRAYON_COLOURS)]
+            x0, y0 = rng.randrange(3, 12), rng.randrange(3, 11)
+            canvas.line(x0, y0, min(12, x0 + rng.randrange(-3, 4)), min(11, y0 + rng.randrange(-2, 3)), colour)
+        canvas.disc(5, 6, 1.6, CRAYON_COLOURS[1])
+        for index, colour in enumerate(CRAYON_COLOURS):
+            canvas.rect(3 + index * 2, 14, 3 + index * 2, 15, colour)
+        frames.append(canvas)
+    return frames
+
+
+def scriptorium_face(base, key, on):
+    """Scriptorium desk: an open book with lines being written, and shackles bolted to the front."""
+    frames = []
+    for frame in range(3 if on else 1):
+        canvas = noisy(base, key + ":wood", 0.08, streak=True)
+        canvas.rect(1, 2, 7, 10, PAPER)
+        canvas.rect(8, 2, 14, 10, PAPER)
+        canvas.vline(7, 2, 10, darken(PAPER, 0.3))
+        lines = 4 if not on else 2 + frame
+        for row in range(4):
+            y = 4 + row * 2
+            canvas.hline(2, 6, y, INK if row < lines else darken(PAPER, 0.08))
+            canvas.hline(9, 13 - (row % 2), y, INK if row + 2 < lines else darken(PAPER, 0.08))
+        canvas.line(12, 1, 14, 5, (230, 230, 230))
+        for x in range(1, 15, 2):
+            canvas.set(x, 13, darken(STEEL, 0.25))
+            canvas.set(x + 1, 13, lighten(STEEL, 0.1))
+        canvas.disc(3, 13, 1.6, darken(STEEL, 0.1), inner=0.7)
+        canvas.disc(12.5, 13, 1.6, darken(STEEL, 0.1), inner=0.7)
+        frames.append(canvas)
+    return frames
+
+
+def ops_face(base, key, on):
+    """Operations terminal: a four-panel dashboard with a graph, bars, a list and an alert light."""
+    frames = []
+    for frame in range(4 if on else 1):
+        canvas = plate(base, key)
+        canvas.inset(1, 1, 14, 12, GLASS_DARK, lighten(base, 0.2), darken(base, 0.6))
+        if on:
+            graph = [10, 9, 9, 7, 8, 6, 5, 6]
+            for x, y in enumerate(graph):
+                canvas.set(2 + x, y - 4 + (1 if (x + frame) % 5 == 0 else 0), LED_GREEN)
+            for bar in range(3):
+                height = 2 + (bar * 2 + frame) % 4
+                canvas.vline(11 + bar, 6 - height, 5, LED_BLUE)
+            for row in range(3):
+                canvas.hline(2, 7 - row, 8 + row, (200, 210, 214))
+            canvas.rect(10, 8, 13, 10, LED_AMBER if frame % 2 else darken(LED_AMBER, 0.4))
+        canvas.rect(4, 13, 11, 14, darken(base, 0.3))
+        for x in range(5, 11, 2):
+            canvas.set(x, 13, lighten(base, 0.3))
+        frames.append(canvas)
+    return frames
+
+
+FRONT_STYLES["pump"] = pump_face
+FRONT_STYLES["easel"] = easel_face
+FRONT_STYLES["scriptorium"] = scriptorium_face
+FRONT_STYLES["ops"] = ops_face
+
+
+def top_water(base, key):
+    canvas = plate(base, key + ":water")
+    canvas.disc(8, 8, 4.5, darken(STEEL, 0.15))
+    canvas.disc(8, 8, 3.2, WATER)
+    canvas.disc(7, 7, 1.0, lighten(WATER, 0.4))
+    return canvas
+
+
+def top_desk(base, key):
+    canvas = noisy(base, key + ":desktop", 0.08, streak=True)
+    canvas.rect(3, 4, 7, 9, PAPER)
+    canvas.rect(10, 3, 11, 4, INK)
+    canvas.line(11, 3, 13, 1, (230, 230, 230))
+    return canvas
+
+
+TOP_STYLES["water"] = top_water
+TOP_STYLES["desk"] = top_desk
+
+
+def item_tensor(base, key):
+    """A 2U blade with a grid of orange tensor cores."""
+    canvas = item_server(base, key, gpu=True)
+    for y in (6, 8, 10):
+        for x in range(3, 13, 2):
+            canvas.set(x, y, (246, 140, 60))
+    return canvas
+
+
+def item_crayons(base, key):
+    canvas = Canvas()
+    for index, colour in enumerate(CRAYON_COLOURS):
+        x = 3 + index * 2
+        canvas.rect(x, 2 + (index % 2), x + 1, 9, colour)
+        canvas.set(x, 1 + (index % 2), darken(colour, 0.2))
+    canvas.rect(2, 8, 13, 14, base)
+    canvas.hline(2, 13, 8, lighten(base, 0.3))
+    canvas.rect(4, 10, 11, 12, PAPER)
+    canvas.hline(5, 10, 11, CRAYON_COLOURS[0])
+    return canvas
+
+
+def item_shackles(base, key):
+    canvas = Canvas()
+    canvas.disc(4.5, 5, 3.4, base, inner=2.0)
+    canvas.disc(11.5, 11, 3.4, base, inner=2.0)
+    for step in range(4):
+        x, y = 7 + step, 7 + step
+        canvas.set(x, y, lighten(base, 0.25) if step % 2 else darken(base, 0.25))
+    canvas.set(3, 2, lighten(base, 0.4))
+    canvas.set(10, 8, lighten(base, 0.4))
+    return canvas
+
+
+def item_art_aggregate(base, key):
+    canvas = Canvas()
+    for offset in (2, 1, 0):
+        canvas.rect(2 + offset, 2 + offset, 13 - (2 - offset), 13 - (2 - offset), darken(PAPER, 0.08 * offset))
+    rng = rng_for(key + ":art")
+    for stroke in range(6):
+        colour = CRAYON_COLOURS[stroke % len(CRAYON_COLOURS)]
+        x0, y0 = rng.randrange(3, 11), rng.randrange(3, 11)
+        canvas.line(x0, y0, x0 + rng.randrange(-2, 3), y0 + rng.randrange(-2, 3), colour)
+    canvas.disc(10, 5, 1.4, CRAYON_COLOURS[1])
+    canvas.hline(2, 13, 8, base)
+    return canvas
+
+
+def item_corpus(base, key):
+    canvas = Canvas()
+    canvas.rect(3, 1, 12, 14, PAPER)
+    canvas.vline(12, 1, 14, darken(PAPER, 0.25))
+    canvas.hline(3, 12, 14, darken(PAPER, 0.25))
+    for y in range(3, 13, 2):
+        canvas.hline(4, 11 - (y % 3), y, INK)
+    canvas.vline(7, 1, 14, base)
+    canvas.hline(3, 12, 7, base)
+    canvas.disc(7.5, 7.5, 1.4, darken(base, 0.2))
+    return canvas
+
+
+def item_generated_image(base, key):
+    canvas = Canvas()
+    canvas.rect(1, 2, 14, 13, base)
+    canvas.rect(2, 3, 13, 12, (120, 180, 230))
+    canvas.rect(2, 9, 13, 12, (100, 170, 80))
+    canvas.poly([(4, 9), (7, 5), (10, 9)], (130, 130, 140))
+    canvas.disc(11, 5, 1.5, (250, 220, 90))
+    canvas.set(13, 3, (255, 255, 255))
+    canvas.set(12, 2, (255, 255, 255))
+    canvas.set(14, 2, (255, 255, 255))
+    return canvas
+
+
+def item_generated_document(base, key):
+    canvas = Canvas()
+    canvas.rect(3, 1, 12, 14, PAPER)
+    canvas.vline(12, 1, 14, darken(PAPER, 0.25))
+    for y in range(3, 13, 2):
+        canvas.hline(4, 10 - (y % 4), y, INK)
+    canvas.rect(10, 10, 14, 14, base)
+    canvas.set(12, 11, (255, 255, 255))
+    canvas.hline(11, 13, 12, (255, 255, 255))
+    canvas.set(12, 13, (255, 255, 255))
+    return canvas
+
+
+ITEM_STYLES["tensor"] = item_tensor
+ITEM_STYLES["crayons"] = item_crayons
+ITEM_STYLES["shackles"] = item_shackles
+ITEM_STYLES["art_aggregate"] = item_art_aggregate
+ITEM_STYLES["corpus"] = item_corpus
+ITEM_STYLES["generated_image"] = item_generated_image
+ITEM_STYLES["generated_document"] = item_generated_document
+
+
+def side_wood(base, key):
+    canvas = noisy(base, key + ":planks", 0.08, streak=True)
+    for y in (4, 9, 14):
+        canvas.hline(0, 15, y, darken(base, 0.3))
+    canvas.vline(1, 0, 15, darken(base, 0.2))
+    canvas.vline(14, 0, 15, darken(base, 0.2))
+    return canvas
+
+
+SIDE_STYLES["wood"] = side_wood

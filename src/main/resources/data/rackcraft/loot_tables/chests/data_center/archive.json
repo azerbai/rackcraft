@@ -1,0 +1,145 @@
+{
+  "pools": [
+    {
+      "entries": [
+        {
+          "name": "rackcraft:tape_cartridge",
+          "type": "minecraft:item",
+          "weight": 4
+        },
+        {
+          "name": "rackcraft:drive_1k",
+          "type": "minecraft:item",
+          "weight": 3
+        },
+        {
+          "name": "rackcraft:drive_4k",
+          "type": "minecraft:item",
+          "weight": 2
+        },
+        {
+          "name": "rackcraft:drive_16k",
+          "type": "minecraft:item",
+          "weight": 1
+        },
+        {
+          "functions": [
+            {
+              "count": {
+                "max": 3,
+                "min": 1,
+                "type": "minecraft:uniform"
+              },
+              "function": "minecraft:set_count"
+            }
+          ],
+          "name": "minecraft:book",
+          "type": "minecraft:item",
+          "weight": 3
+        },
+        {
+          "functions": [
+            {
+              "count": {
+                "max": 12,
+                "min": 4,
+                "type": "minecraft:uniform"
+              },
+              "function": "minecraft:set_count"
+            }
+          ],
+          "name": "minecraft:paper",
+          "type": "minecraft:item",
+          "weight": 3
+        },
+        {
+          "functions": [
+            {
+              "count": {
+                "max": 4,
+                "min": 1,
+                "type": "minecraft:uniform"
+              },
+              "function": "minecraft:set_count"
+            }
+          ],
+          "name": "rackcraft:blank_pattern",
+          "type": "minecraft:item",
+          "weight": 3
+        },
+        {
+          "functions": [
+            {
+              "function": "minecraft:set_nbt",
+              "tag": "{Kind:\"homework\",Prompt:\"the water cycle (Nether edition)\",Quality:90,Model:\"Large Librarian Model v3.1\"}"
+            }
+          ],
+          "name": "rackcraft:generated_document",
+          "type": "minecraft:item",
+          "weight": 1
+        },
+        {
+          "functions": [
+            {
+              "function": "minecraft:set_nbt",
+              "tag": "{Kind:\"essay\",Prompt:\"five hundred words about gravel\",Quality:57,Model:\"Large Librarian Model v3.1\"}"
+            }
+          ],
+          "name": "rackcraft:generated_document",
+          "type": "minecraft:item",
+          "weight": 1
+        },
+        {
+          "functions": [
+            {
+              "function": "minecraft:set_nbt",
+              "tag": "{Kind:\"legal\",Prompt:\"a lease for a dirt hut\",Quality:64,Model:\"Large Librarian Model v3.1\"}"
+            }
+          ],
+          "name": "rackcraft:generated_document",
+          "type": "minecraft:item",
+          "weight": 1
+        },
+        {
+          "functions": [
+            {
+              "function": "minecraft:set_nbt",
+              "tag": "{Kind:\"cover_letter\",Prompt:\"a villager applying for any job but librarian\",Quality:71,Model:\"Large Librarian Model v3.1\"}"
+            }
+          ],
+          "name": "rackcraft:generated_document",
+          "type": "minecraft:item",
+          "weight": 1
+        },
+        {
+          "functions": [
+            {
+              "function": "minecraft:set_nbt",
+              "tag": "{Kind:\"tos\",Prompt:\"Steve's minecart rentals\",Quality:78,Model:\"Large Librarian Model v3.1\"}"
+            }
+          ],
+          "name": "rackcraft:generated_document",
+          "type": "minecraft:item",
+          "weight": 1
+        },
+        {
+          "functions": [
+            {
+              "function": "minecraft:set_nbt",
+              "tag": "{Kind:\"patch_notes\",Prompt:\"reality\",Quality:85,Model:\"Large Librarian Model v3.1\"}"
+            }
+          ],
+          "name": "rackcraft:generated_document",
+          "type": "minecraft:item",
+          "weight": 1
+        }
+      ],
+      "rolls": {
+        "max": 6,
+        "min": 4,
+        "type": "minecraft:uniform"
+      }
+    }
+  ],
+  "type": "minecraft:chest"
+}

@@ -33,6 +33,19 @@ public final class RackcraftClient implements ClientModInitializer {
 		ScreenRegistry.register(RcScreenHandlers.TAPE_LIBRARY, dev.rackcraft.client.screen.StorageScreen::new);
 		ScreenRegistry.register(RcScreenHandlers.TRANSMITTER, dev.rackcraft.client.screen.TransmitterScreen::new);
 		ScreenRegistry.register(RcScreenHandlers.TERMINAL, dev.rackcraft.client.screen.TerminalScreen::new);
+		ScreenRegistry.register(RcScreenHandlers.WORKSTATION, dev.rackcraft.client.screen.WorkstationScreen::new);
+		ScreenRegistry.register(RcScreenHandlers.OPERATIONS, dev.rackcraft.client.screen.OpsScreen::new);
+		net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.registerGlobalReceiver(
+				dev.rackcraft.compute.OpsScreenHandler.SYNC, (client, handler, buf, responseSender) -> {
+					int syncId = buf.readVarInt();
+					net.minecraft.network.PacketByteBuf copy = net.fabricmc.fabric.api.networking.v1.PacketByteBufs.copy(buf);
+					client.execute(() -> {
+						if (client.player != null && client.player.currentScreenHandler
+								instanceof dev.rackcraft.compute.OpsScreenHandler ops && ops.syncId == syncId) {
+							ops.applySync(copy);
+						}
+					});
+				});
 		net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.registerGlobalReceiver(
 				dev.rackcraft.storage.TerminalScreenHandler.SYNC, (client, handler, buf, responseSender) -> {
 					int syncId = buf.readVarInt();

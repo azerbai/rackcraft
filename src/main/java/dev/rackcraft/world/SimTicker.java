@@ -4,7 +4,8 @@ import dev.rackcraft.Rackcraft;
 import dev.rackcraft.RackcraftNetworking;
 import dev.rackcraft.RackcraftConfig;
 import dev.rackcraft.CreativeSettings;
-import dev.rackcraft.storage.Autocrafter;
+import dev.rackcraft.compute.ComputeScheduler;
+import dev.rackcraft.compute.TrainingStations;
 import dev.rackcraft.storage.StorageService;
 import dev.rackcraft.storage.TransmitterUpgrades;
 import dev.rackcraft.block.MachineBlock;
@@ -61,6 +62,12 @@ public final class SimTicker {
 	public static void unregisterBlockEntity(ServerWorld world, MachineBlockEntity entity) {
 		Set<MachineBlockEntity> entities = LOADED.get(world);
 		if (entities != null) entities.remove(entity);
+	}
+
+	/** Every loaded Rackcraft machine in this world. */
+	public static List<MachineBlockEntity> machines(ServerWorld world) {
+		return LOADED.getOrDefault(world, Set.of()).stream()
+				.filter(entity -> !entity.isRemoved() && entity.getWorld() == world).toList();
 	}
 
 	public static void stepNow(ServerWorld world) {
@@ -157,7 +164,8 @@ public final class SimTicker {
 		}
 
 		ThermalGrid heat = thermalGrid(world);
-		applyCooling(world, machines, heat, networks, satisfaction, dt);
+		Map<MachineBlockEntity, Double> fanHeat = applyCooling(world, machines, heat, networks, satisfaction, dt);
+		Set<MachineBlockEntity> watered = FreshwaterCooling.supply(world, machines, satisfaction, dt);
 		pinCreativeCoolers(world, machines, heat);
 		Map<MachineBlockEntity, ServerModel.RackStep> rackSteps = new HashMap<>();
 		for (MachineBlockEntity rack : machines) {
@@ -168,11 +176,11 @@ public final class SimTicker {
 			double inlet = averageTemperature(heat, intakeCells, rack.inletCelsius() + 1);
 			boolean hasCdu = adjacentMachine(machines, rack.getPos(), "cdu");
 			ServerModel.RackStep result = ServerModel.calculate(rack.modules(), rack.loadLimitPercent(),
-					satisfaction.getOrDefault(rack, 0.0), inlet, hasCdu);
+					satisfaction.getOrDefault(rack, 0.0), inlet, hasCdu, watered.contains(rack));
 			if (satisfaction.getOrDefault(rack, 0.0) < 0.5) rack.setTripped(true);
 			if (rack.isTripped() && inlet < 32 && result.thermalFactor() > 0) rack.setTripped(false);
 			if (rack.isTripped()) result = new ServerModel.RackStep(result.usedUnits(), result.demandKw(),
-					0, 0, result.thermalFactor(), result.quantumBlocked(), result.tripped());
+					0, 0, result.thermalFactor(), result.quantumBlocked(), result.tripped(), result.waterBlocked());
 			rackSteps.put(rack, result);
 			depositAcross(heat, exhaustCells, result.demandKw(), dt);
 			rack.setRackStats(inlet, averageTemperature(heat, exhaustCells, inlet), result.demandKw(),
@@ -181,14 +189,16 @@ public final class SimTicker {
 
 		updateLitStates(world, machines, satisfaction, sourceOutput, energized, networks);
 		stepStorage(world, machines, heat, satisfaction, dt);
+		TrainingStations.step(world, machines, dt);
+		AirQuality.get(world).step(world, fanHeat, dt);
 		applyMachineHeat(world, machines, heat, dt);
 		heat.step(dt, false);
 		pinCreativeCoolers(world, machines, heat);
 		RackcraftNetworking.sendHeatCells(world, heat);
 		if (world.getTime() % 20 < Math.max(1, RackcraftConfig.values.sim.stepTicks)) RackcraftNetworking.sendHud(world, machines);
 		List<MachineBlockEntity> racks = machines.stream().filter(machine -> machine.blockId().equals("server_rack")).toList();
-		Set<MachineBlockEntity> crafting = Autocrafter.tick(world, racks, dt);
-		awardCredits(world, machines, rackSteps, networks, satisfaction, crafting, dt);
+		Map<MachineBlockEntity, RackStatus> lent = ComputeScheduler.tick(world, racks, dt);
+		awardCredits(world, machines, rackSteps, networks, satisfaction, lent, dt);
 		FacilityManager facility = FacilityManager.get(world);
 		long previousEventTick = facility.eventTicks();
 		facility.advanceEventClock(RackcraftConfig.values.sim.stepTicks);
@@ -201,7 +211,8 @@ public final class SimTicker {
 		return switch (machine.blockId()) {
 			case "solar_panel" -> new PowerSolver.Source(id(machine), PowerSolver.SourceKind.SOLAR,
 					world.isDay() && world.isSkyVisible(machine.getPos().up())
-							? 4 * world.getLightLevel(LightType.SKY, machine.getPos()) / 15.0 : 0);
+							? 4 * world.getLightLevel(LightType.SKY, machine.getPos()) / 15.0
+								* AirQuality.solarFactor(AirQuality.get(world).smogAt(machine.getPos())) : 0);
 			case "wind_turbine" -> new PowerSolver.Source(id(machine), PowerSolver.SourceKind.WIND,
 					8 * Math.max(0.25, Math.min(1, (machine.getPos().getY() - 50) / 80.0))
 							* (world.isThundering() ? 1.5 : 1));
@@ -260,6 +271,9 @@ public final class SimTicker {
 						networks.component(machine.getPos(), NetKind.DATA).size() > 1;
 				case "fire_suppression_tank" -> !machine.getStack(0).isEmpty();
 				case "crypto_exchange" -> FacilityManager.get(world).miningRacks() > 0;
+				case "freshwater_pump" -> machine.pumpStatus() == FreshwaterCooling.PumpStatus.PUMPING.ordinal();
+				case "art_table", "writing_desk" -> TrainingStations.active(machine);
+				case "operations_terminal" -> true;
 				default -> satisfaction.getOrDefault(machine, 0.0) > 0;
 			};
 			BlockState state = machine.getCachedState();
@@ -284,6 +298,7 @@ public final class SimTicker {
 			case "storage_array" -> 0.4 + 0.15 * machine.driveCount();
 			case "tape_library" -> 0.3;
 			case "wireless_transmitter" -> TransmitterUpgrades.drawKw(machine.transmitterLevel());
+			case "freshwater_pump" -> 1.5;
 			default -> 0;
 		};
 	}
@@ -296,16 +311,20 @@ public final class SimTicker {
 		return Long.toString(machine.getPos().asLong());
 	}
 
-	private static void applyCooling(ServerWorld world, List<MachineBlockEntity> machines,
+	/** Runs fans and CRAC units. Returns each running exhaust fan and the heat it moved, for smog. */
+	private static Map<MachineBlockEntity, Double> applyCooling(ServerWorld world, List<MachineBlockEntity> machines,
 			ThermalGrid heat, NetworkManager networks, Map<MachineBlockEntity, Double> satisfaction, double dt) {
-		if (FacilityManager.get(world).activeEvent().equals("cooling_failure")) return;
+		Map<MachineBlockEntity, Double> fanHeat = new HashMap<>();
+		if (FacilityManager.get(world).activeEvent().equals("cooling_failure")) return fanHeat;
 		for (MachineBlockEntity unit : machines) {
 			if (satisfaction.getOrDefault(unit, 0.0) <= 0) continue;
 			Direction facing = unit.getCachedState().get(MachineBlock.FACING);
 			if (unit.blockId().equals("exhaust_fan")) {
 				BlockPos intake = unit.getPos().offset(facing);
-				if (isAirCell(world, intake)) heat.removeKw(intake(intake), Math.min(3,
-						0.5 * Math.max(0, heat.temperatureCelsius(intake(intake)) - heat.ambientCelsius())), dt);
+				double removed = isAirCell(world, intake) ? Math.min(3,
+						0.5 * Math.max(0, heat.temperatureCelsius(intake(intake)) - heat.ambientCelsius())) : 0;
+				if (removed > 0) heat.removeKw(intake(intake), removed, dt);
+				fanHeat.put(unit, removed);
 			} else if (unit.blockId().equals("crac_unit")) {
 				Set<BlockPos> coolant = networks.component(unit.getPos(), NetKind.COOLANT);
 				boolean supplied = coolant.stream().map(world::getBlockEntity).filter(MachineBlockEntity.class::isInstance)
@@ -320,6 +339,7 @@ public final class SimTicker {
 				}
 			}
 		}
+		return fanHeat;
 	}
 
 	/**
@@ -384,7 +404,7 @@ public final class SimTicker {
 
 	private static void awardCredits(ServerWorld world, List<MachineBlockEntity> machines,
 			Map<MachineBlockEntity, ServerModel.RackStep> rackSteps, NetworkManager networks,
-			Map<MachineBlockEntity, Double> satisfaction, Set<MachineBlockEntity> crafting, double dt) {
+			Map<MachineBlockEntity, Double> satisfaction, Map<MachineBlockEntity, RackStatus> lent, double dt) {
 		FacilityManager facility = FacilityManager.get(world);
 		double facilityRate = 0;
 		int miningRacks = 0;
@@ -407,14 +427,16 @@ public final class SimTicker {
 			double rate = bandwidth > 0 && demand > 0
 					? result.creditsPerSecond() * Math.min(1, bandwidth / demand) : 0;
 			RackStatus status;
-			if (crafting.contains(rack)) {
-				rack.setMining(RackStatus.CRAFTING, 0);
+			RackStatus lentAs = lent.get(rack);
+			if (lentAs != null) {
+				rack.setMining(lentAs, 0);
 				continue;
 			}
 			if (rack.modules().isEmpty()) status = RackStatus.EMPTY;
 			else if (rack.isTripped()) status = RackStatus.TRIPPED;
 			else if (satisfaction.getOrDefault(rack, 0.0) < 0.5) status = RackStatus.NO_POWER;
 			else if (result.quantumBlocked()) status = RackStatus.NEEDS_CDU;
+			else if (result.waterBlocked()) status = RackStatus.NEEDS_WATER;
 			else if (result.thermalFactor() <= 0) status = RackStatus.OVERHEATED;
 			else if (bandwidth <= 0) status = RackStatus.NO_NETWORK;
 			else if (bandwidth < demand) status = RackStatus.NETWORK_LIMITED;

@@ -126,6 +126,14 @@ public class MachineBlock extends BlockWithEntity {
 		if (!world.isClient && !state.isOf(newState.getBlock())) {
 			BlockEntity entity = world.getBlockEntity(pos);
 			if (entity instanceof Inventory inventory) ItemScatterer.spawn(world, pos, inventory);
+			// Breaking a Scriptorium Desk frees its librarian and drops the shackles.
+			if (entity instanceof MachineBlockEntity machine && machine.boundVillager() != null
+					&& world instanceof ServerWorld serverWorld
+					&& serverWorld.getEntity(machine.boundVillager()) instanceof net.minecraft.entity.passive.VillagerEntity villager) {
+				dev.rackcraft.compute.TrainingStations.release(serverWorld, villager, java.util.List.of(machine));
+				ItemScatterer.spawn(world, pos.getX(), pos.getY(), pos.getZ(),
+						new net.minecraft.item.ItemStack(dev.rackcraft.RcItems.ITEMS.get("shackles")));
+			}
 			if (world.getServer() != null && Registries.BLOCK.getId(this).getPath().equals("wireless_transmitter")) {
 				dev.rackcraft.storage.StorageState.get(world.getServer())
 						.removeTransmitter(dev.rackcraft.storage.StorageState.transmitterKey(world.getRegistryKey(), pos));

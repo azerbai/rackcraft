@@ -156,7 +156,41 @@ def write_java(blocks, items):
 
 
 # One site per this many chunks in eligible biomes, before the flat-ground check rejects some.
-DATA_CENTER_RARITY = 360
+# Abandoned data centers: (variant, biome group, terrain adaptation, weight). The campus has its own, rarer set.
+# Layouts live in DataCenterLayouts.java; the self-test checks the two lists agree.
+DATA_CENTERS = [
+    ("site_7", "temperate", "beard_thin", 6),
+    ("server_closet", "temperate", "beard_thin", 5),
+    ("container_farm", "dry", "beard_thin", 4),
+    ("crypto_garage", "temperate", "beard_thin", 4),
+    ("bunker", "bunker", "none", 3),
+    ("flooded_hall", "wet", "beard_thin", 5),
+    ("overgrown_colo", "jungle", "beard_thin", 5),
+    ("arctic_vault", "cold", "beard_thin", 5),
+    ("ai_lab", "temperate", "beard_thin", 4),
+    ("solar_farm", "dry", "beard_thin", 4),
+    ("tape_archive", "temperate", "beard_thin", 3),
+]
+CAMPUS = ("hyperscale_campus", "flat", "beard_box")
+DATA_CENTER_BIOMES = {
+    "temperate": ["plains", "sunflower_plains", "meadow", "forest", "flower_forest", "birch_forest", "old_growth_birch_forest",
+                  "taiga", "savanna", "desert", "snowy_plains", "cherry_grove"],
+    "dry": ["desert", "savanna", "savanna_plateau", "badlands", "plains", "sunflower_plains"],
+    "bunker": ["plains", "forest", "birch_forest", "dark_forest", "taiga", "snowy_plains", "snowy_taiga", "savanna", "desert"],
+    "wet": ["swamp", "mangrove_swamp"],
+    "jungle": ["jungle", "sparse_jungle", "bamboo_jungle", "dark_forest"],
+    "cold": ["snowy_plains", "snowy_taiga", "ice_spikes", "grove"],
+    "flat": ["plains", "sunflower_plains", "savanna", "desert", "snowy_plains", "meadow"],
+}
+# Must match ContractTemplates.CLASSICS: clients keep asking for these, so copies found in ruins can be sold.
+CLASSICS = [
+    ("image", "a creeper at a job interview in crayon"), ("image", "a pig in a business suit as a stock photo"),
+    ("image", "Steve's LinkedIn headshot as a blurry phone photo"), ("image", "a cat asleep on a server rack in pixel art"),
+    ("image", "a fox stealing a GPU as a motivational poster"), ("homework", "the water cycle (Nether edition)"),
+    ("essay", "five hundred words about gravel"), ("legal", "a lease for a dirt hut"),
+    ("cover_letter", "a villager applying for any job but librarian"), ("tos", "Steve's minecart rentals"),
+    ("patch_notes", "reality"),
+]
 MAINTENANCE_LOG = [
     "MAINTENANCE LOG\nSite 7\n\nA storm cut two lines and the site went dark. The racks are still loaded and the generator still has fuel.\n\nThe Repair Kit in this chest can splice them.",
     "1) Find the sparking cables. One is the red POWER cable beside the generator, the other the purple FIBER cable beside the router.\n\n2) Right-click each one with the Repair Kit.",
@@ -187,6 +221,89 @@ def data_center_loot():
             item("rackcraft:silicon", 2, 6, 3), item("rackcraft:circuit_board", 1, 2, 2), item("rackcraft:steel_ingot", 2, 5, 2),
             item("rackcraft:pi_node", 1, 1, 1), item("minecraft:emerald", 1, 2, 1)]},
     ]}
+
+
+def loot_item(name, low=1, high=1, weight=1, nbt=None):
+    entry = {"type": "minecraft:item", "name": name, "weight": weight}
+    functions = []
+    if high > 1:
+        functions.append({"function": "minecraft:set_count", "count": {"type": "minecraft:uniform", "min": low, "max": high}})
+    if nbt:
+        functions.append({"function": "minecraft:set_nbt", "tag": nbt})
+    if functions:
+        entry["functions"] = functions
+    return entry
+
+
+def generated_work(kind, prompt, quality, weight):
+    """A finished image or document, as a chest might hold it. Quotes in prompts are escaped for SNBT."""
+    item = "rackcraft:generated_image" if kind == "image" else "rackcraft:generated_document"
+    model = "SketchDiffusion v2.4" if kind == "image" else "Large Librarian Model v3.1"
+    escaped = prompt.replace("\\", "\\\\").replace('"', '\\"')
+    return loot_item(item, weight=weight, nbt=f'{{Kind:"{kind}",Prompt:"{escaped}",Quality:{quality},Model:"{model}"}}')
+
+
+def chest_loot(rolls, entries, guaranteed=()):
+    pools = [{"rolls": 1, "entries": [entry]} for entry in guaranteed]
+    pools.append({"rolls": {"type": "minecraft:uniform", "min": rolls[0], "max": rolls[1]}, "entries": entries})
+    return {"type": "minecraft:chest", "pools": pools}
+
+
+def data_center_loot_tables():
+    classics = [generated_work(kind, prompt, 55 + (index * 7) % 40, 1) for index, (kind, prompt) in enumerate(CLASSICS)]
+    images = [entry for entry, (kind, _) in zip(classics, CLASSICS) if kind == "image"]
+    documents = [entry for entry, (kind, _) in zip(classics, CLASSICS) if kind != "image"]
+    return {
+        "common": chest_loot((4, 7), [
+            loot_item("minecraft:coal", 4, 12, 4), loot_item("rackcraft:coke", 1, 4, 3), loot_item("rackcraft:copper_wire", 2, 8, 4),
+            loot_item("rackcraft:silicon", 2, 6, 3), loot_item("rackcraft:circuit_board", 1, 3, 3), loot_item("rackcraft:steel_ingot", 2, 6, 3),
+            loot_item("rackcraft:cpu_chip", 1, 2, 2), loot_item("rackcraft:ram_module", 1, 2, 2), loot_item("rackcraft:pi_node", 1, 1, 2),
+            loot_item("rackcraft:server_1u", 1, 1, 1), loot_item("rackcraft:failed_module", 1, 2, 2), loot_item("rackcraft:repair_kit", 1, 1, 2),
+            loot_item("rackcraft:drive_1k", 1, 1, 1), loot_item("rackcraft:field_manual", 1, 1, 1), loot_item("minecraft:paper", 2, 8, 2),
+            loot_item("minecraft:emerald", 1, 3, 1)]),
+        "garage": chest_loot((4, 6), [
+            loot_item("minecraft:honey_bottle", 2, 5, 4), loot_item("rackcraft:gpu_chip", 1, 2, 3), loot_item("minecraft:gold_nugget", 3, 9, 3),
+            loot_item("rackcraft:gpu_blade", 1, 1, 1), loot_item("rackcraft:coke", 2, 6, 3), loot_item("rackcraft:copper_wire", 2, 6, 2),
+            loot_item("minecraft:redstone", 2, 8, 2), *images]),
+        "vault": chest_loot((3, 5), [
+            loot_item("minecraft:diamond", 1, 3, 3), loot_item("minecraft:emerald", 2, 6, 3), loot_item("minecraft:gold_ingot", 2, 6, 3),
+            loot_item("rackcraft:quantum_core", 1, 1, 1), loot_item("rackcraft:gpu_blade", 1, 1, 2), loot_item("rackcraft:tensor_accelerator", 1, 1, 2),
+            loot_item("rackcraft:drive_64k", 1, 1, 1), loot_item("rackcraft:cryo_coil", 1, 2, 2), loot_item("rackcraft:freshwater_pump", 1, 1, 1)]),
+        "ai_lab": chest_loot((4, 7), [
+            loot_item("rackcraft:crayons", 1, 1, 4), loot_item("rackcraft:shackles", 1, 1, 3), loot_item("minecraft:paper", 6, 16, 4),
+            loot_item("minecraft:ink_sac", 2, 6, 3), loot_item("rackcraft:tensor_accelerator", 1, 1, 1), loot_item("rackcraft:art_aggregate", 1, 3, 3),
+            loot_item("rackcraft:text_corpus", 1, 3, 3), *classics], guaranteed=[loot_item("rackcraft:shackles")]),
+        "archive": chest_loot((4, 6), [
+            loot_item("rackcraft:tape_cartridge", 1, 1, 4), loot_item("rackcraft:drive_1k", 1, 1, 3), loot_item("rackcraft:drive_4k", 1, 1, 2),
+            loot_item("rackcraft:drive_16k", 1, 1, 1), loot_item("minecraft:book", 1, 3, 3), loot_item("minecraft:paper", 4, 12, 3),
+            loot_item("rackcraft:blank_pattern", 1, 4, 3), *documents]),
+        "office": chest_loot((4, 7), [
+            loot_item("minecraft:paper", 6, 20, 4), loot_item("minecraft:book", 1, 2, 2), loot_item("minecraft:cookie", 2, 6, 2),
+            loot_item("rackcraft:field_manual", 1, 1, 2), loot_item("rackcraft:multimeter", 1, 1, 2), loot_item("rackcraft:repair_kit", 1, 1, 3),
+            loot_item("rackcraft:ram_module", 1, 2, 2), loot_item("minecraft:emerald", 1, 4, 2), *documents, *documents]),
+    }
+
+
+def data_center_worldgen():
+    """Structures, their sets, the biome tags they spawn in, and #rackcraft:data_centers for /locate."""
+    for group, biomes in DATA_CENTER_BIOMES.items():
+        write_json(RESOURCES / f"data/rackcraft/tags/worldgen/biome/has_structure/data_center_{group}.json",
+                   {"replace": False, "values": [f"minecraft:{biome}" for biome in biomes]})
+    for variant, group, adaptation, _ in DATA_CENTERS + [CAMPUS + (0,)]:
+        write_json(RESOURCES / f"data/rackcraft/worldgen/structure/{variant}.json", {
+            "type": "rackcraft:data_center", "variant": variant,
+            "biomes": f"#rackcraft:has_structure/data_center_{group}",
+            "step": "surface_structures", "spawn_overrides": {}, "terrain_adaptation": adaptation})
+    write_json(RESOURCES / "data/rackcraft/worldgen/structure_set/data_centers.json", {
+        "structures": [{"structure": f"rackcraft:{variant}", "weight": weight} for variant, _, _, weight in DATA_CENTERS],
+        "placement": {"type": "minecraft:random_spread", "spacing": 26, "separation": 10, "salt": 20761123}})
+    write_json(RESOURCES / "data/rackcraft/worldgen/structure_set/hyperscale_campus.json", {
+        "structures": [{"structure": f"rackcraft:{CAMPUS[0]}", "weight": 1}],
+        "placement": {"type": "minecraft:random_spread", "spacing": 72, "separation": 28, "salt": 20761124}})
+    write_json(RESOURCES / "data/rackcraft/tags/worldgen/structure/data_centers.json",
+               {"replace": False, "values": [f"rackcraft:{variant}" for variant, *_ in DATA_CENTERS] + [f"rackcraft:{CAMPUS[0]}"]})
+    for name, table in data_center_loot_tables().items():
+        write_json(RESOURCES / f"data/rackcraft/loot_tables/chests/data_center/{name}.json", table)
 
 
 def item_result(recipe):
@@ -393,7 +510,7 @@ def main():
         "storage.rackcraft.status.waiting": "Waiting",
         "storage.rackcraft.status.waiting.hint": "An ingredient ran out mid-job, probably taken out of storage. Put more in and the job carries on.",
         "storage.rackcraft.status.no_compute": "No compute",
-        "storage.rackcraft.status.no_compute.hint": "Add powered server racks to this fiber network. ASIC Miners can't craft.",
+        "storage.rackcraft.status.no_compute.hint": "No rack can lend compute: there are no working racks on this storage's fiber network, and no online cluster (racks with an uplink router) set to Auto is free. ASIC Miners can't craft.",
         "storage.rackcraft.status.bad_pattern": "Bad pattern",
         "storage.rackcraft.status.bad_pattern.hint": "A pattern no longer matches any recipe. Encode it again.",
         "storage.rackcraft.status.offline": "Offline",
@@ -404,6 +521,12 @@ def main():
         "storage.rackcraft.status.queued.hint": "Starts on the next simulation step.",
         "rack_status.rackcraft.crafting": "Busy: autocrafting",
         "rack_status.rackcraft.crafting.hint": "This rack is lending its compute to an autocrafting job, so it is not mining. It resumes when the job finishes.",
+        "rack_status.rackcraft.generating": "Busy: AI contract work",
+        "rack_status.rackcraft.generating.hint": "This rack is generating work for an AI contract, which pays better than mining. It goes back to mining when the item is finished.",
+        "rack_status.rackcraft.training": "Busy: training a model",
+        "rack_status.rackcraft.training.hint": "This rack is training an AI model on uploaded data. Set its cluster to Mining at an Operations Terminal to keep it mining instead.",
+        "rack_status.rackcraft.needs_water": "Stopped: needs freshwater cooling",
+        "rack_status.rackcraft.needs_water.hint": "ASIC Miners, GPU Blades, Tensor Accelerators and Quantum Cores are water-cooled. Connect this rack with Coolant Pipe to a Freshwater Pump beside a lake or river (not the ocean) with enough capacity.",
         "transmitter.rackcraft.level": "Level %s: %s",
         "transmitter.rackcraft.range_blocks": "%s block range",
         "transmitter.rackcraft.range_infinite": "unlimited range in this dimension",
@@ -462,19 +585,8 @@ def main():
             {"type": "minecraft:biome"}
         ]
     })
-    write_json(RESOURCES / "data/rackcraft/worldgen/configured_feature/abandoned_data_center.json", {
-        "type": "rackcraft:abandoned_data_center", "config": {}
-    })
-    write_json(RESOURCES / "data/rackcraft/worldgen/placed_feature/abandoned_data_center.json", {
-        "feature": "rackcraft:abandoned_data_center",
-        "placement": [
-            {"type": "minecraft:rarity_filter", "chance": DATA_CENTER_RARITY},
-            {"type": "minecraft:in_square"},
-            {"type": "minecraft:heightmap", "heightmap": "WORLD_SURFACE_WG"},
-            {"type": "minecraft:biome"}
-        ]
-    })
     write_json(RESOURCES / "data/rackcraft/loot_tables/chests/abandoned_data_center.json", data_center_loot())
+    data_center_worldgen()
     write_json(RESOURCES / "data/rackcraft/tags/blocks/airflow_blocking.json", {
         "replace": False,
         "values": [f"rackcraft:{identifier}" for identifier in sorted(AIRFLOW_BLOCKING)]

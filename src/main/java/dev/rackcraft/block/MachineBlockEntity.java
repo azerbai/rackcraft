@@ -31,7 +31,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.server.world.ServerWorld;
 
-public final class MachineBlockEntity extends BlockEntity implements Inventory, ExtendedScreenHandlerFactory {
+public final class MachineBlockEntity extends BlockEntity implements net.minecraft.inventory.SidedInventory, ExtendedScreenHandlerFactory {
 	private final DefaultedList<ItemStack> inventory = DefaultedList.ofSize(9, ItemStack.EMPTY);
 	private int loadLimitPercent = 100;
 	private double chargeKws;
@@ -55,6 +55,18 @@ public final class MachineBlockEntity extends BlockEntity implements Inventory, 
 	private final java.util.Map<String, Double> creativeValues = new java.util.HashMap<>();
 	private boolean storageOnline;
 	private int transmitterLevel;
+	// Freshwater pumps: readings refreshed by FreshwaterCooling; only the drawn water is saved.
+	private int pumpSources;
+	private int pumpUnits;
+	private int pumpStatus;
+	private double pumpUsed;
+	private double waterDrawn;
+	// Art tables and scriptorium desks: work toward the next item, and consumables used.
+	private double workProgress;
+	private int itemsMade;
+	private int toolUses;
+	private int workers;
+	private java.util.UUID boundVillager;
 
 	public MachineBlockEntity(BlockPos pos, BlockState state) {
 		super(RcBlocks.MACHINE_ENTITY, pos, state);
@@ -83,8 +95,9 @@ public final class MachineBlockEntity extends BlockEntity implements Inventory, 
 		java.util.EnumSet<NetKind> kinds = java.util.EnumSet.noneOf(NetKind.class);
 		if (List.of("diesel_generator", "solar_panel", "wind_turbine", "pdu", "server_rack",
 				"exhaust_fan", "cooling_tower", "crac_unit", "battery_bank", "utility_intake",
-				"facility_controller", "cdu", "modular_reactor").contains(id)) kinds.add(NetKind.POWER);
-		if (List.of("cooling_tower", "crac_unit", "cdu").contains(id)) kinds.add(NetKind.COOLANT);
+				"facility_controller", "cdu", "modular_reactor", "freshwater_pump").contains(id)) kinds.add(NetKind.POWER);
+		// Racks join the coolant network for freshwater cooling from pumps.
+		if (List.of("cooling_tower", "crac_unit", "cdu", "freshwater_pump", "server_rack").contains(id)) kinds.add(NetKind.COOLANT);
 		if (List.of("server_rack", "uplink_router", "core_router", "facility_controller",
 				"monitoring_wall", "creative_router").contains(id)) kinds.add(NetKind.DATA);
 		if (List.of("creative_power", "creative_rack").contains(id)) kinds.add(NetKind.POWER);
@@ -127,6 +140,21 @@ public final class MachineBlockEntity extends BlockEntity implements Inventory, 
 		markDirty();
 	}
 
+	private static final int[] ALL_SLOTS = {0, 1, 2, 3, 4, 5, 6, 7, 8};
+
+	@Override
+	public int[] getAvailableSlots(net.minecraft.util.math.Direction side) { return ALL_SLOTS; }
+
+	@Override
+	public boolean canInsert(int slot, ItemStack stack, net.minecraft.util.math.Direction side) { return isValid(slot, stack); }
+
+	/** Hoppers take only finished work out of art tables and desks, never their paper or tools. */
+	@Override
+	public boolean canExtract(int slot, ItemStack stack, net.minecraft.util.math.Direction side) {
+		String id = blockId();
+		return !(id.equals("art_table") || id.equals("writing_desk")) || slot == 2;
+	}
+
 	@Override
 	public boolean canPlayerUse(PlayerEntity player) {
 		return world != null && world.getBlockEntity(pos) == this
@@ -138,14 +166,16 @@ public final class MachineBlockEntity extends BlockEntity implements Inventory, 
 		String blockId = Registries.BLOCK.getId(getCachedState().getBlock()).getPath();
 		if (blockId.equals("server_rack")) {
 			String itemId = Registries.ITEM.getId(stack.getItem()).getPath();
-			if (!List.of("pi_node", "server_1u", "asic_miner", "gpu_blade", "quantum_core").contains(itemId)) return false;
-			int moduleUnits = moduleUnits(itemId);
+			ServerModel.Module module = ServerModel.Module.byItemId(itemId);
+			if (module == null) return false;
 			int installedUnits = 0;
 			for (int index = 0; index < inventory.size(); index++) {
 				if (index == slot || inventory.get(index).isEmpty()) continue;
-				installedUnits += moduleUnits(Registries.ITEM.getId(inventory.get(index).getItem()).getPath());
+				ServerModel.Module installed = ServerModel.Module.byItemId(
+						Registries.ITEM.getId(inventory.get(index).getItem()).getPath());
+				installedUnits += installed == null ? 1 : installed.units();
 			}
-			return installedUnits + moduleUnits <= 8;
+			return installedUnits + module.units() <= 8;
 		}
 		if (blockId.equals("diesel_generator") || blockId.equals("modular_reactor")) return slot == 0;
 		if (blockId.equals("storage_array")) {
@@ -155,15 +185,12 @@ public final class MachineBlockEntity extends BlockEntity implements Inventory, 
 			return slot < 4 && stack.getItem() instanceof dev.rackcraft.storage.DriveItem drive && drive.cold();
 		}
 		if (blockId.equals("fire_suppression_tank")) return slot == 0;
+		if (blockId.equals("art_table") || blockId.equals("writing_desk")) {
+			if (slot == 0) return stack.isOf(net.minecraft.item.Items.PAPER);
+			if (slot == 1) return blockId.equals("art_table") ? stack.isOf(dev.rackcraft.RcItems.ITEMS.get("crayons"))
+					: stack.isOf(net.minecraft.item.Items.INK_SAC);
+		}
 		return false;
-	}
-
-	private int moduleUnits(String itemId) {
-		return switch (itemId) {
-			case "gpu_blade" -> 2;
-			case "quantum_core" -> 4;
-			default -> 1;
-		};
 	}
 
 	public int loadLimitPercent() { return loadLimitPercent; }
@@ -184,15 +211,7 @@ public final class MachineBlockEntity extends BlockEntity implements Inventory, 
 		java.util.ArrayList<ServerModel.Module> modules = new java.util.ArrayList<>();
 		for (ItemStack stack : inventory) {
 			if (stack.isEmpty()) continue;
-			String itemId = Registries.ITEM.getId(stack.getItem()).getPath();
-			ServerModel.Module module = switch (itemId) {
-				case "pi_node" -> ServerModel.Module.PI_NODE;
-				case "server_1u" -> ServerModel.Module.SERVER_1U;
-				case "asic_miner" -> ServerModel.Module.ASIC_MINER;
-				case "gpu_blade" -> ServerModel.Module.GPU_BLADE;
-				case "quantum_core" -> ServerModel.Module.QUANTUM_CORE;
-				default -> null;
-			};
+			ServerModel.Module module = ServerModel.Module.byItemId(Registries.ITEM.getId(stack.getItem()).getPath());
 			if (module != null) modules.add(module);
 		}
 		return List.copyOf(modules);
@@ -232,6 +251,31 @@ public final class MachineBlockEntity extends BlockEntity implements Inventory, 
 		for (ItemStack stack : inventory) if (stack.getItem() instanceof dev.rackcraft.storage.DriveItem) drives++;
 		return drives;
 	}
+
+	public int pumpSources() { return pumpSources; }
+	public int pumpUnits() { return pumpUnits; }
+	public int pumpStatus() { return pumpStatus; }
+	public double pumpUsed() { return pumpUsed; }
+	public double waterDrawn() { return waterDrawn; }
+	public void setPumpReadings(int sources, int units, int status) {
+		pumpSources = sources;
+		pumpUnits = units;
+		pumpStatus = status;
+	}
+	public void setPumpUsed(double units) { pumpUsed = units; }
+	public void addWaterDrawn(double unitSeconds) { waterDrawn = Math.max(0, waterDrawn + unitSeconds); markDirty(); }
+
+	public double workProgress() { return workProgress; }
+	public void setWorkProgress(double value) { workProgress = Math.max(0, value); markDirty(); }
+	public int itemsMade() { return itemsMade; }
+	public void setItemsMade(int value) { itemsMade = Math.max(0, value); markDirty(); }
+	public int toolUses() { return toolUses; }
+	public void setToolUses(int value) { toolUses = Math.max(0, value); markDirty(); }
+	/** Villagers working at this table or desk right now; refreshed every step, not saved. */
+	public int workers() { return workers; }
+	public void setWorkers(int value) { workers = value; }
+	public java.util.UUID boundVillager() { return boundVillager; }
+	public void setBoundVillager(java.util.UUID villager) { boundVillager = villager; markDirty(); }
 
 	/** A creative machine's in-game setting, or its default if never changed. */
 	public double creativeValue(String key) {
@@ -292,8 +336,11 @@ public final class MachineBlockEntity extends BlockEntity implements Inventory, 
 			case "creative_power", "creative_rack", "creative_cooler", "creative_router" -> MachineScreenHandler.Mode.CREATIVE;
 			case "facility_controller" -> MachineScreenHandler.Mode.CONTROLLER;
 			case "monitoring_wall" -> MachineScreenHandler.Mode.MONITOR_WALL;
+			case "art_table", "writing_desk" -> MachineScreenHandler.Mode.WORKSTATION;
+			case "operations_terminal" -> null;
 			default -> MachineScreenHandler.Mode.MACHINE_STATUS;
 		};
+		if (id.equals("operations_terminal")) return new dev.rackcraft.compute.OpsScreenHandler(syncId, playerInventory, pos);
 		if (mode == null) return new dev.rackcraft.storage.TerminalScreenHandler(syncId, playerInventory, terminalAccess());
 		return new MachineScreenHandler(syncId, playerInventory, this, mode);
 	}
@@ -341,6 +388,11 @@ public final class MachineBlockEntity extends BlockEntity implements Inventory, 
 		powerSatisfaction = Math.max(0, Math.min(1, nbt.getDouble("PowerSatisfaction")));
 		load = nbt.getDouble("Load");
 		thermalFactor = nbt.contains("ThermalFactor") ? nbt.getDouble("ThermalFactor") : 1;
+		waterDrawn = Math.max(0, nbt.getDouble("WaterDrawn"));
+		workProgress = Math.max(0, nbt.getDouble("WorkProgress"));
+		itemsMade = Math.max(0, nbt.getInt("ItemsMade"));
+		toolUses = Math.max(0, nbt.getInt("ToolUses"));
+		boundVillager = nbt.containsUuid("BoundVillager") ? nbt.getUuid("BoundVillager") : null;
 		creativeValues.clear();
 		NbtCompound creative = nbt.getCompound("Creative");
 		for (String key : creative.getKeys()) creativeValues.put(key, creative.getDouble(key));
@@ -365,6 +417,11 @@ public final class MachineBlockEntity extends BlockEntity implements Inventory, 
 		nbt.putDouble("PowerKw", powerKw);
 		nbt.putDouble("Load", load);
 		nbt.putDouble("ThermalFactor", thermalFactor);
+		if (waterDrawn > 0) nbt.putDouble("WaterDrawn", waterDrawn);
+		if (workProgress > 0) nbt.putDouble("WorkProgress", workProgress);
+		if (itemsMade > 0) nbt.putInt("ItemsMade", itemsMade);
+		if (toolUses > 0) nbt.putInt("ToolUses", toolUses);
+		if (boundVillager != null) nbt.putUuid("BoundVillager", boundVillager);
 		if (!creativeValues.isEmpty()) {
 			NbtCompound creative = new NbtCompound();
 			creativeValues.forEach(creative::putDouble);

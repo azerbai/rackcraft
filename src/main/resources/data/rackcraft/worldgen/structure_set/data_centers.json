@@ -1,0 +1,54 @@
+{
+  "placement": {
+    "salt": 20761123,
+    "separation": 10,
+    "spacing": 26,
+    "type": "minecraft:random_spread"
+  },
+  "structures": [
+    {
+      "structure": "rackcraft:site_7",
+      "weight": 6
+    },
+    {
+      "structure": "rackcraft:server_closet",
+      "weight": 5
+    },
+    {
+      "structure": "rackcraft:container_farm",
+      "weight": 4
+    },
+    {
+      "structure": "rackcraft:crypto_garage",
+      "weight": 4
+    },
+    {
+      "structure": "rackcraft:bunker",
+      "weight": 3
+    },
+    {
+      "structure": "rackcraft:flooded_hall",
+      "weight": 5
+    },
+    {
+      "structure": "rackcraft:overgrown_colo",
+      "weight": 5
+    },
+    {
+      "structure": "rackcraft:arctic_vault",
+      "weight": 5
+    },
+    {
+      "structure": "rackcraft:ai_lab",
+      "weight": 4
+    },
+    {
+      "structure": "rackcraft:solar_farm",
+      "weight": 4
+    },
+    {
+      "structure": "rackcraft:tape_archive",
+      "weight": 3
+    }
+  ]
+}

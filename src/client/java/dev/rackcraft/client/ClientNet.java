@@ -84,6 +84,15 @@ public final class ClientNet {
 		ClientPlayNetworking.send(dev.rackcraft.storage.TerminalScreenHandler.ACTION, buf);
 	}
 
+	public static void opsAction(int syncId, dev.rackcraft.compute.OpsScreenHandler.Action action, int id, long cluster) {
+		PacketByteBuf buf = PacketByteBufs.create();
+		buf.writeVarInt(syncId);
+		buf.writeVarInt(action.ordinal());
+		buf.writeVarInt(id);
+		buf.writeLong(cluster);
+		ClientPlayNetworking.send(dev.rackcraft.compute.OpsScreenHandler.ACTION, buf);
+	}
+
 	public static void resetBreaker(BlockPos pos) {
 		PacketByteBuf buf = PacketByteBufs.create();
 		buf.writeBlockPos(pos);
