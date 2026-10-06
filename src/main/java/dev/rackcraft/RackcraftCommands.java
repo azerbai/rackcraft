@@ -5,12 +5,17 @@ import com.mojang.brigadier.arguments.DoubleArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import dev.rackcraft.world.DataCenterLocator;
 import dev.rackcraft.world.FacilityManager;
 import dev.rackcraft.world.SimTicker;
 import java.util.List;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.server.command.ServerCommandSource;
+import net.minecraft.text.ClickEvent;
+import net.minecraft.text.HoverEvent;
 import net.minecraft.text.Text;
+import net.minecraft.text.Texts;
+import net.minecraft.util.Formatting;
 import net.minecraft.util.math.BlockPos;
 
 import static net.minecraft.server.command.CommandManager.argument;
@@ -19,6 +24,8 @@ import static net.minecraft.server.command.CommandManager.literal;
 public final class RackcraftCommands {
 	private static final List<String> EVENTS = List.of("utility_outage", "cooling_failure",
 			"hardware_failure", "cable_cut", "heat_wave", "surge");
+
+	private static final int DEFAULT_LOCATE_RADIUS = 100;
 
 	private RackcraftCommands() {}
 
@@ -34,6 +41,7 @@ public final class RackcraftCommands {
 		root.then(heatCommand());
 		root.then(facilityCommand());
 		root.then(simCommand());
+		root.then(locateCommand());
 		root.then(literal("structure").then(literal("datacenter").executes(context -> {
 			var source = context.getSource();
 			BlockPos origin = BlockPos.ofFloored(source.getPosition()).add(-4, 0, 1);
@@ -42,6 +50,33 @@ public final class RackcraftCommands {
 			return 1;
 		})));
 		dispatcher.register(root);
+	}
+
+	private static LiteralArgumentBuilder<ServerCommandSource> locateCommand() {
+		return literal("locate").then(literal("datacenter")
+				.executes(context -> locateDataCenter(context.getSource(), DEFAULT_LOCATE_RADIUS))
+				.then(argument("radius", IntegerArgumentType.integer(1, 500))
+						.executes(context -> locateDataCenter(context.getSource(),
+								IntegerArgumentType.getInteger(context, "radius")))));
+	}
+
+	private static int locateDataCenter(ServerCommandSource source, int radius) {
+		BlockPos from = BlockPos.ofFloored(source.getPosition());
+		var found = DataCenterLocator.nearest(source.getWorld(), from, radius);
+		if (found.isEmpty()) {
+			source.sendError(Text.literal("No abandoned data center within " + radius + " chunks"));
+			return 0;
+		}
+		BlockPos site = found.get();
+		int distance = (int) Math.round(Math.sqrt(site.getSquaredDistance(from.getX(), site.getY(), from.getZ())));
+		Text coordinates = Texts.bracketed(Text.translatable("chat.coordinates", site.getX(), site.getY(), site.getZ()))
+				.styled(style -> style.withColor(Formatting.GREEN)
+						.withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND,
+								"/tp @s " + site.getX() + " " + site.getY() + " " + site.getZ()))
+						.withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.translatable("chat.coordinates.tooltip"))));
+		source.sendFeedback(() -> Text.literal("The nearest abandoned data center is at ").append(coordinates)
+				.append(" (" + distance + " blocks away)"), false);
+		return distance;
 	}
 
 	private static LiteralArgumentBuilder<ServerCommandSource> creditsCommand() {

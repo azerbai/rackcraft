@@ -15,7 +15,7 @@ import net.minecraft.world.gen.feature.PlacedFeature;
 public final class Worldgen {
 	private static final RegistryKey<PlacedFeature> BAUXITE_ORE = RegistryKey.of(
 			RegistryKeys.PLACED_FEATURE, Rackcraft.id("bauxite_ore"));
-	private static final RegistryKey<PlacedFeature> ABANDONED_DATA_CENTER = RegistryKey.of(
+	public static final RegistryKey<PlacedFeature> ABANDONED_DATA_CENTER = RegistryKey.of(
 			RegistryKeys.PLACED_FEATURE, Rackcraft.id("abandoned_data_center"));
 	public static final AbandonedDataCenterFeature DATA_CENTER_FEATURE = new AbandonedDataCenterFeature(DefaultFeatureConfig.CODEC);
 

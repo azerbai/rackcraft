@@ -7,6 +7,7 @@ import dev.rackcraft.RcItems;
 import dev.rackcraft.block.CableBlock;
 import dev.rackcraft.block.MachineBlock;
 import dev.rackcraft.block.MachineBlockEntity;
+import java.util.OptionalInt;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -57,21 +58,46 @@ public final class AbandonedDataCenterFeature extends Feature<DefaultFeatureConf
 		return place(context.getWorld(), context.getOrigin(), context.getRandom(), false);
 	}
 
-	/** Builds the site with its north-west corner at {@code origin}. {@code force} skips the terrain checks. */
-	public static boolean place(StructureWorldAccess world, BlockPos origin, Random random, boolean force) {
+	/** Surface heights and fluids, so {@link DataCenterLocator} can run the site check on ungenerated terrain. */
+	public interface Terrain {
+		int topY(int x, int z);
+
+		boolean isWet(BlockPos pos);
+	}
+
+	/** The floor Y for a site with its north-west corner at {@code origin}, or empty when the ground is wet or steep. */
+	public static OptionalInt floorY(Terrain terrain, BlockPos origin) {
 		int lowest = Integer.MAX_VALUE;
 		int highest = Integer.MIN_VALUE;
 		for (int dx : new int[] {0, WIDTH / 2, WIDTH - 1}) {
 			for (int dz : new int[] {0, DEPTH / 2, DEPTH - 1}) {
-				int top = world.getTopY(Heightmap.Type.WORLD_SURFACE_WG, origin.getX() + dx, origin.getZ() + dz);
+				int top = terrain.topY(origin.getX() + dx, origin.getZ() + dz);
 				lowest = Math.min(lowest, top);
 				highest = Math.max(highest, top);
-				BlockPos surface = new BlockPos(origin.getX() + dx, top - 1, origin.getZ() + dz);
-				if (!force && !world.getFluidState(surface).isEmpty()) return false;
+				if (terrain.isWet(new BlockPos(origin.getX() + dx, top - 1, origin.getZ() + dz))) return OptionalInt.empty();
 			}
 		}
-		if (!force && highest - lowest > MAX_SLOPE) return false;
-		BlockPos base = force ? origin.down() : new BlockPos(origin.getX(), lowest - 1, origin.getZ());
+		return highest - lowest > MAX_SLOPE ? OptionalInt.empty() : OptionalInt.of(lowest - 1);
+	}
+
+	/** Builds the site with its north-west corner at {@code origin}. {@code force} skips the terrain checks. */
+	public static boolean place(StructureWorldAccess world, BlockPos origin, Random random, boolean force) {
+		BlockPos base = origin.down();
+		if (!force) {
+			OptionalInt floor = floorY(new Terrain() {
+				@Override
+				public int topY(int x, int z) {
+					return world.getTopY(Heightmap.Type.WORLD_SURFACE_WG, x, z);
+				}
+
+				@Override
+				public boolean isWet(BlockPos pos) {
+					return !world.getFluidState(pos).isEmpty();
+				}
+			}, origin);
+			if (floor.isEmpty()) return false;
+			base = new BlockPos(origin.getX(), floor.getAsInt(), origin.getZ());
+		}
 
 		for (int x = 0; x < WIDTH; x++) {
 			for (int z = 0; z < DEPTH; z++) {
