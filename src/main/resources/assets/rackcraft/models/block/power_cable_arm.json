@@ -1,0 +1,73 @@
+{
+  "elements": [
+    {
+      "faces": {
+        "down": {
+          "rotation": 90,
+          "texture": "#side",
+          "uv": [
+            0,
+            6,
+            6,
+            10
+          ]
+        },
+        "east": {
+          "texture": "#side",
+          "uv": [
+            0,
+            6,
+            6,
+            10
+          ]
+        },
+        "north": {
+          "cullface": "north",
+          "texture": "#end",
+          "uv": [
+            6,
+            6,
+            10,
+            10
+          ]
+        },
+        "up": {
+          "rotation": 90,
+          "texture": "#side",
+          "uv": [
+            0,
+            6,
+            6,
+            10
+          ]
+        },
+        "west": {
+          "texture": "#side",
+          "uv": [
+            0,
+            6,
+            6,
+            10
+          ]
+        }
+      },
+      "from": [
+        6,
+        6,
+        0
+      ],
+      "to": [
+        10,
+        10,
+        6
+      ]
+    }
+  ],
+  "parent": "minecraft:block/block",
+  "textures": {
+    "end": "rackcraft:block/power_cable_end",
+    "joint": "rackcraft:block/power_cable_joint",
+    "particle": "rackcraft:block/power_cable",
+    "side": "rackcraft:block/power_cable"
+  }
+}

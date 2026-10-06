@@ -1,0 +1,23 @@
+{
+  "key": {
+    "B": {
+      "item": "rackcraft:circuit_board"
+    },
+    "I": {
+      "item": "minecraft:iron_bars"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    }
+  },
+  "pattern": [
+    "SIS",
+    "SBS",
+    "SIS"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:server_rack"
+  },
+  "type": "minecraft:crafting_shaped"
+}

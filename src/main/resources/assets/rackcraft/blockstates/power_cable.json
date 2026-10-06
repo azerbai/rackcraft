@@ -1,0 +1,138 @@
+{
+  "multipart": [
+    {
+      "apply": {
+        "model": "rackcraft:block/power_cable_core"
+      },
+      "when": {
+        "cut": "false"
+      }
+    },
+    {
+      "apply": {
+        "model": "rackcraft:block/power_cable_arm"
+      },
+      "when": {
+        "cut": "false",
+        "north": "true"
+      }
+    },
+    {
+      "apply": {
+        "model": "rackcraft:block/power_cable_arm",
+        "y": 90
+      },
+      "when": {
+        "cut": "false",
+        "east": "true"
+      }
+    },
+    {
+      "apply": {
+        "model": "rackcraft:block/power_cable_arm",
+        "y": 180
+      },
+      "when": {
+        "cut": "false",
+        "south": "true"
+      }
+    },
+    {
+      "apply": {
+        "model": "rackcraft:block/power_cable_arm",
+        "y": 270
+      },
+      "when": {
+        "cut": "false",
+        "west": "true"
+      }
+    },
+    {
+      "apply": {
+        "model": "rackcraft:block/power_cable_arm",
+        "x": 270
+      },
+      "when": {
+        "cut": "false",
+        "up": "true"
+      }
+    },
+    {
+      "apply": {
+        "model": "rackcraft:block/power_cable_arm",
+        "x": 90
+      },
+      "when": {
+        "cut": "false",
+        "down": "true"
+      }
+    },
+    {
+      "apply": {
+        "model": "rackcraft:block/power_cable_core_cut"
+      },
+      "when": {
+        "cut": "true"
+      }
+    },
+    {
+      "apply": {
+        "model": "rackcraft:block/power_cable_arm_cut"
+      },
+      "when": {
+        "cut": "true",
+        "north": "true"
+      }
+    },
+    {
+      "apply": {
+        "model": "rackcraft:block/power_cable_arm_cut",
+        "y": 90
+      },
+      "when": {
+        "cut": "true",
+        "east": "true"
+      }
+    },
+    {
+      "apply": {
+        "model": "rackcraft:block/power_cable_arm_cut",
+        "y": 180
+      },
+      "when": {
+        "cut": "true",
+        "south": "true"
+      }
+    },
+    {
+      "apply": {
+        "model": "rackcraft:block/power_cable_arm_cut",
+        "y": 270
+      },
+      "when": {
+        "cut": "true",
+        "west": "true"
+      }
+    },
+    {
+      "apply": {
+        "model": "rackcraft:block/power_cable_arm_cut",
+        "x": 270
+      },
+      "when": {
+        "cut": "true",
+        "up": "true"
+      }
+    },
+    {
+      "apply": {
+        "model": "rackcraft:block/power_cable_arm_cut",
+        "x": 90
+      },
+      "when": {
+        "cut": "true",
+        "down": "true"
+      }
+    }
+  ]
+}

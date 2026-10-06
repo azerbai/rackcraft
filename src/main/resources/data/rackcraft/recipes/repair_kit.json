@@ -1,0 +1,21 @@
+{
+  "ingredients": [
+    {
+      "item": "rackcraft:steel_ingot"
+    },
+    {
+      "item": "rackcraft:copper_wire"
+    },
+    {
+      "item": "rackcraft:copper_wire"
+    },
+    {
+      "item": "rackcraft:circuit_board"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:repair_kit"
+  },
+  "type": "minecraft:crafting_shapeless"
+}

@@ -1,0 +1,15 @@
+{
+  "key": {
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    }
+  },
+  "pattern": [
+    "SSS"
+  ],
+  "result": {
+    "count": 6,
+    "item": "rackcraft:raised_floor_tile"
+  },
+  "type": "minecraft:crafting_shaped"
+}

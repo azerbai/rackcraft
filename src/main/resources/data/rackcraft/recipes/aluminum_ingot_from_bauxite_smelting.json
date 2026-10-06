@@ -1,0 +1,9 @@
+{
+  "cookingtime": 200,
+  "experience": 0.7,
+  "ingredient": {
+    "item": "rackcraft:raw_bauxite"
+  },
+  "result": "rackcraft:aluminum_ingot",
+  "type": "minecraft:smelting"
+}

@@ -1,0 +1,20 @@
+{
+  "key": {
+    "R": {
+      "item": "minecraft:redstone"
+    },
+    "S": {
+      "item": "rackcraft:silicon"
+    }
+  },
+  "pattern": [
+    "SSS",
+    "SRS",
+    "SSS"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:cpu_chip"
+  },
+  "type": "minecraft:crafting_shaped"
+}

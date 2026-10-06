@@ -1,0 +1,12 @@
+{
+  "ingredients": [
+    {
+      "item": "rackcraft:coke_block"
+    }
+  ],
+  "result": {
+    "count": 9,
+    "item": "rackcraft:coke"
+  },
+  "type": "minecraft:crafting_shapeless"
+}

@@ -1,0 +1,30 @@
+{
+  "ingredients": [
+    {
+      "item": "rackcraft:aluminum_ingot"
+    },
+    {
+      "item": "rackcraft:aluminum_ingot"
+    },
+    {
+      "item": "rackcraft:aluminum_ingot"
+    },
+    {
+      "item": "rackcraft:aluminum_ingot"
+    },
+    {
+      "item": "minecraft:blue_ice"
+    },
+    {
+      "item": "minecraft:blue_ice"
+    },
+    {
+      "item": "minecraft:diamond"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:cryo_coil"
+  },
+  "type": "minecraft:crafting_shapeless"
+}

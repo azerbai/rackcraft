@@ -1,0 +1,23 @@
+{
+  "key": {
+    "B": {
+      "item": "rackcraft:circuit_board"
+    },
+    "R": {
+      "item": "rackcraft:cpu_chip"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    }
+  },
+  "pattern": [
+    "SBS",
+    "BRB",
+    "SSS"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:facility_controller"
+  },
+  "type": "minecraft:crafting_shaped"
+}

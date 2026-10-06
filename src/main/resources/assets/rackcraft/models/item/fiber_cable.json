@@ -1,0 +1,95 @@
+{
+  "display": {
+    "gui": {
+      "rotation": [
+        30,
+        45,
+        0
+      ],
+      "scale": [
+        0.8,
+        0.8,
+        0.8
+      ]
+    }
+  },
+  "elements": [
+    {
+      "faces": {
+        "down": {
+          "rotation": 90,
+          "texture": "#side",
+          "uv": [
+            0,
+            7,
+            16,
+            9
+          ]
+        },
+        "east": {
+          "texture": "#side",
+          "uv": [
+            0,
+            7,
+            16,
+            9
+          ]
+        },
+        "north": {
+          "texture": "#end",
+          "uv": [
+            7,
+            7,
+            9,
+            9
+          ]
+        },
+        "south": {
+          "texture": "#end",
+          "uv": [
+            7,
+            7,
+            9,
+            9
+          ]
+        },
+        "up": {
+          "rotation": 90,
+          "texture": "#side",
+          "uv": [
+            0,
+            7,
+            16,
+            9
+          ]
+        },
+        "west": {
+          "texture": "#side",
+          "uv": [
+            0,
+            7,
+            16,
+            9
+          ]
+        }
+      },
+      "from": [
+        7,
+        7,
+        0
+      ],
+      "to": [
+        9,
+        9,
+        16
+      ]
+    }
+  ],
+  "parent": "minecraft:block/block",
+  "textures": {
+    "end": "rackcraft:block/fiber_cable_end",
+    "joint": "rackcraft:block/fiber_cable_joint",
+    "particle": "rackcraft:block/fiber_cable",
+    "side": "rackcraft:block/fiber_cable"
+  }
+}

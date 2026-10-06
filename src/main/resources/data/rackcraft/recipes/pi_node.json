@@ -1,0 +1,18 @@
+{
+  "ingredients": [
+    {
+      "item": "rackcraft:circuit_board"
+    },
+    {
+      "item": "rackcraft:cpu_chip"
+    },
+    {
+      "item": "rackcraft:ram_module"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:pi_node"
+  },
+  "type": "minecraft:crafting_shapeless"
+}

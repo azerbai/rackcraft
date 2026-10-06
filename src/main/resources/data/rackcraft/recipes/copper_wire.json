@@ -1,0 +1,12 @@
+{
+  "ingredients": [
+    {
+      "item": "minecraft:copper_ingot"
+    }
+  ],
+  "result": {
+    "count": 6,
+    "item": "rackcraft:copper_wire"
+  },
+  "type": "minecraft:crafting_shapeless"
+}

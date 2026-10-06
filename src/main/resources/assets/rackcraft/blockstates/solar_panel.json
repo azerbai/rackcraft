@@ -1,0 +1,36 @@
+{
+  "variants": {
+    "facing=east,lit=false": {
+      "model": "rackcraft:block/solar_panel",
+      "y": 90
+    },
+    "facing=east,lit=true": {
+      "model": "rackcraft:block/solar_panel_on",
+      "y": 90
+    },
+    "facing=north,lit=false": {
+      "model": "rackcraft:block/solar_panel",
+      "y": 0
+    },
+    "facing=north,lit=true": {
+      "model": "rackcraft:block/solar_panel_on",
+      "y": 0
+    },
+    "facing=south,lit=false": {
+      "model": "rackcraft:block/solar_panel",
+      "y": 180
+    },
+    "facing=south,lit=true": {
+      "model": "rackcraft:block/solar_panel_on",
+      "y": 180
+    },
+    "facing=west,lit=false": {
+      "model": "rackcraft:block/solar_panel",
+      "y": 270
+    },
+    "facing=west,lit=true": {
+      "model": "rackcraft:block/solar_panel_on",
+      "y": 270
+    }
+  }
+}

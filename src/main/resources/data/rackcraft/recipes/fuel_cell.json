@@ -1,0 +1,23 @@
+{
+  "key": {
+    "A": {
+      "item": "minecraft:amethyst_shard"
+    },
+    "G": {
+      "item": "minecraft:glowstone"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    }
+  },
+  "pattern": [
+    "SAS",
+    "AGA",
+    "SAS"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:fuel_cell"
+  },
+  "type": "minecraft:crafting_shaped"
+}

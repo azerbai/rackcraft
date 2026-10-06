@@ -1,0 +1,21 @@
+{
+  "ingredients": [
+    {
+      "item": "rackcraft:circuit_board"
+    },
+    {
+      "item": "rackcraft:silicon"
+    },
+    {
+      "item": "rackcraft:silicon"
+    },
+    {
+      "item": "minecraft:gold_ingot"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:ram_module"
+  },
+  "type": "minecraft:crafting_shapeless"
+}

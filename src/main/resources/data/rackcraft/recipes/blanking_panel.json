@@ -1,0 +1,16 @@
+{
+  "key": {
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    }
+  },
+  "pattern": [
+    "SSS",
+    "SSS"
+  ],
+  "result": {
+    "count": 16,
+    "item": "rackcraft:blanking_panel"
+  },
+  "type": "minecraft:crafting_shaped"
+}

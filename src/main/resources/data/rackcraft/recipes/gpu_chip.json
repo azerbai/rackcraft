@@ -1,0 +1,24 @@
+{
+  "ingredients": [
+    {
+      "item": "rackcraft:cpu_chip"
+    },
+    {
+      "item": "rackcraft:cpu_chip"
+    },
+    {
+      "item": "minecraft:diamond"
+    },
+    {
+      "item": "minecraft:redstone"
+    },
+    {
+      "item": "minecraft:redstone"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:gpu_chip"
+  },
+  "type": "minecraft:crafting_shapeless"
+}

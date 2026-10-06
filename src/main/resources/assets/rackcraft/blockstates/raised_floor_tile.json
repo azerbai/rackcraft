@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "rackcraft:block/raised_floor_tile"
+    }
+  }
+}

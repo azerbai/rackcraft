@@ -1,0 +1,17 @@
+{
+  "key": {
+    "C": {
+      "item": "rackcraft:coke"
+    }
+  },
+  "pattern": [
+    "CCC",
+    "CCC",
+    "CCC"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:coke_block"
+  },
+  "type": "minecraft:crafting_shaped"
+}

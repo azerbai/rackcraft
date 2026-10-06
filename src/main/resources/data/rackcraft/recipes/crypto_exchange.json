@@ -1,0 +1,29 @@
+{
+  "key": {
+    "B": {
+      "item": "rackcraft:circuit_board"
+    },
+    "C": {
+      "item": "rackcraft:cpu_chip"
+    },
+    "E": {
+      "item": "minecraft:emerald"
+    },
+    "G": {
+      "item": "minecraft:glass_pane"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    }
+  },
+  "pattern": [
+    "GGG",
+    "CBC",
+    "SES"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:crypto_exchange"
+  },
+  "type": "minecraft:crafting_shaped"
+}

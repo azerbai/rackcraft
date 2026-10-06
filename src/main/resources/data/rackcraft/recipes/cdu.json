@@ -1,0 +1,26 @@
+{
+  "key": {
+    "A": {
+      "item": "rackcraft:aluminum_ingot"
+    },
+    "B": {
+      "item": "rackcraft:circuit_board"
+    },
+    "C": {
+      "item": "rackcraft:coolant_pipe"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    }
+  },
+  "pattern": [
+    "AAA",
+    "ACA",
+    "SBS"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:cdu"
+  },
+  "type": "minecraft:crafting_shaped"
+}

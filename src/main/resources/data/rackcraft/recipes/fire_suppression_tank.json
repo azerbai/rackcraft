@@ -1,0 +1,23 @@
+{
+  "key": {
+    "D": {
+      "item": "rackcraft:suppression_canister"
+    },
+    "I": {
+      "item": "minecraft:iron_bars"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    }
+  },
+  "pattern": [
+    "SIS",
+    "SDS",
+    "SSS"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:fire_suppression_tank"
+  },
+  "type": "minecraft:crafting_shaped"
+}

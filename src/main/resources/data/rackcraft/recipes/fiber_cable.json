@@ -1,0 +1,19 @@
+{
+  "key": {
+    "P": {
+      "item": "minecraft:glass_pane"
+    },
+    "S": {
+      "item": "rackcraft:silicon"
+    }
+  },
+  "pattern": [
+    "PPP",
+    "SSS"
+  ],
+  "result": {
+    "count": 6,
+    "item": "rackcraft:fiber_cable"
+  },
+  "type": "minecraft:crafting_shaped"
+}

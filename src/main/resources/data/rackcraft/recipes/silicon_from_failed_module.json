@@ -1,0 +1,9 @@
+{
+  "cookingtime": 100,
+  "experience": 0.0,
+  "ingredient": {
+    "item": "rackcraft:failed_module"
+  },
+  "result": "rackcraft:silicon",
+  "type": "minecraft:blasting"
+}

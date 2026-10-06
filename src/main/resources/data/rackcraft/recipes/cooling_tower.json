@@ -1,0 +1,23 @@
+{
+  "key": {
+    "A": {
+      "item": "rackcraft:aluminum_ingot"
+    },
+    "C": {
+      "item": "rackcraft:coolant_pipe"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    }
+  },
+  "pattern": [
+    "SAS",
+    "ACA",
+    "SSS"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:cooling_tower"
+  },
+  "type": "minecraft:crafting_shaped"
+}

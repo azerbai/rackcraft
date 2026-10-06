@@ -1,0 +1,26 @@
+{
+  "key": {
+    "A": {
+      "item": "rackcraft:aluminum_ingot"
+    },
+    "B": {
+      "item": "rackcraft:circuit_board"
+    },
+    "C": {
+      "item": "rackcraft:coolant_pipe"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    }
+  },
+  "pattern": [
+    "SAS",
+    "ACA",
+    "SBS"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:crac_unit"
+  },
+  "type": "minecraft:crafting_shaped"
+}

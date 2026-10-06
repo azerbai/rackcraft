@@ -1,0 +1,33 @@
+{
+  "ingredients": [
+    {
+      "item": "rackcraft:gpu_chip"
+    },
+    {
+      "item": "rackcraft:gpu_chip"
+    },
+    {
+      "item": "rackcraft:cryo_coil"
+    },
+    {
+      "item": "rackcraft:cryo_coil"
+    },
+    {
+      "item": "rackcraft:circuit_board"
+    },
+    {
+      "item": "rackcraft:circuit_board"
+    },
+    {
+      "item": "minecraft:netherite_ingot"
+    },
+    {
+      "item": "rackcraft:steel_block"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:quantum_core"
+  },
+  "type": "minecraft:crafting_shapeless"
+}

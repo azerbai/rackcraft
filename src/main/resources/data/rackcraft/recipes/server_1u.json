@@ -1,0 +1,30 @@
+{
+  "ingredients": [
+    {
+      "item": "rackcraft:steel_ingot"
+    },
+    {
+      "item": "rackcraft:steel_ingot"
+    },
+    {
+      "item": "rackcraft:circuit_board"
+    },
+    {
+      "item": "rackcraft:cpu_chip"
+    },
+    {
+      "item": "rackcraft:cpu_chip"
+    },
+    {
+      "item": "rackcraft:ram_module"
+    },
+    {
+      "item": "rackcraft:ram_module"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:server_1u"
+  },
+  "type": "minecraft:crafting_shapeless"
+}

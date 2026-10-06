@@ -1,0 +1,20 @@
+{
+  "key": {
+    "A": {
+      "item": "rackcraft:aluminum_ingot"
+    },
+    "P": {
+      "item": "rackcraft:biomass_pellet"
+    }
+  },
+  "pattern": [
+    " A ",
+    "PPP",
+    "PPP"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:biodiesel_canister"
+  },
+  "type": "minecraft:crafting_shaped"
+}

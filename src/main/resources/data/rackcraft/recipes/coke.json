@@ -1,0 +1,9 @@
+{
+  "cookingtime": 200,
+  "experience": 0.2,
+  "ingredient": {
+    "tag": "minecraft:coals"
+  },
+  "result": "rackcraft:coke",
+  "type": "minecraft:blasting"
+}

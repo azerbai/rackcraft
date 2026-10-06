@@ -1,0 +1,17 @@
+{
+  "key": {
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    }
+  },
+  "pattern": [
+    "SSS",
+    "SSS",
+    "SSS"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:steel_block"
+  },
+  "type": "minecraft:crafting_shaped"
+}

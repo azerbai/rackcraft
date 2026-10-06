@@ -1,0 +1,24 @@
+{
+  "ingredients": [
+    {
+      "item": "rackcraft:copper_wire"
+    },
+    {
+      "item": "rackcraft:copper_wire"
+    },
+    {
+      "item": "rackcraft:copper_wire"
+    },
+    {
+      "item": "rackcraft:silicon"
+    },
+    {
+      "item": "minecraft:green_dye"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:circuit_board"
+  },
+  "type": "minecraft:crafting_shapeless"
+}

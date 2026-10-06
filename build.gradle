@@ -13,9 +13,14 @@ repositories {
 
 loom {
 	splitEnvironmentSourceSets()
+	runs {
+		server {
+			vmArg '-Drackcraft.selftest=true'
+		}
+	}
 
 	mods {
-		"modid" {
+		"rackcraft" {
 			sourceSet sourceSets.main
 			sourceSet sourceSets.client
 		}
@@ -25,11 +30,17 @@ loom {
 dependencies {
 	// To change the versions see the gradle.properties file
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
-	mappings loom.officialMojangMappings()
+	mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
 	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
 
 	// Fabric API. This is technically optional, but you probably want it anyway.
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+	testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.10.2'
+}
+
+tasks.withType(Test).configureEach {
+	useJUnitPlatform()
 }
 
 processResources {
@@ -46,6 +57,10 @@ tasks.withType(JavaCompile).configureEach {
 }
 
 java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(17)
+	}
+
 	// Loom will automatically attach sourcesJar to a RemapSourcesJar task and to the "build" task
 	// if it is present.
 	// If you remove this line, sources will not be generated.

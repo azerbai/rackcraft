@@ -1,0 +1,23 @@
+{
+  "key": {
+    "C": {
+      "item": "rackcraft:cpu_chip"
+    },
+    "P": {
+      "item": "minecraft:glass_pane"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    }
+  },
+  "pattern": [
+    "PPP",
+    "PCP",
+    "SSS"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:monitoring_wall"
+  },
+  "type": "minecraft:crafting_shaped"
+}

@@ -1,0 +1,27 @@
+{
+  "ingredients": [
+    {
+      "item": "rackcraft:uplink_router"
+    },
+    {
+      "item": "rackcraft:gpu_chip"
+    },
+    {
+      "item": "rackcraft:gpu_chip"
+    },
+    {
+      "item": "rackcraft:circuit_board"
+    },
+    {
+      "item": "rackcraft:circuit_board"
+    },
+    {
+      "item": "rackcraft:steel_block"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:core_router"
+  },
+  "type": "minecraft:crafting_shapeless"
+}

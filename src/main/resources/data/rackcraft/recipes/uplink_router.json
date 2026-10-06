@@ -1,0 +1,23 @@
+{
+  "key": {
+    "B": {
+      "item": "rackcraft:circuit_board"
+    },
+    "F": {
+      "item": "rackcraft:fiber_cable"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    }
+  },
+  "pattern": [
+    "SFS",
+    "FBF",
+    "SSS"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:uplink_router"
+  },
+  "type": "minecraft:crafting_shaped"
+}

@@ -1,0 +1,31 @@
+{
+  "replace": false,
+  "values": [
+    "rackcraft:bauxite_ore",
+    "rackcraft:steel_block",
+    "rackcraft:raised_floor_tile",
+    "rackcraft:blanking_panel",
+    "rackcraft:power_cable",
+    "rackcraft:diesel_generator",
+    "rackcraft:solar_panel",
+    "rackcraft:wind_turbine",
+    "rackcraft:pdu",
+    "rackcraft:server_rack",
+    "rackcraft:exhaust_fan",
+    "rackcraft:coolant_pipe",
+    "rackcraft:cooling_tower",
+    "rackcraft:crac_unit",
+    "rackcraft:battery_bank",
+    "rackcraft:utility_intake",
+    "rackcraft:fiber_cable",
+    "rackcraft:uplink_router",
+    "rackcraft:core_router",
+    "rackcraft:facility_controller",
+    "rackcraft:cdu",
+    "rackcraft:modular_reactor",
+    "rackcraft:monitoring_wall",
+    "rackcraft:fire_suppression_tank",
+    "rackcraft:crypto_exchange",
+    "rackcraft:coke_block"
+  ]
+}

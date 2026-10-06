@@ -1,0 +1,36 @@
+{
+  "ingredients": [
+    {
+      "item": "rackcraft:steel_ingot"
+    },
+    {
+      "item": "rackcraft:steel_ingot"
+    },
+    {
+      "item": "rackcraft:aluminum_ingot"
+    },
+    {
+      "item": "rackcraft:circuit_board"
+    },
+    {
+      "item": "rackcraft:circuit_board"
+    },
+    {
+      "item": "rackcraft:gpu_chip"
+    },
+    {
+      "item": "rackcraft:gpu_chip"
+    },
+    {
+      "item": "rackcraft:ram_module"
+    },
+    {
+      "item": "rackcraft:ram_module"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:gpu_blade"
+  },
+  "type": "minecraft:crafting_shapeless"
+}

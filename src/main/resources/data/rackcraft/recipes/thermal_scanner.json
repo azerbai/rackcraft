@@ -1,0 +1,21 @@
+{
+  "ingredients": [
+    {
+      "item": "rackcraft:circuit_board"
+    },
+    {
+      "item": "minecraft:glass_pane"
+    },
+    {
+      "item": "rackcraft:copper_wire"
+    },
+    {
+      "item": "minecraft:redstone"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:thermal_scanner"
+  },
+  "type": "minecraft:crafting_shapeless"
+}

@@ -1,0 +1,19 @@
+{
+  "key": {
+    "C": {
+      "item": "minecraft:copper_ingot"
+    },
+    "W": {
+      "item": "minecraft:black_wool"
+    }
+  },
+  "pattern": [
+    "CCC",
+    "WWW"
+  ],
+  "result": {
+    "count": 6,
+    "item": "rackcraft:power_cable"
+  },
+  "type": "minecraft:crafting_shaped"
+}

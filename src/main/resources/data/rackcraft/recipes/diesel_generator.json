@@ -1,0 +1,23 @@
+{
+  "key": {
+    "C": {
+      "item": "minecraft:copper_ingot"
+    },
+    "F": {
+      "item": "minecraft:furnace"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    }
+  },
+  "pattern": [
+    "SSS",
+    "SFS",
+    "CCC"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:diesel_generator"
+  },
+  "type": "minecraft:crafting_shaped"
+}

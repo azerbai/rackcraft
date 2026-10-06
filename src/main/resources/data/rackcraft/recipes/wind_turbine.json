@@ -1,0 +1,23 @@
+{
+  "key": {
+    "A": {
+      "item": "rackcraft:aluminum_ingot"
+    },
+    "C": {
+      "item": "minecraft:copper_ingot"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    }
+  },
+  "pattern": [
+    "AAA",
+    "ACA",
+    " S "
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:wind_turbine"
+  },
+  "type": "minecraft:crafting_shaped"
+}

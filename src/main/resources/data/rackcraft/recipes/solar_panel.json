@@ -1,0 +1,26 @@
+{
+  "key": {
+    "A": {
+      "item": "rackcraft:aluminum_ingot"
+    },
+    "C": {
+      "item": "rackcraft:circuit_board"
+    },
+    "G": {
+      "item": "minecraft:glass"
+    },
+    "S": {
+      "item": "rackcraft:silicon"
+    }
+  },
+  "pattern": [
+    "GGG",
+    "SSS",
+    "ACA"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:solar_panel"
+  },
+  "type": "minecraft:crafting_shaped"
+}

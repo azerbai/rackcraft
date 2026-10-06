@@ -1,0 +1,19 @@
+{
+  "key": {
+    "A": {
+      "item": "rackcraft:aluminum_ingot"
+    },
+    "G": {
+      "item": "minecraft:glass"
+    }
+  },
+  "pattern": [
+    "AAA",
+    "GGG"
+  ],
+  "result": {
+    "count": 6,
+    "item": "rackcraft:coolant_pipe"
+  },
+  "type": "minecraft:crafting_shaped"
+}

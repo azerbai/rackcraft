@@ -1,0 +1,26 @@
+{
+  "key": {
+    "B": {
+      "item": "rackcraft:steel_block"
+    },
+    "C": {
+      "item": "rackcraft:circuit_board"
+    },
+    "N": {
+      "item": "minecraft:nether_star"
+    },
+    "S": {
+      "item": "rackcraft:aluminum_ingot"
+    }
+  },
+  "pattern": [
+    "BSB",
+    "SNS",
+    "BCB"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:modular_reactor"
+  },
+  "type": "minecraft:crafting_shaped"
+}

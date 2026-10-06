@@ -1,0 +1,23 @@
+{
+  "key": {
+    "C": {
+      "item": "minecraft:copper_ingot"
+    },
+    "R": {
+      "item": "minecraft:redstone_block"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    }
+  },
+  "pattern": [
+    "SCS",
+    "RRR",
+    "SCS"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:battery_bank"
+  },
+  "type": "minecraft:crafting_shaped"
+}

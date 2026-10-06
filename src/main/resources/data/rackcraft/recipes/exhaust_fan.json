@@ -1,0 +1,23 @@
+{
+  "key": {
+    "A": {
+      "item": "rackcraft:aluminum_ingot"
+    },
+    "C": {
+      "item": "minecraft:copper_ingot"
+    },
+    "I": {
+      "item": "minecraft:iron_bars"
+    }
+  },
+  "pattern": [
+    "IAI",
+    "ACA",
+    "IAI"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:exhaust_fan"
+  },
+  "type": "minecraft:crafting_shaped"
+}

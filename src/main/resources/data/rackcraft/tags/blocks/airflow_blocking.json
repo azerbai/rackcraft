@@ -1,0 +1,15 @@
+{
+  "replace": false,
+  "values": [
+    "rackcraft:blanking_panel",
+    "rackcraft:cdu",
+    "rackcraft:cooling_tower",
+    "rackcraft:crac_unit",
+    "rackcraft:exhaust_fan",
+    "rackcraft:modular_reactor",
+    "rackcraft:raised_floor_tile",
+    "rackcraft:server_rack",
+    "rackcraft:solar_panel",
+    "rackcraft:wind_turbine"
+  ]
+}

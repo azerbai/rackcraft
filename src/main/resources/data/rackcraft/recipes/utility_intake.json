@@ -1,0 +1,23 @@
+{
+  "key": {
+    "B": {
+      "item": "rackcraft:circuit_board"
+    },
+    "C": {
+      "item": "minecraft:copper_ingot"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    }
+  },
+  "pattern": [
+    "SSS",
+    "CBC",
+    "SSS"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:utility_intake"
+  },
+  "type": "minecraft:crafting_shaped"
+}
