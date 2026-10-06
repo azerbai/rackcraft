@@ -65,6 +65,7 @@ public final class ExchangeCatalog {
 		if (EXCLUDED.contains(path) || path.endsWith("_spawn_egg") || path.startsWith("infested_")
 				|| path.endsWith("command_block") || path.equals("command_block_minecart")) return false;
 		if (item instanceof BlockItem blockItem && blockItem.getBlock() instanceof OperatorBlock) return false;
+		if (id.getNamespace().equals(Rackcraft.MOD_ID) && dev.rackcraft.generated.ContentIds.CREATIVE_IDS.contains(path)) return false;
 		return item.isEnabled(features);
 	}
 
@@ -92,6 +93,7 @@ public final class ExchangeCatalog {
 					changed = true;
 				}
 			}
+			changed |= priceVariants(values);
 			// Smithing upgrades have no ingredient list: price netherite gear as its diamond version plus an ingot.
 			for (Item item : Registries.ITEM) {
 				String path = Registries.ITEM.getId(item).getPath();
@@ -115,6 +117,38 @@ public final class ExchangeCatalog {
 		}
 		prices = Collections.unmodifiableMap(built);
 		Rackcraft.LOGGER.info("[Rackcraft] Exchange catalog priced {} items", built.size());
+	}
+
+	/**
+	 * Items made in the world rather than by a recipe inherit the value of what they come from, so a dyed
+	 * shulker box or a block of concrete can never undercut its source.
+	 */
+	private static boolean priceVariants(Map<Item, Double> values) {
+		boolean changed = false;
+		for (Item item : Registries.ITEM) {
+			if (values.containsKey(item)) continue;
+			String path = Registries.ITEM.getId(item).getPath();
+			String source = null;
+			double extra = 0;
+			if (path.endsWith("_shulker_box")) source = "shulker_box";
+			else if (path.equals("chipped_anvil") || path.equals("damaged_anvil")) source = "anvil";
+			else if (path.endsWith("_concrete")) source = path + "_powder";
+			else if (path.equals("carved_pumpkin")) source = "pumpkin";
+			else if (path.contains("copper") && path.matches(".*(exposed|weathered|oxidized).*")) {
+				source = path.replaceFirst("(exposed|weathered|oxidized)_", "");
+				if (source.startsWith("waxed_")) {
+					source = source.substring("waxed_".length());
+					extra = values.getOrDefault(Items.HONEYCOMB, 8.0);
+				}
+				if (source.equals("copper")) source = "copper_block";
+			}
+			if (source == null) continue;
+			Double sourceValue = values.get(Registries.ITEM.get(new Identifier("minecraft", source)));
+			if (sourceValue == null) continue;
+			values.put(item, sourceValue + extra);
+			changed = true;
+		}
+		return changed;
 	}
 
 	private static Double recipeCost(Recipe<?> recipe, Map<Item, Double> values) {
@@ -212,7 +246,10 @@ public final class ExchangeCatalog {
 		put(base, 200, Items.SCUTE, Items.BEE_NEST);
 		put(base, 250, Items.EMERALD);
 		put(base, 280, Items.EMERALD_ORE, Items.DEEPSLATE_EMERALD_ORE);
-		put(base, 300, Items.GHAST_TEAR, Items.NAUTILUS_SHELL, Items.NAME_TAG, Items.SCULK_SENSOR);
+		put(base, 100, Items.CHAINMAIL_HELMET, Items.CHAINMAIL_BOOTS);
+		put(base, 150, Items.IRON_HORSE_ARMOR, Items.CHAINMAIL_LEGGINGS, Items.CHAINMAIL_CHESTPLATE);
+		put(base, 300, Items.GHAST_TEAR, Items.NAUTILUS_SHELL, Items.NAME_TAG, Items.SCULK_SENSOR,
+				Items.GOLDEN_HORSE_ARMOR, Items.BELL, Items.GLOBE_BANNER_PATTERN, Items.PIGLIN_BANNER_PATTERN);
 		put(base, 400, Items.SADDLE, Items.SPONGE, Items.WET_SPONGE, Items.SCULK_CATALYST, Items.DRAGON_BREATH);
 		put(base, 500, Items.ECHO_SHARD, Items.SKELETON_SKULL, Items.SCULK_SHRIEKER);
 		put(base, 800, Items.ZOMBIE_HEAD, Items.CREEPER_HEAD, Items.PIGLIN_HEAD);
@@ -220,7 +257,7 @@ public final class ExchangeCatalog {
 		put(base, 1_100, Items.DIAMOND_ORE, Items.DEEPSLATE_DIAMOND_ORE);
 		put(base, 1_500, Items.SHULKER_SHELL);
 		put(base, 2_000, Items.SNIFFER_EGG);
-		put(base, 2_500, Items.HEART_OF_THE_SEA);
+		put(base, 2_500, Items.HEART_OF_THE_SEA, Items.DIAMOND_HORSE_ARMOR);
 		put(base, 3_000, Items.NETHERITE_SCRAP, Items.ANCIENT_DEBRIS, Items.WITHER_SKELETON_SKULL);
 		put(base, 4_000, Items.TRIDENT);
 		put(base, 5_000, Items.TOTEM_OF_UNDYING, Items.NETHERITE_UPGRADE_SMITHING_TEMPLATE);

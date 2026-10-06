@@ -27,7 +27,7 @@
     {"id":"cooling_tower","name":"Cooling Tower","color":"54A9A0","front":"grille","top":"fan","side":"louver","machine":true,"blocksAirflow":true,
      "desc":"Draws 4 kW and supplies the coolant loop. A CRAC unit only works if a powered Cooling Tower shares its coolant network."},
     {"id":"crac_unit","name":"CRAC Unit","color":"47749A","front":"fan","top":"vent","side":"louver","machine":true,"blocksAirflow":true,
-     "desc":"Computer-room air conditioner. It draws about 8.6 kW and pulls up to 15 kW of heat from the air on both its front and back, cooling toward 16 C. It needs a coolant network with a powered Cooling Tower."},
+     "desc":"Computer-room air conditioner. It draws about 8.6 kW and pulls up to 15 kW of heat from the air on both its front and back, cooling it back down toward ambient. It needs a coolant network with a powered Cooling Tower."},
     {"id":"battery_bank","name":"Battery Bank","color":"8EAE50","front":"battery","side":"cells","top":"vent","machine":true,
      "desc":"Stores 3,000 kJ, enough for 50 seconds at 60 kW. It charges at up to 15 kW from surplus power at 90% efficiency, discharges at up to 60 kW, and bridges the gap while diesel generators spin up."},
     {"id":"utility_intake","name":"Utility Intake","color":"95774C","front":"meter","side":"hazard","top":"insulators","machine":true,
@@ -50,6 +50,14 @@
      "desc":"Holds a Suppression Canister in its single slot, ready for the facility's fire protection."},
     {"id":"crypto_exchange","name":"Crypto Exchange","color":"283545","front":"exchange","side":"panel","top":"plate","machine":true,
      "desc":"Spend the RackCoin your racks have mined. Pick a tab, then click an offer to buy it; Shift-click buys ten. The screen shows your balance and live mining rate, and hovering an offer you can't afford yet tells you how long until you can. It needs no power or cables: every rack in the world pays into one shared balance."},
+    {"id":"creative_power","name":"Creative Power Source","color":"7A3FA6","front":"reactor","side":"creative","top":"hatch","machine":true,"creative":true,
+     "desc":"Creative only. Supplies as much power as you set, forever, to the power network it touches. Right-click to set the output in kW (needs creative mode or operator)."},
+    {"id":"creative_rack","name":"Creative Rack","color":"5E2E86","front":"rack","side":"creative","top":"mesh","machine":true,"blocksAirflow":true,"creative":true,
+     "desc":"Creative only. Mines RackCoin at the rate you set, with no modules, power, fiber or cooling needed. It can also draw a set load from its power network, which makes it a test load for generators. Right-click to set both values."},
+    {"id":"creative_cooler","name":"Creative Cooler","color":"4F7FC0","front":"fan","side":"creative","top":"vent","machine":true,"blocksAirflow":true,"creative":true,
+     "desc":"Creative only. Holds the air cells in front of and behind it at the temperature you set, regardless of how much heat is dumped there. Air never goes below the ambient temperature (24 C by default). Right-click to set the target in C."},
+    {"id":"creative_router","name":"Creative Router","color":"8A4FB0","front":"core_ports","side":"creative","top":"mesh","machine":true,"creative":true,
+     "desc":"Creative only. Gives its fiber network as much bandwidth as you set. Right-click to change it."},
     {"id":"coke_block","name":"Block of Coke","color":"2E2F33","pattern":"coal_block","burn":32000,
      "desc":"Nine pieces of coke pressed into a block. It burns for 1,600 seconds in a Diesel Generator, the longest-lasting fuel in the mod."}
   ],
@@ -130,7 +138,10 @@
      "entries":["exhaust_fan","raised_floor_tile","coolant_pipe","cooling_tower","crac_unit","cdu","thermal_scanner"]},
     {"id":"operations","title":"Network & Operations","icon":"facility_controller",
      "intro":"Connect racks over fiber to routers to sell compute. The Facility Controller tracks RackCoin and availability, runs a small parts shop, and warns you of events: outages, cooling failures, hardware failures, cable cuts, heat waves and surges.",
-     "entries":["fiber_cable","uplink_router","core_router","facility_controller","monitoring_wall","fire_suppression_tank","suppression_canister"]}
+     "entries":["fiber_cable","uplink_router","core_router","facility_controller","monitoring_wall","fire_suppression_tank","suppression_canister"]},
+    {"id":"creative","title":"Creative Tools","icon":"creative_power",
+     "intro":"Creative-only machines for building and testing. They cannot be crafted or bought at the Exchange; find them in the Rackcraft Creative tab. Right-click one to set its value in-game; only players in creative mode or operators can change it.",
+     "entries":["creative_power","creative_rack","creative_cooler","creative_router"]}
   ],
   "itemTags": {
     "biomass": ["minecraft:wheat","minecraft:wheat_seeds","minecraft:beetroot_seeds","minecraft:sugar_cane","minecraft:kelp","minecraft:potato","minecraft:carrot","minecraft:beetroot","#minecraft:leaves","#minecraft:saplings"]

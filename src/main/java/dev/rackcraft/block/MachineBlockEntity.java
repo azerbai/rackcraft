@@ -52,6 +52,7 @@ public final class MachineBlockEntity extends BlockEntity implements Inventory, 
 	private double networkSupplyKw;
 	private double networkDemandKw;
 	private double networkCapacityKw;
+	private final java.util.Map<String, Double> creativeValues = new java.util.HashMap<>();
 
 	public MachineBlockEntity(BlockPos pos, BlockState state) {
 		super(RcBlocks.MACHINE_ENTITY, pos, state);
@@ -83,7 +84,8 @@ public final class MachineBlockEntity extends BlockEntity implements Inventory, 
 				"facility_controller", "cdu", "modular_reactor").contains(id)) kinds.add(NetKind.POWER);
 		if (List.of("cooling_tower", "crac_unit", "cdu").contains(id)) kinds.add(NetKind.COOLANT);
 		if (List.of("server_rack", "uplink_router", "core_router", "facility_controller",
-				"monitoring_wall").contains(id)) kinds.add(NetKind.DATA);
+				"monitoring_wall", "creative_router").contains(id)) kinds.add(NetKind.DATA);
+		if (List.of("creative_power", "creative_rack").contains(id)) kinds.add(NetKind.POWER);
 		return kinds;
 	}
 
@@ -206,6 +208,21 @@ public final class MachineBlockEntity extends BlockEntity implements Inventory, 
 	public double networkSupplyKw() { return networkSupplyKw; }
 	public double networkDemandKw() { return networkDemandKw; }
 	public double networkCapacityKw() { return networkCapacityKw; }
+
+	/** A creative machine's in-game setting, or its default if never changed. */
+	public double creativeValue(String key) {
+		dev.rackcraft.CreativeSettings.Setting setting = dev.rackcraft.CreativeSettings.find(blockId(), key);
+		if (setting == null) return 0;
+		return creativeValues.getOrDefault(key, setting.defaultValue());
+	}
+
+	public boolean setCreativeValue(String key, double value) {
+		dev.rackcraft.CreativeSettings.Setting setting = dev.rackcraft.CreativeSettings.find(blockId(), key);
+		if (setting == null) return false;
+		creativeValues.put(key, setting.clamp(value));
+		markDirty();
+		return true;
+	}
 	public void setNetworkStats(double deliveredKw, double demandKw) {
 		networkSupplyKw = deliveredKw;
 		networkDemandKw = demandKw;
@@ -244,6 +261,7 @@ public final class MachineBlockEntity extends BlockEntity implements Inventory, 
 			case "server_rack" -> MachineScreenHandler.Mode.RACK;
 			case "diesel_generator", "modular_reactor", "fire_suppression_tank" -> MachineScreenHandler.Mode.SINGLE_SLOT;
 			case "crypto_exchange" -> MachineScreenHandler.Mode.EXCHANGE;
+			case "creative_power", "creative_rack", "creative_cooler", "creative_router" -> MachineScreenHandler.Mode.CREATIVE;
 			case "facility_controller" -> MachineScreenHandler.Mode.CONTROLLER;
 			case "monitoring_wall" -> MachineScreenHandler.Mode.MONITOR_WALL;
 			default -> MachineScreenHandler.Mode.MACHINE_STATUS;
@@ -255,6 +273,12 @@ public final class MachineBlockEntity extends BlockEntity implements Inventory, 
 	public void writeScreenOpeningData(ServerPlayerEntity player, PacketByteBuf buf) {
 		buf.writeBlockPos(pos);
 		if (blockId().equals("crypto_exchange")) dev.rackcraft.ExchangeCatalog.write(buf);
+		if (dev.rackcraft.generated.ContentIds.CREATIVE_IDS.contains(blockId())) {
+			var settings = dev.rackcraft.CreativeSettings.forBlock(blockId());
+			buf.writeBoolean(dev.rackcraft.CreativeSettings.canEdit(player));
+			buf.writeVarInt(settings.size());
+			for (var setting : settings) buf.writeDouble(creativeValue(setting.key()));
+		}
 		if (blockId().equals("facility_controller") && world instanceof ServerWorld serverWorld) {
 			buf.writeString(FacilityManager.get(serverWorld).activeContract(), 64);
 			buf.writeString(FacilityManager.get(serverWorld).activeEvent(), 64);
@@ -279,6 +303,9 @@ public final class MachineBlockEntity extends BlockEntity implements Inventory, 
 		powerSatisfaction = Math.max(0, Math.min(1, nbt.getDouble("PowerSatisfaction")));
 		load = nbt.getDouble("Load");
 		thermalFactor = nbt.contains("ThermalFactor") ? nbt.getDouble("ThermalFactor") : 1;
+		creativeValues.clear();
+		NbtCompound creative = nbt.getCompound("Creative");
+		for (String key : creative.getKeys()) creativeValues.put(key, creative.getDouble(key));
 	}
 
 	@Override
@@ -299,5 +326,10 @@ public final class MachineBlockEntity extends BlockEntity implements Inventory, 
 		nbt.putDouble("PowerKw", powerKw);
 		nbt.putDouble("Load", load);
 		nbt.putDouble("ThermalFactor", thermalFactor);
+		if (!creativeValues.isEmpty()) {
+			NbtCompound creative = new NbtCompound();
+			creativeValues.forEach(creative::putDouble);
+			nbt.put("Creative", creative);
+		}
 	}
 }

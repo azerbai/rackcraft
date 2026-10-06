@@ -15,6 +15,7 @@ public final class RcScreenHandlers {
 	public static final ScreenHandlerType<MachineScreenHandler> CONTROLLER = register("controller", MachineScreenHandler.Mode.CONTROLLER);
 	public static final ScreenHandlerType<MachineScreenHandler> MONITOR_WALL = register("monitor_wall", MachineScreenHandler.Mode.MONITOR_WALL);
 	public static final ScreenHandlerType<MachineScreenHandler> EXCHANGE = register("exchange", MachineScreenHandler.Mode.EXCHANGE);
+	public static final ScreenHandlerType<MachineScreenHandler> CREATIVE = register("creative", MachineScreenHandler.Mode.CREATIVE);
 
 	private RcScreenHandlers() {}
 
@@ -32,6 +33,7 @@ public final class RcScreenHandlers {
 			case CONTROLLER -> CONTROLLER;
 			case MONITOR_WALL -> MONITOR_WALL;
 			case EXCHANGE -> EXCHANGE;
+			case CREATIVE -> CREATIVE;
 		};
 	}
 }

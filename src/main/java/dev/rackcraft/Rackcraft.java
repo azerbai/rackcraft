@@ -8,6 +8,7 @@ import net.minecraft.registry.Registry;
 import net.minecraft.util.Identifier;
 import net.minecraft.text.Text;
 import dev.rackcraft.world.SimTicker;
+import dev.rackcraft.generated.ContentIds;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,11 +25,18 @@ public final class Rackcraft implements ModInitializer {
 				.displayName(Text.literal("Rackcraft"))
 				.icon(() -> new ItemStack(RcBlocks.get("server_rack")))
 				.entries((context, entries) -> {
-					RcBlocks.BLOCKS.values().forEach(block -> entries.add(block.asItem()));
+					RcBlocks.BLOCKS.forEach((blockId, block) -> {
+						if (!ContentIds.CREATIVE_IDS.contains(blockId)) entries.add(block.asItem());
+					});
 					RcItems.ITEMS.values().forEach(entries::add);
 				})
 				.build();
 		Registry.register(Registries.ITEM_GROUP, id("main"), group);
+		Registry.register(Registries.ITEM_GROUP, id("creative"), net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup.builder()
+				.displayName(Text.literal("Rackcraft Creative"))
+				.icon(() -> new ItemStack(RcBlocks.get("creative_power")))
+				.entries((context, entries) -> ContentIds.CREATIVE_IDS.forEach(blockId -> entries.add(RcBlocks.get(blockId))))
+				.build());
 		Worldgen.register();
 		SimTicker.register();
 		dev.rackcraft.world.CableUpgrader.register();

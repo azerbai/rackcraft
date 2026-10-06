@@ -3,6 +3,7 @@ package dev.rackcraft.world;
 import dev.rackcraft.Rackcraft;
 import dev.rackcraft.RackcraftNetworking;
 import dev.rackcraft.RackcraftConfig;
+import dev.rackcraft.CreativeSettings;
 import dev.rackcraft.block.MachineBlock;
 import dev.rackcraft.block.MachineBlockEntity;
 import dev.rackcraft.block.CableBlock;
@@ -154,6 +155,7 @@ public final class SimTicker {
 
 		ThermalGrid heat = thermalGrid(world);
 		applyCooling(world, machines, heat, networks, satisfaction, dt);
+		pinCreativeCoolers(world, machines, heat);
 		Map<MachineBlockEntity, ServerModel.RackStep> rackSteps = new HashMap<>();
 		for (MachineBlockEntity rack : machines) {
 			if (!rack.blockId().equals("server_rack")) continue;
@@ -177,6 +179,7 @@ public final class SimTicker {
 		updateLitStates(world, machines, satisfaction, sourceOutput, energized, networks);
 		applyMachineHeat(world, machines, heat, dt);
 		heat.step(dt, false);
+		pinCreativeCoolers(world, machines, heat);
 		RackcraftNetworking.sendHeatCells(world, heat);
 		if (world.getTime() % 20 < Math.max(1, RackcraftConfig.values.sim.stepTicks)) RackcraftNetworking.sendHud(world, machines);
 		awardCredits(world, machines, rackSteps, networks, satisfaction, dt);
@@ -199,6 +202,8 @@ public final class SimTicker {
 			case "utility_intake" -> new PowerSolver.Source(id(machine), PowerSolver.SourceKind.UTILITY,
 					FacilityManager.get(world).activeEvent().equals("utility_outage") ? 0 : 100);
 			case "diesel_generator" -> dieselSource(machine);
+			case "creative_power" -> new PowerSolver.Source(id(machine), PowerSolver.SourceKind.UTILITY,
+					machine.creativeValue(CreativeSettings.OUTPUT_KW));
 		case "modular_reactor" -> reactorSource(machine);
 		case "battery_bank" -> new PowerSolver.Source(id(machine), PowerSolver.SourceKind.BATTERY,
 				0, 3000, machine.chargeKws(), 15, 60);
@@ -234,7 +239,10 @@ public final class SimTicker {
 			boolean active = switch (machine.blockId()) {
 				case "server_rack" -> satisfaction.getOrDefault(machine, 0.0) > 0 && !machine.isTripped();
 				case "solar_panel", "wind_turbine", "utility_intake", "diesel_generator", "modular_reactor",
-						"battery_bank" -> sourceOutput.getOrDefault(machine, 0.0) > 0;
+						"battery_bank", "creative_power" -> sourceOutput.getOrDefault(machine, 0.0) > 0;
+				case "creative_rack" -> machine.creativeValue(CreativeSettings.MINING_RATE) > 0;
+				case "creative_cooler" -> true;
+				case "creative_router" -> machine.creativeValue(CreativeSettings.BANDWIDTH) > 0;
 				case "pdu" -> energized.contains(machine) && !machine.isTripped();
 				case "uplink_router", "core_router", "monitoring_wall" ->
 						networks.component(machine.getPos(), NetKind.DATA).size() > 1;
@@ -260,12 +268,13 @@ public final class SimTicker {
 			case "crac_unit" -> 30 / 3.5;
 			case "cdu" -> 0.5;
 			case "facility_controller" -> 0.5;
+			case "creative_rack" -> machine.creativeValue(CreativeSettings.DRAW_KW);
 			default -> 0;
 		};
 	}
 
 	private static int priority(String blockId) {
-		return blockId.equals("server_rack") ? 1 : 0;
+		return blockId.equals("server_rack") || blockId.equals("creative_rack") ? 1 : 0;
 	}
 
 	private static String id(MachineBlockEntity machine) {
@@ -298,6 +307,20 @@ public final class SimTicker {
 		}
 	}
 
+	/** Creative coolers hold the air in front of and behind them at their set temperature. */
+	private static void pinCreativeCoolers(ServerWorld world, List<MachineBlockEntity> machines, ThermalGrid heat) {
+		for (MachineBlockEntity cooler : machines) {
+			if (!cooler.blockId().equals("creative_cooler")) continue;
+			Direction facing = cooler.getCachedState().get(MachineBlock.FACING);
+			double target = cooler.creativeValue(CreativeSettings.TARGET_C);
+			for (BlockPos side : List.of(cooler.getPos().offset(facing), cooler.getPos().offset(facing.getOpposite()))) {
+				if (!isAirCell(world, side)) continue;
+				heat.ensureCell(intake(side));
+				heat.setTemperatureCelsius(intake(side), target);
+			}
+		}
+	}
+
 	private static void applyMachineHeat(ServerWorld world, List<MachineBlockEntity> machines,
 			ThermalGrid heat, double dt) {
 		for (MachineBlockEntity machine : machines) {
@@ -326,6 +349,7 @@ public final class SimTicker {
 				if (endpoint == null) continue;
 				if (endpoint.blockId().equals("uplink_router")) bandwidth += 100;
 				if (endpoint.blockId().equals("core_router")) bandwidth += 1000;
+				if (endpoint.blockId().equals("creative_router")) bandwidth += endpoint.creativeValue(CreativeSettings.BANDWIDTH);
 				if (endpoint.blockId().equals("server_rack")) {
 					demand += endpoint.modules().stream().mapToDouble(ServerModel.Module::creditsPerSecond).sum();
 				}
@@ -349,7 +373,19 @@ public final class SimTicker {
 				facility.addCredits(rack.accrueCredits(rate, dt));
 			}
 		}
-		facility.setMiningStats(facilityRate, miningRacks, rackSteps.size());
+		// Creative racks mine at their set rate with no requirements.
+		int creativeRacks = 0;
+		for (MachineBlockEntity rack : machines) {
+			if (!rack.blockId().equals("creative_rack")) continue;
+			creativeRacks++;
+			double rate = rack.creativeValue(CreativeSettings.MINING_RATE);
+			rack.setMining(rate > 0 ? RackStatus.MINING : RackStatus.EMPTY, rate);
+			if (rate <= 0) continue;
+			facilityRate += rate;
+			miningRacks++;
+			facility.addCredits(rack.accrueCredits(rate, dt));
+		}
+		facility.setMiningStats(facilityRate, miningRacks, rackSteps.size() + creativeRacks);
 		facility.addAvailabilitySample(rackSteps.isEmpty() ? 1 : rackSteps.values().stream()
 				.mapToDouble(step -> step.load() > 0 && step.thermalFactor() >= 0.6 ? 1 : 0).average().orElse(1));
 	}
@@ -398,6 +434,10 @@ public final class SimTicker {
 					config.faceConductanceKwPerK, config.upwardMultiplier, config.leakKwPerK,
 					config.settleEpsilonK, config.maxActiveCells);
 		});
+	}
+
+	public static double temperatureAt(ServerWorld world, BlockPos pos) {
+		return thermalGrid(world).temperatureCelsius(intake(pos));
 	}
 
 	public static void setHeat(ServerWorld world, BlockPos pos, double celsius) {

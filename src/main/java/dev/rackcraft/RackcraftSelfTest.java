@@ -3,6 +3,8 @@ package dev.rackcraft;
 import dev.rackcraft.block.MachineBlockEntity;
 import dev.rackcraft.block.CableBlock;
 import dev.rackcraft.block.MachineBlock;
+import dev.rackcraft.generated.ContentIds;
+import net.minecraft.registry.Registries;
 import dev.rackcraft.world.AbandonedDataCenterFeature;
 import dev.rackcraft.block.CableBlockEntity;
 import dev.rackcraft.block.RackStatus;
@@ -29,7 +31,7 @@ public final class RackcraftSelfTest {
 
 	private static void run(MinecraftServer server) {
 		int[] failures = {0};
-		check("S0.a", RcBlocks.BLOCKS.size() == 26 && RcItems.ITEMS.size() == 25,
+		check("S0.a", RcBlocks.BLOCKS.size() == 30 && RcItems.ITEMS.size() == 25,
 				"blocks=" + RcBlocks.BLOCKS.size() + " items=" + RcItems.ITEMS.size(), failures);
 		ServerWorld world = server.getOverworld();
 		BlockPos generatorPos = new BlockPos(0, 80, 0);
@@ -95,6 +97,7 @@ public final class RackcraftSelfTest {
 		check("S6.e", rack.rackStatus() != RackStatus.MINING && rack.miningRate() == 0,
 				"statusAfterCut=" + rack.rackStatus(), failures);
 		checkDataCenter(world, failures);
+		checkCreative(world, failures);
 		Rackcraft.LOGGER.info("RACKCRAFT_SELFTEST DONE failures={}", failures[0]);
 		server.stop(false);
 	}
@@ -134,11 +137,57 @@ public final class RackcraftSelfTest {
 						&& ExchangeCatalog.price(Items.DIAMOND_SWORD) != null && ExchangeCatalog.price(Items.DIAMOND_SWORD) > 2000
 						&& ExchangeCatalog.price(Items.NETHERITE_SWORD) != null
 						&& ExchangeCatalog.price(Items.NETHERITE_SWORD) > ExchangeCatalog.price(Items.DIAMOND_SWORD)
-						&& ExchangeCatalog.price(Items.COMMAND_BLOCK) == null && ExchangeCatalog.price(Items.BEDROCK) == null,
+						&& ExchangeCatalog.price(Items.COMMAND_BLOCK) == null && ExchangeCatalog.price(Items.BEDROCK) == null
+						&& ExchangeCatalog.price(Items.RED_SHULKER_BOX) >= ExchangeCatalog.price(Items.SHULKER_BOX)
+						&& ExchangeCatalog.price(Items.WAXED_OXIDIZED_COPPER) > ExchangeCatalog.price(Items.COPPER_BLOCK),
 				"catalog=" + ExchangeCatalog.prices().size() + " diamondSword=" + ExchangeCatalog.price(Items.DIAMOND_SWORD)
 						+ " netheriteSword=" + ExchangeCatalog.price(Items.NETHERITE_SWORD)
-						+ " oakPlanks=" + ExchangeCatalog.price(Items.OAK_PLANKS) + " beacon=" + ExchangeCatalog.price(Items.BEACON),
+						+ " oakPlanks=" + ExchangeCatalog.price(Items.OAK_PLANKS) + " beacon=" + ExchangeCatalog.price(Items.BEACON)
+						+ " redShulker=" + ExchangeCatalog.price(Items.RED_SHULKER_BOX) + " waxedOxidized=" + ExchangeCatalog.price(Items.WAXED_OXIDIZED_COPPER),
 				failures);
+	}
+
+	private static void checkCreative(ServerWorld world, int[] failures) {
+		BlockPos power = new BlockPos(-64, 120, -64);
+		BlockPos rack = power.east();
+		BlockPos cooler = power.south(3);
+		world.getChunk(power);
+		world.setBlockState(power, RcBlocks.get("creative_power").getDefaultState());
+		world.setBlockState(rack, RcBlocks.get("creative_rack").getDefaultState());
+		world.setBlockState(cooler, RcBlocks.get("creative_cooler").getDefaultState());
+		MachineBlockEntity source = machine(world, power);
+		MachineBlockEntity creativeRack = machine(world, rack);
+		MachineBlockEntity coolerEntity = machine(world, cooler);
+		source.setCreativeValue(CreativeSettings.OUTPUT_KW, 50);
+		creativeRack.setCreativeValue(CreativeSettings.MINING_RATE, 250);
+		creativeRack.setCreativeValue(CreativeSettings.DRAW_KW, 30);
+		coolerEntity.setCreativeValue(CreativeSettings.TARGET_C, 35);
+		long before = FacilityManager.get(world).credits();
+		for (int step = 0; step < 10; step++) SimTicker.stepNow(world);
+		long earned = FacilityManager.get(world).credits() - before;
+		check("S8.a", Math.abs(source.powerKw() - 30) < 0.01 && creativeRack.powerSatisfaction() > 0.99,
+				"output=" + source.powerKw() + " satisfaction=" + creativeRack.powerSatisfaction(), failures);
+		check("S8.b", creativeRack.miningRate() == 250 && earned >= 1000,
+				"rate=" + creativeRack.miningRate() + " earned=" + earned, failures);
+		check("S8.c", creativeRack.setCreativeValue(CreativeSettings.MINING_RATE, -5)
+						&& creativeRack.creativeValue(CreativeSettings.MINING_RATE) == 0
+						&& !creativeRack.setCreativeValue("not_a_setting", 1),
+				"clamped=" + creativeRack.creativeValue(CreativeSettings.MINING_RATE), failures);
+		BlockPos front = cooler.offset(coolerEntity.getCachedState().get(MachineBlock.FACING));
+		double frontTemperature = SimTicker.temperatureAt(world, front);
+		check("S8.d", Math.abs(frontTemperature - 35) < 0.01, "front=" + frontTemperature, failures);
+		boolean creativeSold = ContentIds.CREATIVE_IDS.stream()
+				.anyMatch(id -> ExchangeCatalog.price(RcBlocks.get(id).asItem()) != null);
+		check("S8.e", !creativeSold && !ExchangeOffers.all().values().stream()
+						.anyMatch(offer -> ContentIds.CREATIVE_IDS.contains(Registries.ITEM.getId(offer.item()).getPath())),
+				"creativeSold=" + creativeSold, failures);
+		try {
+			java.nio.file.Files.writeString(java.nio.file.Path.of("rackcraft_catalog.txt"), ExchangeCatalog.prices().entrySet().stream()
+					.map(entry -> Registries.ITEM.getId(entry.getKey()) + " " + entry.getValue())
+					.collect(java.util.stream.Collectors.joining("\n")));
+		} catch (java.io.IOException ignored) {
+			// The dump is a review aid only.
+		}
 	}
 
 	private static MachineBlockEntity machine(ServerWorld world, BlockPos pos) {

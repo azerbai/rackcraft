@@ -26,6 +26,10 @@
     "rackcraft:monitoring_wall",
     "rackcraft:fire_suppression_tank",
     "rackcraft:crypto_exchange",
+    "rackcraft:creative_power",
+    "rackcraft:creative_rack",
+    "rackcraft:creative_cooler",
+    "rackcraft:creative_router",
     "rackcraft:coke_block"
   ]
 }

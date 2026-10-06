@@ -74,7 +74,14 @@ public final class MultimeterItem extends Item {
 			}
 			case "battery_bank" -> lines.add(row("Charge", Text.literal(Math.round(machine.chargeKws() / 30) + "% ("
 					+ format(machine.powerKw()) + " kW)"), Formatting.WHITE));
-			case "solar_panel", "wind_turbine", "utility_intake", "modular_reactor" ->
+			case "creative_rack" -> {
+				lines.add(row("Mining", Text.literal(format(machine.miningRate()) + " RC/s"), Formatting.LIGHT_PURPLE));
+				lines.add(row("Test load", Text.literal(format(machine.powerKw()) + " of "
+						+ format(machine.creativeValue(dev.rackcraft.CreativeSettings.DRAW_KW)) + " kW"), Formatting.WHITE));
+			}
+			case "creative_cooler" -> lines.add(row("Holding air at",
+					Text.literal(format(machine.creativeValue(dev.rackcraft.CreativeSettings.TARGET_C)) + " C"), Formatting.AQUA));
+			case "solar_panel", "wind_turbine", "utility_intake", "modular_reactor", "creative_power" ->
 					lines.add(row("Output", Text.literal(format(machine.powerKw()) + " kW"), Formatting.WHITE));
 			default -> {
 				if (MachineBlockEntity.networkKinds(machine.blockId()).contains(NetKind.POWER)) {
@@ -126,6 +133,7 @@ public final class MultimeterItem extends Item {
 			if (!(world.getBlockEntity(member) instanceof MachineBlockEntity entity)) continue;
 			if (entity.blockId().equals("uplink_router")) bandwidth += 100;
 			if (entity.blockId().equals("core_router")) bandwidth += 1000;
+			if (entity.blockId().equals("creative_router")) bandwidth += entity.creativeValue(dev.rackcraft.CreativeSettings.BANDWIDTH);
 			if (entity.blockId().equals("server_rack")) {
 				demand += entity.modules().stream().mapToDouble(ServerModel.Module::creditsPerSecond).sum();
 			}

@@ -28,6 +28,7 @@ public final class RackcraftClient implements ClientModInitializer {
 		ScreenRegistry.register(RcScreenHandlers.CONTROLLER, ControllerScreen::new);
 		ScreenRegistry.register(RcScreenHandlers.MONITOR_WALL, MonitorWallScreen::new);
 		ScreenRegistry.register(RcScreenHandlers.EXCHANGE, dev.rackcraft.client.screen.ExchangeScreen::new);
+		ScreenRegistry.register(RcScreenHandlers.CREATIVE, dev.rackcraft.client.screen.CreativeMachineScreen::new);
 		FieldManualItem.openScreen = () -> MinecraftClient.getInstance().setScreen(new GuideScreen());
 		ItemTooltipCallback.EVENT.register((stack, context, lines) -> {
 			var id = Registries.ITEM.getId(stack.getItem());

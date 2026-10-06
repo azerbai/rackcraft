@@ -5,6 +5,8 @@
     "rackcraft:cdu",
     "rackcraft:cooling_tower",
     "rackcraft:crac_unit",
+    "rackcraft:creative_cooler",
+    "rackcraft:creative_rack",
     "rackcraft:exhaust_fan",
     "rackcraft:modular_reactor",
     "rackcraft:raised_floor_tile",

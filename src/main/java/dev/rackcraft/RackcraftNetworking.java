@@ -22,6 +22,7 @@ public final class RackcraftNetworking {
 	private static final Identifier SET_CONTRACT = Rackcraft.id("set_contract");
 	private static final Identifier BUY_ITEM = Rackcraft.id("buy_item");
 	private static final Identifier RESET_BREAKER = Rackcraft.id("reset_breaker");
+	private static final Identifier SET_CREATIVE = Rackcraft.id("set_creative");
 	private static final Identifier HEAT_CELLS = Rackcraft.id("heat_cells");
 	public static final Identifier HUD = Rackcraft.id("hud");
 	private static final int HUD_RANGE_SQUARED = 32 * 32;
@@ -57,6 +58,17 @@ public final class RackcraftNetworking {
 				}
 			});
 		});
+		ServerPlayNetworking.registerGlobalReceiver(SET_CREATIVE, (server, player, handler, buf, responseSender) -> {
+			BlockPos pos = buf.readBlockPos();
+			String key = buf.readString(32);
+			double value = buf.readDouble();
+			server.execute(() -> {
+				MachineBlockEntity machine = validatedMachine(player, pos);
+				if (machine == null || !CreativeSettings.canEdit(player)
+						|| !dev.rackcraft.generated.ContentIds.CREATIVE_IDS.contains(machine.blockId())) return;
+				machine.setCreativeValue(key, value);
+			});
+		});
 		ServerPlayNetworking.registerGlobalReceiver(RESET_BREAKER, (server, player, handler, buf, responseSender) -> {
 			BlockPos pos = buf.readBlockPos();
 			server.execute(() -> {
@@ -75,7 +87,8 @@ public final class RackcraftNetworking {
 		for (ServerPlayerEntity player : world.getPlayers()) {
 			boolean tool = java.util.stream.Stream.of("field_manual", "multimeter", "thermal_scanner")
 					.map(RcItems.ITEMS::get).anyMatch(item -> player.getMainHandStack().isOf(item) || player.getOffHandStack().isOf(item));
-			boolean nearRack = machines.stream().anyMatch(machine -> machine.blockId().equals("server_rack")
+			boolean nearRack = machines.stream().anyMatch(machine -> (machine.blockId().equals("server_rack")
+					|| machine.blockId().equals("creative_rack"))
 					&& machine.getPos().getSquaredDistance(player.getPos()) <= HUD_RANGE_SQUARED);
 			net.minecraft.network.PacketByteBuf buf = net.fabricmc.fabric.api.networking.v1.PacketByteBufs.create();
 			buf.writeBoolean(tool || nearRack);

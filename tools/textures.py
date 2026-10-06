@@ -320,7 +320,20 @@ def side_reactor(base, key):
     return canvas
 
 
+def side_creative(base, key):
+    """Creative-only machines: a magenta/black hazard band like the command block's checkered sides."""
+    canvas = plate(base, key + ":creative")
+    for x in range(1, 15):
+        for y in (12, 13, 14):
+            canvas.set(x, y, (232, 80, 220) if (x + y) % 4 < 2 else BLACK)
+    for x, y in ((8, 3), (7, 4), (8, 4), (9, 4), (5, 5), (6, 5), (7, 5), (8, 5), (9, 5), (10, 5), (11, 5),
+                 (6, 6), (7, 6), (8, 6), (9, 6), (10, 6), (7, 7), (9, 7), (6, 8), (10, 8)):
+        canvas.set(x, y, (255, 214, 250))
+    return canvas
+
+
 SIDE_STYLES = {
+    "creative": side_creative,
     "panel": side_panel, "mesh": side_mesh, "louver": side_louver, "genset": side_genset,
     "cells": side_cells, "hazard": side_hazard, "pipes": side_pipes, "tank": side_tank,
     "nacelle": side_nacelle, "bezel": side_bezel, "frame": side_frame, "reactor": side_reactor,

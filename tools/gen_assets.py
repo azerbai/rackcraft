@@ -130,6 +130,8 @@ def write_java(blocks, items):
         f"\tpublic static final List<String> BLOCK_IDS = {java_list([entry['id'] for entry in blocks])};",
         f"\tpublic static final List<String> ITEM_IDS = {java_list([entry['id'] for entry in items])};",
         f"\tpublic static final List<String> MACHINE_IDS = {java_list([entry['id'] for entry in blocks if entry.get('machine')])};",
+        "\t/** Creative-only: no recipe, never sold at the Exchange, shown in the Rackcraft Creative tab. */",
+        f"\tpublic static final List<String> CREATIVE_IDS = {java_list([entry['id'] for entry in blocks + items if entry.get('creative')])};",
         "\t/** Furnace burn time in ticks for Rackcraft fuels; registered with Fabric's FuelRegistry. */",
         "\tpublic static final Map<String, Integer> FUEL_TICKS = Map.ofEntries("
         + ", ".join(f"Map.entry({json.dumps(entry['id'])}, {entry['burn']})" for entry in fuels) + ");",
@@ -368,6 +370,19 @@ def main():
         "generator.rackcraft.spinning_up": "Spinning up: %s%%",
         "generator.rackcraft.standby": "Standby: other sources cover demand",
         "screen.rackcraft.suppression_hint": "Load a Suppression Canister into the slot above.",
+        "creative.rackcraft.output_kw": "Power output",
+        "creative.rackcraft.mining_rate": "Mining rate",
+        "creative.rackcraft.draw_kw": "Test load drawn from the grid",
+        "creative.rackcraft.target_c": "Air temperature",
+        "creative.rackcraft.bandwidth": "Bandwidth",
+        "creative.rackcraft.apply": "Apply",
+        "creative.rackcraft.saved": "Saved.",
+        "creative.rackcraft.invalid": "Not a number: %s",
+        "creative.rackcraft.locked": "Only players in creative mode or operators can change these values.",
+        "creative.rackcraft.live_power": "Supplying %s; network demand %s",
+        "creative.rackcraft.live_rack": "Mining %s RC/s; drawing %s",
+        "creative.rackcraft.live_cooler": "Holds the air in front of and behind this block at the set temperature. Air can't go below the world's ambient temperature (%s C).",
+        "creative.rackcraft.live_router": "Adds this bandwidth to every rack on its fiber network.",
     })
     for entry in blocks + items:
         lang[f"guide.rackcraft.entry.{entry['id']}"] = entry["desc"]

@@ -29,7 +29,19 @@ public final class MachineScreenHandler extends ScreenHandler {
 				mode == Mode.CONTROLLER ? buf.readString(64) : "none",
 				mode == Mode.CONTROLLER ? buf.readString(64) : "none");
 		if (mode == Mode.EXCHANGE) catalog = dev.rackcraft.ExchangeCatalog.read(buf);
+		if (mode == Mode.CREATIVE) {
+			creativeEditable = buf.readBoolean();
+			creativeValues = new double[buf.readVarInt()];
+			for (int index = 0; index < creativeValues.length; index++) creativeValues[index] = buf.readDouble();
+		}
 	}
+
+	/** Client only: whether this player may edit, and the values when the screen opened. */
+	private boolean creativeEditable;
+	private double[] creativeValues = new double[0];
+
+	public boolean creativeEditable() { return creativeEditable; }
+	public double[] creativeValues() { return creativeValues; }
 
 	/** Client only: every item the Exchange sells, with its price. */
 	private java.util.List<dev.rackcraft.ExchangeCatalog.Entry> catalog = java.util.List.of();
@@ -152,5 +164,5 @@ public final class MachineScreenHandler extends ScreenHandler {
 	public String activeContract() { return activeContract; }
 	public String activeEvent() { return activeEvent; }
 
-	public enum Mode { RACK, SINGLE_SLOT, MACHINE_STATUS, CONTROLLER, MONITOR_WALL, EXCHANGE }
+	public enum Mode { RACK, SINGLE_SLOT, MACHINE_STATUS, CONTROLLER, MONITOR_WALL, EXCHANGE, CREATIVE }
 }

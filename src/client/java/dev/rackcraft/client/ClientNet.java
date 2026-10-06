@@ -12,6 +12,7 @@ public final class ClientNet {
 	private static final Identifier SET_CONTRACT = Rackcraft.id("set_contract");
 	private static final Identifier BUY_ITEM = Rackcraft.id("buy_item");
 	private static final Identifier RESET_BREAKER = Rackcraft.id("reset_breaker");
+	private static final Identifier SET_CREATIVE = Rackcraft.id("set_creative");
 
 	private ClientNet() {}
 
@@ -39,6 +40,14 @@ public final class ClientNet {
 		buf.writeString(itemId, 96);
 		buf.writeVarInt(times);
 		ClientPlayNetworking.send(BUY_ITEM, buf);
+	}
+
+	public static void setCreative(BlockPos pos, String key, double value) {
+		PacketByteBuf buf = PacketByteBufs.create();
+		buf.writeBlockPos(pos);
+		buf.writeString(key, 32);
+		buf.writeDouble(value);
+		ClientPlayNetworking.send(SET_CREATIVE, buf);
 	}
 
 	public static void resetBreaker(BlockPos pos) {

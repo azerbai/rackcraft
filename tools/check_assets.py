@@ -60,7 +60,7 @@ for item in CONTENT["items"]:
 for tag in CONTENT["itemTags"]:
     require(RESOURCES / f"data/rackcraft/tags/items/{tag}.json")
 
-if len(CONTENT["blocks"]) != 26 or len(CONTENT["items"]) != 25:
-    raise SystemExit("content catalog must contain exactly 26 blocks and 25 standalone items")
+if len(CONTENT["blocks"]) != 30 or len(CONTENT["items"]) != 25:
+    raise SystemExit("content catalog must contain exactly 30 blocks and 25 standalone items")
 
 print(f"Rackcraft assets ok: {len(CONTENT['blocks'])} blocks, {len(CONTENT['items'])} standalone items, {len(CONTENT['recipes'])} recipes")

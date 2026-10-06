@@ -40,6 +40,17 @@ Rare ruined data centers generate on the surface of plains, meadows, savannas, f
 
 Power cables, coolant pipes and fiber connect only toward cables of the same kind and toward machines on that network, forming straight runs, corners and junctions. Cables placed with older versions are upgraded when their chunk loads.
 
+## Creative Machines
+
+Four creative-only blocks live in the **Rackcraft Creative** tab. They have no recipes and are never sold at the Exchange. Right-click one to set its values in-game; the values are saved on the block, and only players in creative mode or operators can change them.
+
+| Block | Setting |
+| --- | --- |
+| Creative Power Source | Output in kW, supplied to the power network it touches |
+| Creative Rack | Mining rate in RC/s (no modules, power, fiber or cooling needed), plus an optional test load in kW drawn from its power network |
+| Creative Cooler | Air temperature held in front of and behind it (never below ambient, since the thermal model tracks heat above ambient only) |
+| Creative Router | Bandwidth added to its fiber network |
+
 ## Field Manual
 
 Craft a book with a copper ingot to get the Rackcraft Field Manual, then right-click to open it. It has a chapter for each stage of progression and a page for every block and item, and it shows the recipes the game has actually loaded, so datapack changes appear automatically. Click a Rackcraft ingredient to jump to its page. Use the arrow keys or the scroll wheel to turn pages, and Backspace to go back. Long pages continue onto the next page, so no recipe is cut off.

@@ -4,9 +4,11 @@ import java.util.List;
 import java.util.Map;
 
 public final class ContentIds {
-	public static final List<String> BLOCK_IDS = List.of("bauxite_ore", "steel_block", "raised_floor_tile", "blanking_panel", "power_cable", "diesel_generator", "solar_panel", "wind_turbine", "pdu", "server_rack", "exhaust_fan", "coolant_pipe", "cooling_tower", "crac_unit", "battery_bank", "utility_intake", "fiber_cable", "uplink_router", "core_router", "facility_controller", "cdu", "modular_reactor", "monitoring_wall", "fire_suppression_tank", "crypto_exchange", "coke_block");
+	public static final List<String> BLOCK_IDS = List.of("bauxite_ore", "steel_block", "raised_floor_tile", "blanking_panel", "power_cable", "diesel_generator", "solar_panel", "wind_turbine", "pdu", "server_rack", "exhaust_fan", "coolant_pipe", "cooling_tower", "crac_unit", "battery_bank", "utility_intake", "fiber_cable", "uplink_router", "core_router", "facility_controller", "cdu", "modular_reactor", "monitoring_wall", "fire_suppression_tank", "crypto_exchange", "creative_power", "creative_rack", "creative_cooler", "creative_router", "coke_block");
 	public static final List<String> ITEM_IDS = List.of("field_manual", "raw_bauxite", "aluminum_ingot", "steel_ingot", "silicon", "copper_wire", "circuit_board", "cpu_chip", "ram_module", "gpu_chip", "cryo_coil", "pi_node", "server_1u", "gpu_blade", "asic_miner", "quantum_core", "failed_module", "thermal_scanner", "multimeter", "repair_kit", "fuel_cell", "suppression_canister", "coke", "biomass_pellet", "biodiesel_canister");
-	public static final List<String> MACHINE_IDS = List.of("diesel_generator", "solar_panel", "wind_turbine", "pdu", "server_rack", "exhaust_fan", "cooling_tower", "crac_unit", "battery_bank", "utility_intake", "uplink_router", "core_router", "facility_controller", "cdu", "modular_reactor", "monitoring_wall", "fire_suppression_tank", "crypto_exchange");
+	public static final List<String> MACHINE_IDS = List.of("diesel_generator", "solar_panel", "wind_turbine", "pdu", "server_rack", "exhaust_fan", "cooling_tower", "crac_unit", "battery_bank", "utility_intake", "uplink_router", "core_router", "facility_controller", "cdu", "modular_reactor", "monitoring_wall", "fire_suppression_tank", "crypto_exchange", "creative_power", "creative_rack", "creative_cooler", "creative_router");
+	/** Creative-only: no recipe, never sold at the Exchange, shown in the Rackcraft Creative tab. */
+	public static final List<String> CREATIVE_IDS = List.of("creative_power", "creative_rack", "creative_cooler", "creative_router");
 	/** Furnace burn time in ticks for Rackcraft fuels; registered with Fabric's FuelRegistry. */
 	public static final Map<String, Integer> FUEL_TICKS = Map.ofEntries(Map.entry("coke_block", 32000), Map.entry("coke", 3200), Map.entry("biomass_pellet", 800), Map.entry("biodiesel_canister", 9600));
 
@@ -20,7 +22,8 @@ public final class ContentIds {
 			new GuideChapter("power", "diesel_generator", false, List.of("power_cable", "pdu", "utility_intake", "solar_panel", "wind_turbine", "battery_bank", "diesel_generator", "modular_reactor", "fuel_cell")),
 			new GuideChapter("fuels", "biodiesel_canister", true, List.of("coke", "coke_block", "biomass_pellet", "biodiesel_canister")),
 			new GuideChapter("cooling", "crac_unit", false, List.of("exhaust_fan", "raised_floor_tile", "coolant_pipe", "cooling_tower", "crac_unit", "cdu", "thermal_scanner")),
-			new GuideChapter("operations", "facility_controller", false, List.of("fiber_cable", "uplink_router", "core_router", "facility_controller", "monitoring_wall", "fire_suppression_tank", "suppression_canister")));
+			new GuideChapter("operations", "facility_controller", false, List.of("fiber_cable", "uplink_router", "core_router", "facility_controller", "monitoring_wall", "fire_suppression_tank", "suppression_canister")),
+			new GuideChapter("creative", "creative_power", false, List.of("creative_power", "creative_rack", "creative_cooler", "creative_router")));
 
 	private ContentIds() {}
 }
