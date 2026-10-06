@@ -1,0 +1,24 @@
+{
+  "ingredients": [
+    {
+      "item": "rackcraft:steel_ingot"
+    },
+    {
+      "item": "rackcraft:circuit_board"
+    },
+    {
+      "item": "rackcraft:silicon"
+    },
+    {
+      "item": "rackcraft:silicon"
+    },
+    {
+      "item": "minecraft:redstone"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:drive_1k"
+  },
+  "type": "minecraft:crafting_shapeless"
+}

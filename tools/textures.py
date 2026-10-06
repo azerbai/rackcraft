@@ -755,7 +755,92 @@ def exchange_face(base, key, on):
     return frames
 
 
+def drives_face(base, key, on):
+    """Eight drive bays in two columns, activity lights flickering while online."""
+    frames = []
+    rng = rng_for(key + ":io")
+    for frame in range(4 if on else 1):
+        canvas = plate(base, key)
+        canvas.inset(1, 1, 14, 14, darken(base, 0.6), lighten(base, 0.05), darken(base, 0.75))
+        for column, x0 in enumerate((2, 8)):
+            for row in range(4):
+                y0 = 2 + row * 3
+                canvas.rect(x0, y0, x0 + 5, y0 + 1, darken(STEEL, 0.3))
+                canvas.hline(x0, x0 + 5, y0, lighten(STEEL, 0.05))
+                canvas.set(x0 + 5, y0 + 1, (LED_GREEN if rng.random() < 0.6 else darken(LED_GREEN, 0.5)) if on else LED_OFF)
+                canvas.set(x0 + 4, y0 + 1, (LED_BLUE if rng.random() < 0.3 else darken(LED_BLUE, 0.6)) if on else LED_OFF)
+        frames.append(canvas)
+    return frames
+
+
+def tapes_face(base, key, on):
+    """A tape library window: a robot arm over cartridges, reels turning while online."""
+    frames = []
+    for frame in range(4 if on else 1):
+        canvas = plate(base, key)
+        canvas.inset(1, 1, 14, 9, GLASS_DARK, lighten(base, 0.2), darken(base, 0.6))
+        for x in range(2, 14, 3):
+            canvas.rect(x, 6, x + 1, 8, (60, 60, 66))
+            canvas.set(x, 6, (90, 140, 200))
+        arm = 2 + (frame * 3 if on else 4)
+        canvas.vline(arm, 2, 5, lighten(STEEL, 0.2))
+        canvas.hline(2, 13, 2, darken(STEEL, 0.2))
+        for cx in (5, 11):
+            canvas.disc(cx, 12.5, 2.0, (110, 70, 40))
+            spoke = [(0, -1), (1, 0), (0, 1), (-1, 0)][frame % 4] if on else (0, -1)
+            canvas.set(cx + spoke[0], 12 + spoke[1], lighten(STEEL, 0.3))
+        canvas.set(8, 12, LED_GREEN if on else LED_OFF)
+        frames.append(canvas)
+    return frames
+
+
+def terminal_face(base, key, on):
+    canvas = plate(base, key)
+    canvas.inset(1, 1, 14, 11, GLASS_DARK if not on else (14, 32, 40), lighten(base, 0.2), darken(base, 0.6))
+    if on:
+        palette = [LED_GREEN, LED_AMBER, LED_BLUE, (200, 120, 220), (230, 230, 230)]
+        rng = rng_for(key + ":icons")
+        for y in (3, 6, 9):
+            for x in range(3, 13, 3):
+                canvas.rect(x, y, x + 1, y + 1, palette[rng.randrange(len(palette))])
+    canvas.rect(3, 13, 12, 14, darken(base, 0.3))
+    for x in range(4, 12, 2):
+        canvas.set(x, 13, lighten(base, 0.3))
+    return canvas
+
+
+def antenna_face(base, key, on):
+    """Transmitter front: signal bars that light up from low to high when online."""
+    frames = []
+    for frame in range(4 if on else 1):
+        canvas = plate(base, key)
+        canvas.inset(2, 2, 13, 13, darken(base, 0.55), lighten(base, 0.1), darken(base, 0.7))
+        for bar in range(4):
+            x = 4 + bar * 2
+            top = 11 - bar * 2 - 1
+            lit = on and bar <= frame
+            canvas.rect(x, top, x, 11, LED_GREEN if lit else darken(base, 0.3))
+        canvas.disc(11.5, 5, 1.2, LED_RED if on and frame % 2 == 0 else darken(LED_RED, 0.6))
+        frames.append(canvas)
+    return frames
+
+
+def top_antenna(base, key):
+    canvas = plate(base, key + ":antenna")
+    canvas.disc(8, 8, 4.5, darken(STEEL, 0.1))
+    canvas.disc(8, 8, 3.2, lighten(STEEL, 0.15))
+    canvas.disc(8, 8, 1.2, LED_RED)
+    return canvas
+
+
+TOP_STYLES["antenna"] = top_antenna
+
+
 FRONT_STYLES = {
+    "drives": lambda base, key, on: drives_face(base, key, on),
+    "tapes": lambda base, key, on: tapes_face(base, key, on),
+    "terminal": lambda base, key, on: [terminal_face(base, key, on)],
+    "antenna": lambda base, key, on: antenna_face(base, key, on),
     "exchange": lambda base, key, on: exchange_face(base, key, on),
     "rack": lambda base, key, on: rack_face(base, key, on),
     "fan": lambda base, key, on: fan_face(base, key, on=on),
@@ -1240,7 +1325,69 @@ def item_multimeter(base, key):
     return canvas
 
 
+def item_drive(base, key):
+    """A 2.5-inch drive caddy with a coloured capacity label."""
+    canvas = Canvas()
+    canvas.rect(2, 2, 13, 13, darken(STEEL, 0.35))
+    canvas.hline(2, 13, 2, lighten(STEEL, 0.1))
+    canvas.vline(13, 2, 13, darken(STEEL, 0.55))
+    canvas.rect(4, 4, 11, 8, base)
+    canvas.hline(4, 11, 4, lighten(base, 0.3))
+    canvas.hline(5, 9, 6, darken(base, 0.45))
+    for x in range(4, 12, 2):
+        canvas.set(x, 11, GOLD)
+    canvas.set(12, 3, LED_GREEN)
+    return canvas
+
+
+def item_tape(base, key):
+    """A tape cartridge: dark shell, two reels behind a window, a label strip."""
+    canvas = Canvas()
+    canvas.rect(1, 3, 14, 12, base)
+    canvas.hline(1, 14, 3, lighten(base, 0.25))
+    canvas.rect(3, 5, 12, 9, (24, 24, 28))
+    for cx in (5.5, 10.5):
+        canvas.disc(cx, 7, 1.8, (110, 70, 40))
+        canvas.disc(cx, 7, 0.8, lighten(STEEL, 0.2))
+    canvas.hline(3, 12, 11, (230, 226, 210))
+    canvas.hline(4, 9, 11, (90, 140, 200))
+    return canvas
+
+
+def item_pattern(base, key, encoded=False):
+    canvas = Canvas()
+    canvas.rect(3, 1, 12, 14, base)
+    canvas.vline(12, 1, 14, darken(base, 0.25))
+    canvas.hline(3, 12, 14, darken(base, 0.25))
+    ink = (40, 90, 170) if encoded else darken(base, 0.35)
+    for y in (4, 7, 10):
+        for x in (5, 8):
+            canvas.rect(x, y, x + 1, y + 1, ink if encoded else darken(base, 0.15))
+    canvas.set(11, 3, LED_GREEN if encoded else darken(base, 0.3))
+    if encoded:
+        canvas.line(5, 12, 10, 12, ink)
+    return canvas
+
+
+def item_wireless(base, key):
+    canvas = Canvas()
+    canvas.rect(3, 3, 12, 15, base)
+    canvas.vline(3, 3, 15, lighten(base, 0.25))
+    canvas.rect(4, 5, 11, 10, GLASS_DARK)
+    for x, y in ((5, 6), (7, 6), (9, 6), (5, 8), (7, 8)):
+        canvas.set(x, y, LED_GREEN)
+    canvas.vline(11, 0, 3, STEEL)
+    canvas.set(11, 0, LED_RED)
+    canvas.rect(5, 12, 10, 13, darken(base, 0.3))
+    return canvas
+
+
 ITEM_STYLES = {
+    "drive": item_drive,
+    "tape": item_tape,
+    "pattern": lambda base, key: item_pattern(base, key),
+    "pattern_encoded": lambda base, key: item_pattern(base, key, encoded=True),
+    "wireless": item_wireless,
     "asic": item_asic,
     "multimeter": item_multimeter,
     "lump": lambda base, key: item_lump(base, key),

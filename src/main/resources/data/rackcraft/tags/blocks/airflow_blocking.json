@@ -12,6 +12,8 @@
     "rackcraft:raised_floor_tile",
     "rackcraft:server_rack",
     "rackcraft:solar_panel",
+    "rackcraft:storage_array",
+    "rackcraft:tape_library",
     "rackcraft:wind_turbine"
   ]
 }

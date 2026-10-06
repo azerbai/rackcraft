@@ -5,6 +5,8 @@ import dev.rackcraft.block.CableBlock;
 import dev.rackcraft.block.MachineBlock;
 import dev.rackcraft.generated.ContentIds;
 import net.minecraft.registry.Registries;
+import net.minecraft.block.Blocks;
+import java.util.List;
 import dev.rackcraft.world.AbandonedDataCenterFeature;
 import dev.rackcraft.block.CableBlockEntity;
 import dev.rackcraft.block.RackStatus;
@@ -31,7 +33,7 @@ public final class RackcraftSelfTest {
 
 	private static void run(MinecraftServer server) {
 		int[] failures = {0};
-		check("S0.a", RcBlocks.BLOCKS.size() == 30 && RcItems.ITEMS.size() == 25,
+		check("S0.a", RcBlocks.BLOCKS.size() == 34 && RcItems.ITEMS.size() == 33,
 				"blocks=" + RcBlocks.BLOCKS.size() + " items=" + RcItems.ITEMS.size(), failures);
 		ServerWorld world = server.getOverworld();
 		BlockPos generatorPos = new BlockPos(0, 80, 0);
@@ -98,6 +100,7 @@ public final class RackcraftSelfTest {
 				"statusAfterCut=" + rack.rackStatus(), failures);
 		checkDataCenter(world, failures);
 		checkCreative(world, failures);
+		checkStorage(world, failures);
 		Rackcraft.LOGGER.info("RACKCRAFT_SELFTEST DONE failures={}", failures[0]);
 		server.stop(false);
 	}
@@ -188,6 +191,89 @@ public final class RackcraftSelfTest {
 		} catch (java.io.IOException ignored) {
 			// The dump is a review aid only.
 		}
+	}
+
+	/** Storage end to end: hot then cold, archiving, autocrafting on rack compute, transmitters, power loss. */
+	private static void checkStorage(ServerWorld world, int[] failures) {
+		BlockPos power = new BlockPos(-128, 120, -128);
+		BlockPos array = power.east();
+		BlockPos library = array.east();
+		BlockPos terminal = library.east();
+		BlockPos transmitter = library.up();
+		BlockPos rack = array.up();
+		world.getChunk(power);
+		for (BlockPos pos : List.of(power, array, library, terminal, transmitter, rack)) world.setBlockState(pos, Blocks.AIR.getDefaultState());
+		world.setBlockState(power, RcBlocks.get("creative_power").getDefaultState());
+		world.setBlockState(array, RcBlocks.get("storage_array").getDefaultState());
+		world.setBlockState(library, RcBlocks.get("tape_library").getDefaultState());
+		world.setBlockState(terminal, RcBlocks.get("storage_terminal").getDefaultState());
+		world.setBlockState(transmitter, RcBlocks.get("wireless_transmitter").getDefaultState());
+		world.setBlockState(rack, RcBlocks.get("server_rack").getDefaultState());
+		MachineBlockEntity arrayEntity = machine(world, array);
+		MachineBlockEntity libraryEntity = machine(world, library);
+		MachineBlockEntity rackEntity = machine(world, rack);
+		MachineBlockEntity source = machine(world, power);
+		ItemStack drive = new ItemStack(RcItems.ITEMS.get("drive_1k"));
+		arrayEntity.setStack(0, drive);
+		libraryEntity.setStack(0, new ItemStack(RcItems.ITEMS.get("tape_cartridge")));
+		for (int slot = 0; slot < 4; slot++) rackEntity.setStack(slot, new ItemStack(RcItems.ITEMS.get("pi_node")));
+		rackEntity.setStack(4, new ItemStack(RcItems.ITEMS.get("server_1u")));
+		rackEntity.setStack(5, new ItemStack(RcItems.ITEMS.get("server_1u")));
+		for (int step = 0; step < 4; step++) SimTicker.stepNow(world);
+
+		var network = dev.rackcraft.storage.StorageService.networkAt(world, terminal);
+		var cobble = dev.rackcraft.storage.ItemKey.of(Items.COBBLESTONE);
+		long first = network.insert(cobble, 1000, false);
+		long second = network.insert(cobble, 500, false);
+		check("S9.a", arrayEntity.storageOnline() && libraryEntity.storageOnline() && first == 1000 && second == 500
+						&& network.count(cobble, false) == 1024 && network.count(cobble, true) == 1500,
+				"online=" + arrayEntity.storageOnline() + "/" + libraryEntity.storageOnline() + " hot="
+						+ network.count(cobble, false) + " all=" + network.count(cobble, true), failures);
+		check("S9.b", drive.hasNbt() && drive.getNbt().getLong("Used") == 1024, "driveSummary=" + drive.getNbt(), failures);
+		long archived = network.archive(0.85, 0.7);
+		check("S9.c", archived > 0 && network.hotUsed() <= 1024 * 0.7 && network.count(cobble, true) == 1500,
+				"archived=" + archived + " hotUsed=" + network.hotUsed(), failures);
+
+		// Two-step autocraft: logs -> planks -> sticks, run on the rack's compute.
+		network.insert(dev.rackcraft.storage.ItemKey.of(Items.OAK_LOG), 4, false);
+		network.insert(dev.rackcraft.storage.ItemKey.of(pattern(List.of(Items.OAK_LOG), new ItemStack(Items.OAK_PLANKS, 4))), 1, false);
+		network.insert(dev.rackcraft.storage.ItemKey.of(pattern(java.util.Arrays.asList(Items.OAK_PLANKS, null, null, Items.OAK_PLANKS),
+				new ItemStack(Items.STICK, 4))), 1, false);
+		var access = new dev.rackcraft.storage.StorageService.Access(world.getRegistryKey(), terminal, false);
+		var plan = dev.rackcraft.storage.Autocrafter.start(world.getServer(), java.util.UUID.randomUUID(), access,
+				dev.rackcraft.storage.ItemKey.of(Items.STICK), 16);
+		SimTicker.stepNow(world);
+		boolean lent = rackEntity.rackStatus() == dev.rackcraft.block.RackStatus.CRAFTING && rackEntity.miningRate() == 0;
+		for (int step = 0; step < 30; step++) SimTicker.stepNow(world);
+		long sticks = network.count(dev.rackcraft.storage.ItemKey.of(Items.STICK), true);
+		long logs = network.count(dev.rackcraft.storage.ItemKey.of(Items.OAK_LOG), true);
+		check("S9.d", plan.ok() && plan.totalCrafts() == 6 && lent && sticks == 16 && logs == 2
+						&& dev.rackcraft.storage.Autocrafter.jobs(world.getServer(), access).isEmpty()
+						&& rackEntity.rackStatus() != dev.rackcraft.block.RackStatus.CRAFTING,
+				"plan=" + plan.totalCrafts() + " missing=" + plan.missing() + " lent=" + lent + " sticks=" + sticks
+						+ " logs=" + logs + " rackNow=" + rackEntity.rackStatus(), failures);
+
+		var link = dev.rackcraft.storage.StorageState.get(world.getServer()).transmitter(
+				dev.rackcraft.storage.StorageState.transmitterKey(world.getRegistryKey(), transmitter));
+		check("S9.e", link != null && link.online() && link.drives().size() == 2
+						&& dev.rackcraft.storage.TransmitterUpgrades.drawKw(7) == 64,
+				"transmitter=" + link, failures);
+		source.setCreativeValue(CreativeSettings.OUTPUT_KW, 0);
+		for (int step = 0; step < 3; step++) SimTicker.stepNow(world);
+		check("S9.f", !arrayEntity.storageOnline() && dev.rackcraft.storage.StorageService.networkAt(world, terminal).isEmpty(),
+				"onlineWithoutPower=" + arrayEntity.storageOnline(), failures);
+		source.setCreativeValue(CreativeSettings.OUTPUT_KW, 1000);
+	}
+
+	private static ItemStack pattern(List<net.minecraft.item.Item> grid, ItemStack output) {
+		List<ItemStack> stacks = new java.util.ArrayList<>();
+		for (int slot = 0; slot < 9; slot++) {
+			net.minecraft.item.Item item = slot < grid.size() ? grid.get(slot) : null;
+			stacks.add(item == null ? ItemStack.EMPTY : new ItemStack(item));
+		}
+		ItemStack pattern = new ItemStack(RcItems.ITEMS.get("recipe_pattern"));
+		dev.rackcraft.storage.PatternItem.encode(pattern, stacks, output);
+		return pattern;
 	}
 
 	private static MachineBlockEntity machine(ServerWorld world, BlockPos pos) {

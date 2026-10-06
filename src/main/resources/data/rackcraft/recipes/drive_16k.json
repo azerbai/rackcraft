@@ -1,0 +1,27 @@
+{
+  "ingredients": [
+    {
+      "item": "rackcraft:steel_ingot"
+    },
+    {
+      "item": "rackcraft:circuit_board"
+    },
+    {
+      "item": "rackcraft:ram_module"
+    },
+    {
+      "item": "rackcraft:ram_module"
+    },
+    {
+      "item": "rackcraft:cpu_chip"
+    },
+    {
+      "item": "minecraft:diamond"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:drive_16k"
+  },
+  "type": "minecraft:crafting_shapeless"
+}

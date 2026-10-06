@@ -1,0 +1,29 @@
+{
+  "key": {
+    "B": {
+      "item": "rackcraft:circuit_board"
+    },
+    "C": {
+      "item": "rackcraft:cpu_chip"
+    },
+    "F": {
+      "item": "rackcraft:fiber_cable"
+    },
+    "G": {
+      "item": "minecraft:glass_pane"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    }
+  },
+  "pattern": [
+    "GGG",
+    "CBC",
+    "SFS"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:storage_terminal"
+  },
+  "type": "minecraft:crafting_shaped"
+}

@@ -1,0 +1,27 @@
+{
+  "ingredients": [
+    {
+      "item": "minecraft:ender_pearl"
+    },
+    {
+      "item": "rackcraft:circuit_board"
+    },
+    {
+      "item": "minecraft:glass_pane"
+    },
+    {
+      "item": "rackcraft:copper_wire"
+    },
+    {
+      "item": "rackcraft:copper_wire"
+    },
+    {
+      "item": "rackcraft:steel_ingot"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:wireless_terminal"
+  },
+  "type": "minecraft:crafting_shapeless"
+}

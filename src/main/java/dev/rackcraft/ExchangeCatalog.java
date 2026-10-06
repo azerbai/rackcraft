@@ -40,7 +40,7 @@ public final class ExchangeCatalog {
 			"petrified_oak_slab", "farmland", "dirt_path", "frogspawn", "light", "barrier", "structure_void",
 			"debug_stick", "knowledge_book", "written_book", "filled_map", "enchanted_book", "potion",
 			"splash_potion", "lingering_potion", "tipped_arrow", "suspicious_stew", "goat_horn", "dragon_egg",
-			"suspicious_sand", "suspicious_gravel", "player_head", "chorus_plant", "bundle");
+			"suspicious_sand", "suspicious_gravel", "player_head", "chorus_plant", "bundle", "recipe_pattern");
 
 	private static volatile Map<Item, Long> prices = Map.of();
 

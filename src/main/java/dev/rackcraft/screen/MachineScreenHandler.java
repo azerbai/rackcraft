@@ -75,10 +75,16 @@ public final class MachineScreenHandler extends ScreenHandler {
 			@Override public void set(int index, int value) {}
 		};
 		if (mode == Mode.RACK) {
-			for (int index = 0; index < 8; index++) addSlot(new Slot(machineInventory, index, 10, 18 + index * 18));
+			for (int index = 0; index < 8; index++) addSlot(new MachineSlot(machineInventory, index, 10, 18 + index * 18));
 			addPlayerInventory(playerInventory, 10, 170);
+		} else if (mode == Mode.STORAGE_ARRAY) {
+			for (int index = 0; index < 8; index++) addSlot(new MachineSlot(machineInventory, index, 8 + (index % 4) * 22, 24 + (index / 4) * 22));
+			addPlayerInventory(playerInventory, 8, 102);
+		} else if (mode == Mode.TAPE_LIBRARY) {
+			for (int index = 0; index < 4; index++) addSlot(new MachineSlot(machineInventory, index, 8 + index * 22, 24));
+			addPlayerInventory(playerInventory, 8, 102);
 		} else if (mode == Mode.SINGLE_SLOT) {
-			addSlot(new Slot(machineInventory, 0, 80, 42));
+			addSlot(new MachineSlot(machineInventory, 0, 80, 42));
 			addPlayerInventory(playerInventory, 8, 92);
 		}
 		addProperties(properties);
@@ -93,8 +99,34 @@ public final class MachineScreenHandler extends ScreenHandler {
 		for (int column = 0; column < 9; column++) addSlot(new Slot(inventory, column, x + column * 18, y + 58));
 	}
 
+	/** Shift-click moves items between the machine's slots and the player's inventory. */
 	@Override
-	public ItemStack quickMove(PlayerEntity player, int slot) { return ItemStack.EMPTY; }
+	public ItemStack quickMove(PlayerEntity player, int index) {
+		int machineSlots = (int) slots.stream().filter(slot -> slot instanceof MachineSlot).count();
+		Slot slot = slots.get(index);
+		if (machineSlots == 0 || !slot.hasStack()) return ItemStack.EMPTY;
+		ItemStack stack = slot.getStack();
+		ItemStack original = stack.copy();
+		boolean moved = index < machineSlots
+				? insertItem(stack, machineSlots, slots.size(), true)
+				: insertItem(stack, 0, machineSlots, false);
+		if (!moved) return ItemStack.EMPTY;
+		if (stack.isEmpty()) slot.setStack(ItemStack.EMPTY);
+		else slot.markDirty();
+		return original;
+	}
+
+	/** A machine slot that only accepts what the machine accepts (drives, rack modules, fuel). */
+	private static final class MachineSlot extends Slot {
+		MachineSlot(Inventory inventory, int index, int x, int y) {
+			super(inventory, index, x, y);
+		}
+
+		@Override
+		public boolean canInsert(ItemStack stack) {
+			return inventory.isValid(getIndex(), stack);
+		}
+	}
 	@Override
 	public boolean canUse(PlayerEntity player) { return machine == null || machine.canPlayerUse(player); }
 	public Mode mode() { return mode; }
@@ -128,6 +160,7 @@ public final class MachineScreenHandler extends ScreenHandler {
 			case Stat.MINING_RACKS -> facility != null ? facility.miningRacks() : 0;
 			case Stat.TOTAL_RACKS -> facility != null ? facility.totalRacks() : 0;
 			case Stat.NETWORK_CAPACITY -> tenths(machine.networkCapacityKw());
+			case Stat.TRANSMITTER_LEVEL -> machine.transmitterLevel();
 			default -> 0;
 		};
 	}
@@ -157,12 +190,14 @@ public final class MachineScreenHandler extends ScreenHandler {
 		public static final int MINING_RACKS = 16;
 		public static final int TOTAL_RACKS = 17;
 		public static final int NETWORK_CAPACITY = 18;  // tenths of kW
-		static final int COUNT = 19;
+		public static final int TRANSMITTER_LEVEL = 19;
+		static final int COUNT = 20;
 
 		private Stat() {}
 	}
 	public String activeContract() { return activeContract; }
 	public String activeEvent() { return activeEvent; }
 
-	public enum Mode { RACK, SINGLE_SLOT, MACHINE_STATUS, CONTROLLER, MONITOR_WALL, EXCHANGE, CREATIVE }
+	public enum Mode { RACK, SINGLE_SLOT, MACHINE_STATUS, CONTROLLER, MONITOR_WALL, EXCHANGE, CREATIVE,
+		STORAGE_ARRAY, TAPE_LIBRARY, TRANSMITTER }
 }

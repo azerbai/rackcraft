@@ -1,0 +1,33 @@
+{
+  "ingredients": [
+    {
+      "item": "rackcraft:aluminum_ingot"
+    },
+    {
+      "item": "rackcraft:aluminum_ingot"
+    },
+    {
+      "item": "rackcraft:aluminum_ingot"
+    },
+    {
+      "item": "rackcraft:aluminum_ingot"
+    },
+    {
+      "item": "minecraft:redstone"
+    },
+    {
+      "item": "minecraft:redstone"
+    },
+    {
+      "item": "minecraft:string"
+    },
+    {
+      "item": "minecraft:string"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:tape_cartridge"
+  },
+  "type": "minecraft:crafting_shapeless"
+}

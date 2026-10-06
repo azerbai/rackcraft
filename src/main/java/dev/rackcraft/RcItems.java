@@ -32,6 +32,10 @@ public final class RcItems {
 			Item item = switch (id) {
 				case "field_manual" -> new FieldManualItem(settings);
 				case "multimeter" -> new MultimeterItem(settings.maxCount(1));
+				case "recipe_pattern" -> new dev.rackcraft.storage.PatternItem(settings);
+				case "wireless_terminal" -> new dev.rackcraft.storage.WirelessTerminalItem(settings);
+				case "drive_1k", "drive_4k", "drive_16k", "drive_64k", "tape_cartridge" -> new dev.rackcraft.storage.DriveItem(settings,
+						ContentIds.DRIVE_CAPACITY.get(id), id.equals("tape_cartridge"));
 				default -> new Item(settings);
 			};
 			ITEMS.put(id, Registry.register(Registries.ITEM, Rackcraft.id(id), item));

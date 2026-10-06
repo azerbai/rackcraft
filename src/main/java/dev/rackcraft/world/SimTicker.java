@@ -4,6 +4,9 @@ import dev.rackcraft.Rackcraft;
 import dev.rackcraft.RackcraftNetworking;
 import dev.rackcraft.RackcraftConfig;
 import dev.rackcraft.CreativeSettings;
+import dev.rackcraft.storage.Autocrafter;
+import dev.rackcraft.storage.StorageService;
+import dev.rackcraft.storage.TransmitterUpgrades;
 import dev.rackcraft.block.MachineBlock;
 import dev.rackcraft.block.MachineBlockEntity;
 import dev.rackcraft.block.CableBlock;
@@ -177,12 +180,15 @@ public final class SimTicker {
 		}
 
 		updateLitStates(world, machines, satisfaction, sourceOutput, energized, networks);
+		stepStorage(world, machines, heat, satisfaction, dt);
 		applyMachineHeat(world, machines, heat, dt);
 		heat.step(dt, false);
 		pinCreativeCoolers(world, machines, heat);
 		RackcraftNetworking.sendHeatCells(world, heat);
 		if (world.getTime() % 20 < Math.max(1, RackcraftConfig.values.sim.stepTicks)) RackcraftNetworking.sendHud(world, machines);
-		awardCredits(world, machines, rackSteps, networks, satisfaction, dt);
+		List<MachineBlockEntity> racks = machines.stream().filter(machine -> machine.blockId().equals("server_rack")).toList();
+		Set<MachineBlockEntity> crafting = Autocrafter.tick(world, racks, dt);
+		awardCredits(world, machines, rackSteps, networks, satisfaction, crafting, dt);
 		FacilityManager facility = FacilityManager.get(world);
 		long previousEventTick = facility.eventTicks();
 		facility.advanceEventClock(RackcraftConfig.values.sim.stepTicks);
@@ -242,6 +248,12 @@ public final class SimTicker {
 						"battery_bank", "creative_power" -> sourceOutput.getOrDefault(machine, 0.0) > 0;
 				case "creative_rack" -> machine.creativeValue(CreativeSettings.MINING_RATE) > 0;
 				case "creative_cooler" -> true;
+				case "storage_array", "tape_library" -> machine.storageOnline();
+				case "wireless_transmitter" -> satisfaction.getOrDefault(machine, 0.0) >= 0.5;
+				case "storage_terminal" -> networks.component(machine.getPos(), NetKind.DATA).stream()
+						.map(world::getBlockEntity).anyMatch(entity -> entity instanceof MachineBlockEntity member
+								&& (member.blockId().equals("storage_array") || member.blockId().equals("tape_library"))
+								&& member.storageOnline());
 				case "creative_router" -> machine.creativeValue(CreativeSettings.BANDWIDTH) > 0;
 				case "pdu" -> energized.contains(machine) && !machine.isTripped();
 				case "uplink_router", "core_router", "monitoring_wall" ->
@@ -269,6 +281,9 @@ public final class SimTicker {
 			case "cdu" -> 0.5;
 			case "facility_controller" -> 0.5;
 			case "creative_rack" -> machine.creativeValue(CreativeSettings.DRAW_KW);
+			case "storage_array" -> 0.4 + 0.15 * machine.driveCount();
+			case "tape_library" -> 0.3;
+			case "wireless_transmitter" -> TransmitterUpgrades.drawKw(machine.transmitterLevel());
 			default -> 0;
 		};
 	}
@@ -307,6 +322,41 @@ public final class SimTicker {
 		}
 	}
 
+	/**
+	 * Storage arrays behave like racks: they take air in the front, exhaust their draw as heat out the back,
+	 * and go offline when unpowered or at 40 C. Tape libraries only need power. Transmitters refresh their
+	 * cached drive list, and every 30 seconds idle items are archived from drives to tape.
+	 */
+	private static void stepStorage(ServerWorld world, List<MachineBlockEntity> machines, ThermalGrid heat,
+			Map<MachineBlockEntity, Double> satisfaction, double dt) {
+		for (MachineBlockEntity machine : machines) {
+			double supplied = satisfaction.getOrDefault(machine, 0.0);
+			switch (machine.blockId()) {
+				case "tape_library" -> machine.setStorageOnline(supplied >= 0.5);
+				case "storage_array" -> {
+					Direction facing = machine.getCachedState().get(MachineBlock.FACING);
+					List<BlockPos> intakeCells = airflowCells(world, machine.getPos().offset(facing), facing, heat);
+					List<BlockPos> exhaustCells = airflowCells(world, machine.getPos().offset(facing.getOpposite()), facing, heat);
+					double inlet = averageTemperature(heat, intakeCells, machine.inletCelsius());
+					double thermal = ServerModel.thermalFactor(inlet);
+					double draw = demandFor(machine) * supplied;
+					depositAcross(heat, exhaustCells, draw, dt);
+					machine.setRackStats(inlet, averageTemperature(heat, exhaustCells, inlet), draw, supplied, thermal);
+					machine.setStorageOnline(supplied >= 0.5 && thermal > 0);
+				}
+				case "wireless_transmitter" -> StorageService.updateTransmitter(world, machine);
+				default -> {}
+			}
+		}
+		if (world.getTime() % 600 >= Math.max(1, RackcraftConfig.values.sim.stepTicks)) return;
+		Set<BlockPos> visited = new HashSet<>();
+		for (MachineBlockEntity library : machines) {
+			if (!library.blockId().equals("tape_library") || !library.storageOnline() || visited.contains(library.getPos())) continue;
+			visited.addAll(NetworkManager.get(world).component(library.getPos(), NetKind.DATA));
+			StorageService.networkAt(world, library.getPos()).archive(0.85, 0.7);
+		}
+	}
+
 	/** Creative coolers hold the air in front of and behind them at their set temperature. */
 	private static void pinCreativeCoolers(ServerWorld world, List<MachineBlockEntity> machines, ThermalGrid heat) {
 		for (MachineBlockEntity cooler : machines) {
@@ -334,7 +384,7 @@ public final class SimTicker {
 
 	private static void awardCredits(ServerWorld world, List<MachineBlockEntity> machines,
 			Map<MachineBlockEntity, ServerModel.RackStep> rackSteps, NetworkManager networks,
-			Map<MachineBlockEntity, Double> satisfaction, double dt) {
+			Map<MachineBlockEntity, Double> satisfaction, Set<MachineBlockEntity> crafting, double dt) {
 		FacilityManager facility = FacilityManager.get(world);
 		double facilityRate = 0;
 		int miningRacks = 0;
@@ -357,6 +407,10 @@ public final class SimTicker {
 			double rate = bandwidth > 0 && demand > 0
 					? result.creditsPerSecond() * Math.min(1, bandwidth / demand) : 0;
 			RackStatus status;
+			if (crafting.contains(rack)) {
+				rack.setMining(RackStatus.CRAFTING, 0);
+				continue;
+			}
 			if (rack.modules().isEmpty()) status = RackStatus.EMPTY;
 			else if (rack.isTripped()) status = RackStatus.TRIPPED;
 			else if (satisfaction.getOrDefault(rack, 0.0) < 0.5) status = RackStatus.NO_POWER;

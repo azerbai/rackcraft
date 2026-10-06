@@ -1,0 +1,29 @@
+{
+  "key": {
+    "B": {
+      "item": "rackcraft:circuit_board"
+    },
+    "E": {
+      "item": "minecraft:ender_pearl"
+    },
+    "F": {
+      "item": "rackcraft:fiber_cable"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    },
+    "W": {
+      "item": "rackcraft:copper_wire"
+    }
+  },
+  "pattern": [
+    " E ",
+    "WBW",
+    "SFS"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:wireless_transmitter"
+  },
+  "type": "minecraft:crafting_shaped"
+}

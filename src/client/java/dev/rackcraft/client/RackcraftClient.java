@@ -29,6 +29,21 @@ public final class RackcraftClient implements ClientModInitializer {
 		ScreenRegistry.register(RcScreenHandlers.MONITOR_WALL, MonitorWallScreen::new);
 		ScreenRegistry.register(RcScreenHandlers.EXCHANGE, dev.rackcraft.client.screen.ExchangeScreen::new);
 		ScreenRegistry.register(RcScreenHandlers.CREATIVE, dev.rackcraft.client.screen.CreativeMachineScreen::new);
+		ScreenRegistry.register(RcScreenHandlers.STORAGE_ARRAY, dev.rackcraft.client.screen.StorageScreen::new);
+		ScreenRegistry.register(RcScreenHandlers.TAPE_LIBRARY, dev.rackcraft.client.screen.StorageScreen::new);
+		ScreenRegistry.register(RcScreenHandlers.TRANSMITTER, dev.rackcraft.client.screen.TransmitterScreen::new);
+		ScreenRegistry.register(RcScreenHandlers.TERMINAL, dev.rackcraft.client.screen.TerminalScreen::new);
+		net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.registerGlobalReceiver(
+				dev.rackcraft.storage.TerminalScreenHandler.SYNC, (client, handler, buf, responseSender) -> {
+					int syncId = buf.readVarInt();
+					net.minecraft.network.PacketByteBuf copy = net.fabricmc.fabric.api.networking.v1.PacketByteBufs.copy(buf);
+					client.execute(() -> {
+						if (client.player != null && client.player.currentScreenHandler
+								instanceof dev.rackcraft.storage.TerminalScreenHandler terminal && terminal.syncId == syncId) {
+							terminal.applySync(copy);
+						}
+					});
+				});
 		FieldManualItem.openScreen = () -> MinecraftClient.getInstance().setScreen(new GuideScreen());
 		ItemTooltipCallback.EVENT.register((stack, context, lines) -> {
 			var id = Registries.ITEM.getId(stack.getItem());

@@ -43,6 +43,7 @@ public final class Rackcraft implements ModInitializer {
 		RackcraftCommands.register();
 		RackcraftNetworking.registerServer();
 		ExchangeCatalog.register();
+		dev.rackcraft.storage.StorageService.register();
 		RackcraftSelfTest.register();
 		LOGGER.info("Rackcraft initialised");
 	}

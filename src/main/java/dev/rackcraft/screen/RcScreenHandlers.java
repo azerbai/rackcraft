@@ -16,6 +16,12 @@ public final class RcScreenHandlers {
 	public static final ScreenHandlerType<MachineScreenHandler> MONITOR_WALL = register("monitor_wall", MachineScreenHandler.Mode.MONITOR_WALL);
 	public static final ScreenHandlerType<MachineScreenHandler> EXCHANGE = register("exchange", MachineScreenHandler.Mode.EXCHANGE);
 	public static final ScreenHandlerType<MachineScreenHandler> CREATIVE = register("creative", MachineScreenHandler.Mode.CREATIVE);
+	public static final ScreenHandlerType<MachineScreenHandler> STORAGE_ARRAY = register("storage_array", MachineScreenHandler.Mode.STORAGE_ARRAY);
+	public static final ScreenHandlerType<MachineScreenHandler> TAPE_LIBRARY = register("tape_library", MachineScreenHandler.Mode.TAPE_LIBRARY);
+	public static final ScreenHandlerType<MachineScreenHandler> TRANSMITTER = register("transmitter", MachineScreenHandler.Mode.TRANSMITTER);
+	public static final ScreenHandlerType<dev.rackcraft.storage.TerminalScreenHandler> TERMINAL = Registry.register(
+			Registries.SCREEN_HANDLER, Rackcraft.id("terminal"), new ExtendedScreenHandlerType<>((syncId, inventory, buf) ->
+					new dev.rackcraft.storage.TerminalScreenHandler(syncId, inventory, dev.rackcraft.storage.StorageService.Access.read(buf))));
 
 	private RcScreenHandlers() {}
 
@@ -34,6 +40,9 @@ public final class RcScreenHandlers {
 			case MONITOR_WALL -> MONITOR_WALL;
 			case EXCHANGE -> EXCHANGE;
 			case CREATIVE -> CREATIVE;
+			case STORAGE_ARRAY -> STORAGE_ARRAY;
+			case TAPE_LIBRARY -> TAPE_LIBRARY;
+			case TRANSMITTER -> TRANSMITTER;
 		};
 	}
 }

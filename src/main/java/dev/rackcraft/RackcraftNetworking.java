@@ -16,6 +16,8 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 
 public final class RackcraftNetworking {
 	private static final Identifier SET_LOAD_LIMIT = Rackcraft.id("set_load_limit");
@@ -23,6 +25,7 @@ public final class RackcraftNetworking {
 	private static final Identifier BUY_ITEM = Rackcraft.id("buy_item");
 	private static final Identifier RESET_BREAKER = Rackcraft.id("reset_breaker");
 	private static final Identifier SET_CREATIVE = Rackcraft.id("set_creative");
+	private static final Identifier UPGRADE_TRANSMITTER = Rackcraft.id("upgrade_transmitter");
 	private static final Identifier HEAT_CELLS = Rackcraft.id("heat_cells");
 	public static final Identifier HUD = Rackcraft.id("hud");
 	private static final int HUD_RANGE_SQUARED = 32 * 32;
@@ -56,6 +59,32 @@ public final class RackcraftNetworking {
 				for (int purchase = 0; purchase < times; purchase++) {
 					if (!buy(player, pos, itemId)) break;
 				}
+			});
+		});
+		dev.rackcraft.storage.TerminalScreenHandler.registerServer();
+		ServerPlayNetworking.registerGlobalReceiver(UPGRADE_TRANSMITTER, (server, player, handler, buf, responseSender) -> {
+			BlockPos pos = buf.readBlockPos();
+			boolean withRackCoin = buf.readBoolean();
+			server.execute(() -> {
+				MachineBlockEntity machine = validatedMachine(player, pos);
+				if (machine == null || !machine.blockId().equals("wireless_transmitter")) return;
+				var cost = dev.rackcraft.storage.TransmitterUpgrades.next(machine.transmitterLevel());
+				if (cost == null) return;
+				if (withRackCoin) {
+					if (!FacilityManager.get(player.getServerWorld()).spendCredits(cost.rackCoin())) {
+						player.sendMessage(Text.translatable("transmitter.rackcraft.cannot_afford").formatted(Formatting.RED), true);
+						return;
+					}
+				} else {
+					if (!dev.rackcraft.storage.TransmitterUpgrades.hasItems(player, cost.items())) {
+						player.sendMessage(Text.translatable("transmitter.rackcraft.missing_items").formatted(Formatting.RED), true);
+						return;
+					}
+					dev.rackcraft.storage.TransmitterUpgrades.takeItems(player, cost.items());
+				}
+				machine.setTransmitterLevel(machine.transmitterLevel() + 1);
+				player.getServerWorld().playSound(null, pos, net.minecraft.sound.SoundEvents.BLOCK_BEACON_POWER_SELECT,
+						net.minecraft.sound.SoundCategory.BLOCKS, 0.8f, 1.2f);
 			});
 		});
 		ServerPlayNetworking.registerGlobalReceiver(SET_CREATIVE, (server, player, handler, buf, responseSender) -> {

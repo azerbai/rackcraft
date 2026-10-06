@@ -5,6 +5,7 @@ public enum RackStatus {
 	MINING(true),
 	THROTTLED(true),
 	NETWORK_LIMITED(true),
+	CRAFTING(false),
 	EMPTY(false),
 	TRIPPED(false),
 	NO_POWER(false),

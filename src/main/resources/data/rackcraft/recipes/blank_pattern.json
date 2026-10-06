@@ -1,0 +1,21 @@
+{
+  "ingredients": [
+    {
+      "item": "minecraft:paper"
+    },
+    {
+      "item": "minecraft:paper"
+    },
+    {
+      "item": "rackcraft:copper_wire"
+    },
+    {
+      "item": "minecraft:redstone"
+    }
+  ],
+  "result": {
+    "count": 4,
+    "item": "rackcraft:blank_pattern"
+  },
+  "type": "minecraft:crafting_shapeless"
+}

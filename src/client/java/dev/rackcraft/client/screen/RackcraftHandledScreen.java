@@ -21,6 +21,13 @@ abstract class RackcraftHandledScreen extends HandledScreen<MachineScreenHandler
 		context.fill(left, top, left + backgroundWidth, top + backgroundHeight, 0xFF17212A);
 		context.fill(left, top, left + backgroundWidth, top + 22, 0xFF2C414A);
 		context.fill(left + 5, top + 28, left + backgroundWidth - 5, top + backgroundHeight - 5, 0xFF202D34);
+		// Every slot gets a frame, so empty machine slots and the inventory are visible.
+		for (net.minecraft.screen.slot.Slot slot : handler.slots) {
+			int slotX = left + slot.x - 1;
+			int slotY = top + slot.y - 1;
+			context.fill(slotX, slotY, slotX + 18, slotY + 18, 0xFF3A525C);
+			context.fill(slotX + 1, slotY + 1, slotX + 17, slotY + 17, 0xFF0F171C);
+		}
 	}
 
 	@Override

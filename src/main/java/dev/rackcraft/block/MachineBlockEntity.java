@@ -53,6 +53,8 @@ public final class MachineBlockEntity extends BlockEntity implements Inventory, 
 	private double networkDemandKw;
 	private double networkCapacityKw;
 	private final java.util.Map<String, Double> creativeValues = new java.util.HashMap<>();
+	private boolean storageOnline;
+	private int transmitterLevel;
 
 	public MachineBlockEntity(BlockPos pos, BlockState state) {
 		super(RcBlocks.MACHINE_ENTITY, pos, state);
@@ -86,6 +88,8 @@ public final class MachineBlockEntity extends BlockEntity implements Inventory, 
 		if (List.of("server_rack", "uplink_router", "core_router", "facility_controller",
 				"monitoring_wall", "creative_router").contains(id)) kinds.add(NetKind.DATA);
 		if (List.of("creative_power", "creative_rack").contains(id)) kinds.add(NetKind.POWER);
+		if (List.of("storage_array", "tape_library", "wireless_transmitter").contains(id)) kinds.add(NetKind.POWER);
+		if (List.of("storage_array", "tape_library", "storage_terminal", "wireless_transmitter").contains(id)) kinds.add(NetKind.DATA);
 		return kinds;
 	}
 
@@ -144,6 +148,12 @@ public final class MachineBlockEntity extends BlockEntity implements Inventory, 
 			return installedUnits + moduleUnits <= 8;
 		}
 		if (blockId.equals("diesel_generator") || blockId.equals("modular_reactor")) return slot == 0;
+		if (blockId.equals("storage_array")) {
+			return slot < 8 && stack.getItem() instanceof dev.rackcraft.storage.DriveItem drive && !drive.cold();
+		}
+		if (blockId.equals("tape_library")) {
+			return slot < 4 && stack.getItem() instanceof dev.rackcraft.storage.DriveItem drive && drive.cold();
+		}
 		if (blockId.equals("fire_suppression_tank")) return slot == 0;
 		return false;
 	}
@@ -209,6 +219,20 @@ public final class MachineBlockEntity extends BlockEntity implements Inventory, 
 	public double networkDemandKw() { return networkDemandKw; }
 	public double networkCapacityKw() { return networkCapacityKw; }
 
+	/** Storage arrays and tape libraries: whether their drives are reachable right now. */
+	public boolean storageOnline() { return storageOnline; }
+	public void setStorageOnline(boolean online) { storageOnline = online; }
+	public int transmitterLevel() { return transmitterLevel; }
+	public void setTransmitterLevel(int level) {
+		transmitterLevel = Math.max(0, Math.min(dev.rackcraft.storage.StorageService.MAX_LEVEL, level));
+		markDirty();
+	}
+	public int driveCount() {
+		int drives = 0;
+		for (ItemStack stack : inventory) if (stack.getItem() instanceof dev.rackcraft.storage.DriveItem) drives++;
+		return drives;
+	}
+
 	/** A creative machine's in-game setting, or its default if never changed. */
 	public double creativeValue(String key) {
 		dev.rackcraft.CreativeSettings.Setting setting = dev.rackcraft.CreativeSettings.find(blockId(), key);
@@ -261,16 +285,29 @@ public final class MachineBlockEntity extends BlockEntity implements Inventory, 
 			case "server_rack" -> MachineScreenHandler.Mode.RACK;
 			case "diesel_generator", "modular_reactor", "fire_suppression_tank" -> MachineScreenHandler.Mode.SINGLE_SLOT;
 			case "crypto_exchange" -> MachineScreenHandler.Mode.EXCHANGE;
+			case "storage_array" -> MachineScreenHandler.Mode.STORAGE_ARRAY;
+			case "tape_library" -> MachineScreenHandler.Mode.TAPE_LIBRARY;
+			case "wireless_transmitter" -> MachineScreenHandler.Mode.TRANSMITTER;
+			case "storage_terminal" -> null;
 			case "creative_power", "creative_rack", "creative_cooler", "creative_router" -> MachineScreenHandler.Mode.CREATIVE;
 			case "facility_controller" -> MachineScreenHandler.Mode.CONTROLLER;
 			case "monitoring_wall" -> MachineScreenHandler.Mode.MONITOR_WALL;
 			default -> MachineScreenHandler.Mode.MACHINE_STATUS;
 		};
+		if (mode == null) return new dev.rackcraft.storage.TerminalScreenHandler(syncId, playerInventory, terminalAccess());
 		return new MachineScreenHandler(syncId, playerInventory, this, mode);
+	}
+
+	private dev.rackcraft.storage.StorageService.Access terminalAccess() {
+		return new dev.rackcraft.storage.StorageService.Access(world.getRegistryKey(), pos, false);
 	}
 
 	@Override
 	public void writeScreenOpeningData(ServerPlayerEntity player, PacketByteBuf buf) {
+		if (blockId().equals("storage_terminal")) {
+			terminalAccess().write(buf);
+			return;
+		}
 		buf.writeBlockPos(pos);
 		if (blockId().equals("crypto_exchange")) dev.rackcraft.ExchangeCatalog.write(buf);
 		if (dev.rackcraft.generated.ContentIds.CREATIVE_IDS.contains(blockId())) {
@@ -297,6 +334,7 @@ public final class MachineBlockEntity extends BlockEntity implements Inventory, 
 		dieselSpinupSteps = Math.max(0, Math.min(20, nbt.getInt("DieselSpinupSteps")));
 		fuelBurnTicks = Math.max(0, nbt.getInt("FuelBurnTicks"));
 		fuelBurnTotal = Math.max(fuelBurnTicks, nbt.getInt("FuelBurnTotal"));
+		transmitterLevel = Math.max(0, nbt.getInt("TransmitterLevel"));
 		inletCelsius = nbt.contains("InletCelsius") ? nbt.getDouble("InletCelsius") : 24;
 		exhaustCelsius = nbt.contains("ExhaustCelsius") ? nbt.getDouble("ExhaustCelsius") : 24;
 		powerKw = nbt.getDouble("PowerKw");
@@ -320,6 +358,7 @@ public final class MachineBlockEntity extends BlockEntity implements Inventory, 
 		nbt.putInt("DieselSpinupSteps", dieselSpinupSteps);
 		nbt.putInt("FuelBurnTicks", fuelBurnTicks);
 		nbt.putInt("FuelBurnTotal", fuelBurnTotal);
+		if (transmitterLevel > 0) nbt.putInt("TransmitterLevel", transmitterLevel);
 		nbt.putDouble("InletCelsius", inletCelsius);
 		nbt.putDouble("ExhaustCelsius", exhaustCelsius);
 		nbt.putDouble("PowerSatisfaction", powerSatisfaction);

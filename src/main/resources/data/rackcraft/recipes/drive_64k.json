@@ -1,0 +1,33 @@
+{
+  "ingredients": [
+    {
+      "item": "rackcraft:steel_ingot"
+    },
+    {
+      "item": "rackcraft:steel_ingot"
+    },
+    {
+      "item": "rackcraft:circuit_board"
+    },
+    {
+      "item": "rackcraft:gpu_chip"
+    },
+    {
+      "item": "rackcraft:ram_module"
+    },
+    {
+      "item": "rackcraft:ram_module"
+    },
+    {
+      "item": "rackcraft:ram_module"
+    },
+    {
+      "item": "rackcraft:ram_module"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:drive_64k"
+  },
+  "type": "minecraft:crafting_shapeless"
+}

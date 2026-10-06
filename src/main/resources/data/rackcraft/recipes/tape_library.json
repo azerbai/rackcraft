@@ -1,0 +1,26 @@
+{
+  "key": {
+    "B": {
+      "item": "rackcraft:circuit_board"
+    },
+    "G": {
+      "item": "minecraft:glass_pane"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    },
+    "W": {
+      "item": "rackcraft:copper_wire"
+    }
+  },
+  "pattern": [
+    "SGS",
+    "WBW",
+    "SSS"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:tape_library"
+  },
+  "type": "minecraft:crafting_shaped"
+}

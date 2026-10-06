@@ -40,6 +40,16 @@ Rare ruined data centers generate on the surface of plains, meadows, savannas, f
 
 Power cables, coolant pipes and fiber connect only toward cables of the same kind and toward machines on that network, forming straight runs, corners and junctions. Cables placed with older versions are upgraded when their chunk loads.
 
+## Storage and Autocrafting
+
+- **Storage Array:** 8 bays for 1K / 4K / 16K / 64K **Storage Drives**. It works like a rack: it needs power (0.4 kW + 0.15 kW per drive), takes air in the front and exhausts heat out the back, and goes offline (nothing is lost) when unpowered or at 40 C.
+- **Tape Library:** 4 bays for **Tape Cartridges** of 1,048,576 items each. This is cold storage: 0.3 kW, but players wait 2 seconds for each read. When drives pass 85% full, the least recently used items are archived to tape automatically.
+- **Storage Terminal:** a searchable grid of everything on its fiber network, a 3x3 crafting grid that refills from storage, and pattern encoding. Left-click takes a stack, right-click half, Shift-click to inventory; clicking with a held item deposits it. Items only on tape are tinted blue.
+- **Autocrafting runs on your racks.** Encode a **Recipe Pattern** from a **Blank Pattern** and store it on the network; its output shows a `+`. Ctrl-click to request any amount, and the planner chains patterns for multi-step recipes. Server racks on the same fiber lend compute (Pi Node 1, 1U 2, GPU 6, Quantum 20; ASIC Miners none) at 0.25 crafts per second per point, and **racks lending compute stop mining** while the job runs.
+- **Wireless Transmitter + Wireless Terminal:** sneak-right-click the transmitter with the terminal to link it. Range levels are 16, 32, 64, 128, 256 and 1,024 blocks, then unlimited in the dimension, then every dimension. Each level is bought with RackCoin or resources in the transmitter's screen, and doubles its power draw (0.5 kW up to 64 kW). While the transmitter's area is unloaded, wireless access uses the drives it last saw.
+
+Drive contents are stored with the world, keyed to each drive, so drives keep their items when moved between arrays.
+
 ## Creative Machines
 
 Four creative-only blocks live in the **Rackcraft Creative** tab. They have no recipes and are never sold at the Exchange. Right-click one to set its values in-game; the values are saved on the block, and only players in creative mode or operators can change them.

@@ -204,9 +204,9 @@ public final class GuideScreen extends Screen {
 
 	private void renderContents(DrawContext context) {
 		int x = left + 12;
-		int y = top + 32;
+		int y = top + 30;
 		context.drawText(textRenderer, Text.translatable("guide.rackcraft.contents"), x, y, COLOR_ACCENT, false);
-		y += 14;
+		y += 12;
 		for (int index = 0; index < ContentIds.GUIDE_CHAPTERS.size(); index++) {
 			GuideChapter chapter = ContentIds.GUIDE_CHAPTERS.get(index);
 			int target = pageOfChapter(chapter);
@@ -215,8 +215,9 @@ public final class GuideScreen extends Screen {
 					x + 22, y + 4, COLOR_TEXT, false);
 			context.drawText(textRenderer, Text.literal(chapter.entries().size() + ""),
 					left + PANEL_WIDTH - 22, y + 4, COLOR_MUTED, false);
-			hotspots.add(new Hotspot(x, y, TEXT_WIDTH, 18, stackOf(chapter.icon()), target, false));
-			y += 18;
+			hotspots.add(new Hotspot(x, y, TEXT_WIDTH, 15, stackOf(chapter.icon()), target, false));
+			// 15 px rows keep ten chapters on one page; icons overlap their neighbours by a pixel.
+			y += 15;
 		}
 	}
 
