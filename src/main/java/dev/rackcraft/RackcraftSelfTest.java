@@ -32,6 +32,8 @@ public final class RackcraftSelfTest {
 
 	private static void run(MinecraftServer server) {
 		int[] failures = {0};
+		// Racks boot instantly here, so the other checks don't wait; checkBoot turns it back on.
+		RackcraftConfig.values.sim.rackBootScale = 0;
 		check("S0.a", RcBlocks.BLOCKS.size() == 50 && RcItems.ITEMS.size() == 47,
 				"blocks=" + RcBlocks.BLOCKS.size() + " items=" + RcItems.ITEMS.size(), failures);
 		ServerWorld world = server.getOverworld();
@@ -81,7 +83,7 @@ public final class RackcraftSelfTest {
 				"output=" + generator.powerKw() + " demand=" + generator.networkDemandKw()
 						+ " capacity=" + generator.networkCapacityKw(), failures);
 		check("S6.d", ExchangeOffers.all().values().stream().allMatch(offer -> offer.item() != null
-						&& offer.item() != Items.AIR) && ExchangeOffers.all().get("diamond").price() == 1000,
+						&& offer.item() != Items.AIR) && ExchangeOffers.all().get("diamond").price() == 2000,
 				"offers=" + ExchangeOffers.all().size(), failures);
 		BlockPos lavaGeneratorPos = generatorPos.north(4);
 		world.setBlockState(lavaGeneratorPos, RcBlocks.get("diesel_generator").getDefaultState());
@@ -105,6 +107,8 @@ public final class RackcraftSelfTest {
 		checkReactorArray(world, failures);
 		checkItemPipes(world, failures);
 		checkNuclear(world, failures);
+		checkBoot(world, failures);
+		checkPrices(failures);
 		checkStructures(world, failures);
 		check("S0.b", SimTicker.failedSteps() == 0, "simulation steps that threw=" + SimTicker.failedSteps(), failures);
 		Rackcraft.LOGGER.info("RACKCRAFT_SELFTEST DONE failures={}", failures[0]);
@@ -142,7 +146,7 @@ public final class RackcraftSelfTest {
 						&& rackA.miningRate() + rackB.miningRate() > 1.4,
 				"after repair: " + rackA.rackStatus() + "/" + rackB.rackStatus() + " rate="
 						+ (rackA.miningRate() + rackB.miningRate()) + " inlet=" + rackA.inletCelsius(), failures);
-		check("S7.d", ExchangeCatalog.prices().size() > 900 && ExchangeCatalog.price(Items.DIAMOND) == 1000
+		check("S7.d", ExchangeCatalog.prices().size() > 900 && ExchangeCatalog.price(Items.DIAMOND) == 2000
 						&& ExchangeCatalog.price(Items.DIAMOND_SWORD) != null && ExchangeCatalog.price(Items.DIAMOND_SWORD) > 2000
 						&& ExchangeCatalog.price(Items.NETHERITE_SWORD) != null
 						&& ExchangeCatalog.price(Items.NETHERITE_SWORD) > ExchangeCatalog.price(Items.DIAMOND_SWORD)
@@ -651,6 +655,52 @@ public final class RackcraftSelfTest {
 		var placed = world.getRegistryManager().get(net.minecraft.registry.RegistryKeys.PLACED_FEATURE);
 		check("N2.a", placed.containsId(Rackcraft.id("uranium_ore")) && RcBlocks.BLOCKS.containsKey("uranium_ore"),
 				"uranium ore feature registered=" + placed.containsId(Rackcraft.id("uranium_ore")), failures);
+	}
+
+	/** A rack boots over its boot time once powered, mining partly on the way, and goes cold when power drops. */
+	private static void checkBoot(ServerWorld world, int[] failures) {
+		RackcraftConfig.values.sim.rackBootScale = 1;
+		BlockPos origin = clearArea(world, new BlockPos(-640, 150, -360), 6, 4, 4);
+		world.setBlockState(origin.west(), RcBlocks.get("creative_power").getDefaultState());
+		MachineBlockEntity rack = rack(world, origin, "server_1u");
+		world.setBlockState(origin.up(), RcBlocks.get("uplink_router").getDefaultState());
+		rack.setBootProgress(0);
+		for (int step = 0; step < 8; step++) SimTicker.stepNow(world);
+		double midway = rack.bootProgress();
+		RackStatus midStatus = rack.rackStatus();
+		double midRate = rack.miningRate();
+		for (int step = 0; step < 60; step++) SimTicker.stepNow(world);
+		double done = rack.bootProgress();
+		double fullRate = rack.miningRate();
+		world.setBlockState(origin.west(), Blocks.AIR.getDefaultState());
+		SimTicker.stepNow(world);
+		double cold = rack.bootProgress();
+		// 8 x 1U = 32 s to boot; 8 steps of 0.5 s is an eighth of the way.
+		check("K1.a", Math.abs(midway - 0.125) < 0.01 && midStatus == RackStatus.BOOTING && midRate > 0 && midRate < fullRate
+						&& done == 1 && rack.rackStatus() != RackStatus.BOOTING && cold == 0,
+				"after 4 s: boot=" + midway + " status=" + midStatus + " rate=" + midRate + "; after 34 s: boot=" + done
+						+ " rate=" + fullRate + "; unplugged: boot=" + cold, failures);
+		clearArea(world, origin, 6, 4, 4);
+		RackcraftConfig.values.sim.rackBootScale = 0;
+	}
+
+	/** Uranium is priced by the work behind it, materials pay double, and plain building blocks don't. */
+	private static void checkPrices(int[] failures) {
+		Long uranium = ExchangeCatalog.price(RcItems.ITEMS.get("raw_uranium"));
+		Long cell = ExchangeCatalog.price(RcItems.ITEMS.get("fuel_cell"));
+		Long ingot = ExchangeCatalog.price(Items.IRON_INGOT);
+		Long block = ExchangeCatalog.price(Items.IRON_BLOCK);
+		Long bricks = ExchangeCatalog.price(Items.STONE_BRICKS);
+		Long stairs = ExchangeCatalog.price(Items.STONE_BRICK_STAIRS);
+		boolean building = ExchangeCatalog.building(Items.STONE_BRICKS, java.util.Set.of()) && !ExchangeCatalog.building(Items.FURNACE, java.util.Set.of());
+		check("E1.a", uranium != null && uranium >= 2000 && cell != null && cell >= 50_000
+						&& ExchangeCatalog.price(RcItems.ITEMS.get("spent_fuel")) == null && block != null && ingot != null && block >= 9 * ingot
+						&& bricks != null && stairs != null && building
+						&& ExchangeCatalog.price(Items.NETHERITE_INGOT) > 4 * ExchangeCatalog.price(Items.NETHERITE_SCRAP),
+				"rawUranium=" + uranium + " fuelCell=" + cell + " ironIngot=" + ingot + " ironBlock=" + block
+						+ " stoneBricks=" + bricks + " stairs=" + stairs + " buildingRule=" + building
+						+ " netheriteIngot=" + ExchangeCatalog.price(Items.NETHERITE_INGOT) + " scrap=" + ExchangeCatalog.price(Items.NETHERITE_SCRAP)
+						+ " netheriteBlock=" + ExchangeCatalog.price(Items.NETHERITE_BLOCK) + " gold=" + ExchangeCatalog.price(Items.GOLD_INGOT), failures);
 	}
 
 	private static net.minecraft.item.Item item(String id) {

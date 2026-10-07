@@ -107,7 +107,9 @@ public final class RackScreen extends RackcraftHandledScreen {
 		RackStatus status = RackStatus.byOrdinal(stat(Stat.RACK_STATUS));
 		int color = status == RackStatus.MINING || status == RackStatus.GENERATING ? GOOD
 				: status.mining() || status == RackStatus.CRAFTING || status == RackStatus.TRAINING ? WARN : BAD;
-		Text headline = Text.translatable(status.translationKey(), coins(stat(Stat.MINING_RATE)));
+		Text headline = status == RackStatus.BOOTING
+				? Text.translatable(status.translationKey(), stat(Stat.BOOT), coins(stat(Stat.MINING_RATE)))
+				: Text.translatable(status.translationKey(), coins(stat(Stat.MINING_RATE)));
 		wrappedClamped(context, headline, RIGHT, 32, RIGHT_WIDTH, 2, color);
 
 		List<Reading> readings = readings();

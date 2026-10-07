@@ -14,7 +14,9 @@ public enum RackStatus {
 	NEEDS_CDU(false),
 	NEEDS_WATER(false),
 	OVERHEATED(false),
-	NO_NETWORK(false);
+	NO_NETWORK(false),
+	/** Powered and spinning up; it mines (and draws) more as it boots. */
+	BOOTING(true);
 
 	private final boolean mining;
 

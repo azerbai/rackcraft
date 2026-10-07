@@ -60,7 +60,11 @@ public final class RackcraftConfig {
 		}
 	}
 
-	public static final class Sim { public int stepTicks = 10; }
+	/** {@code rackBootScale} multiplies how long racks take to boot (1 by default, 0 for instant). */
+	public static final class Sim {
+		public int stepTicks = 10;
+		public double rackBootScale = 1;
+	}
 	/**
 	 * The air. Each block of air holds {@code cellCapacityKjPerK}; neighbours trade heat at
 	 * {@code faceConductanceKwPerK} per degree of difference (times {@code upwardMultiplier} for hot air rising),

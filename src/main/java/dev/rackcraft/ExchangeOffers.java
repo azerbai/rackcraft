@@ -62,6 +62,7 @@ public final class ExchangeOffers {
 			"repair_kit", "suppression_canister", "pi_node", "server_1u", "asic_miner", "gpu_blade");
 
 	private static void add(Map<String, Offer> map, String id, Category category, Item item, int count, long price) {
-		map.put(id, new Offer(id, category, item, count, price));
+		// Every curated offer is a material or a part, so it carries the catalog's premium.
+		map.put(id, new Offer(id, category, item, count, price * ExchangeCatalog.MATERIAL_PREMIUM));
 	}
 }

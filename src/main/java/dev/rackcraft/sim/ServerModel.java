@@ -61,6 +61,20 @@ public final class ServerModel {
 		}
 	}
 
+	/**
+	 * Seconds a rack takes to boot from cold once it has power: a few per module, more for bigger hardware, so a
+	 * full rack of Quantum Cores takes two minutes. Load (and with it mining and power draw) ramps up as it boots.
+	 */
+	public static double bootSeconds(List<Module> modules) {
+		return modules.stream().mapToDouble(module -> switch (module) {
+			case PI_NODE -> 2;
+			case SERVER_1U -> 4;
+			case ASIC_MINER -> 5;
+			case GPU_BLADE, TENSOR_ACCELERATOR -> 8;
+			case QUANTUM_CORE -> 15;
+		}).sum();
+	}
+
 	public static double thermalFactor(double inletCelsius) {
 		if (inletCelsius <= 27) return 1;
 		if (inletCelsius < 32) return 1 - (inletCelsius - 27) * 0.4 / 5;
@@ -89,12 +103,18 @@ public final class ServerModel {
 	/** {@code liquidCooling}: whether the rack is on a coolant loop with heat sinks; liquid-cooled racks stop without one. */
 	public static RackStep calculate(List<Module> modules, int loadLimitPercent,
 			double powerSatisfaction, double inletCelsius, boolean quantumHasCdu, boolean liquidCooling) {
+		return calculate(modules, loadLimitPercent, powerSatisfaction, inletCelsius, quantumHasCdu, liquidCooling, 1);
+	}
+
+	/** {@code boot}: how far the rack has booted, 0 to 1; its load is scaled by it. */
+	public static RackStep calculate(List<Module> modules, int loadLimitPercent, double powerSatisfaction,
+			double inletCelsius, boolean quantumHasCdu, boolean liquidCooling, double boot) {
 		int usedBays = modules.size();
 		if (usedBays > BAYS) throw new IllegalArgumentException("A rack has " + BAYS + " bays");
 		boolean quantumBlocked = modules.contains(Module.QUANTUM_CORE) && !quantumHasCdu;
 		double thermal = thermalFactor(inletCelsius);
 		double power = clamp(powerSatisfaction, 0, 1);
-		double load = clamp(loadLimitPercent / 100.0, 0, 1) * power * thermal;
+		double load = clamp(loadLimitPercent / 100.0, 0, 1) * power * thermal * clamp(boot, 0, 1);
 		boolean waterBlocked = !liquidCooling && needsLiquidCooling(modules);
 		if (power < 0.5 || thermal == 0 || quantumBlocked || waterBlocked) load = 0;
 		final double effectiveLoad = load;

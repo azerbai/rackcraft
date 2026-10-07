@@ -201,6 +201,7 @@ public final class MachineScreenHandler extends ScreenHandler {
 			case Stat.SOURCE_CAPACITY -> tenths(machine.reactorCapacityKw());
 			case Stat.FUEL_CELLS -> machine.arrayFuelCells();
 			case Stat.PROCESS_STATUS -> machine.processStatus();
+			case Stat.BOOT -> (int) Math.round(machine.bootProgress() * 100);
 			default -> 0;
 		};
 	}
@@ -253,7 +254,8 @@ public final class MachineScreenHandler extends ScreenHandler {
 		public static final int SOURCE_CAPACITY = 39;   // tenths of kW a reactor (array) can supply
 		public static final int FUEL_CELLS = 40;        // Fuel Cells waiting in a reactor array's slots
 		public static final int PROCESS_STATUS = 41;    // ReactorArrays.ReactorStatus or NuclearProcessing.Status ordinal
-		static final int COUNT = 42;
+		public static final int BOOT = 42;              // percent a rack has booted
+		static final int COUNT = 43;
 
 		private Stat() {}
 	}

@@ -275,6 +275,8 @@
   "item.rackcraft.wireless_terminal": "Wireless Terminal",
   "item.rackcraft.yellowcake": "Yellowcake",
   "itemGroup.rackcraft.main": "Rackcraft",
+  "rack_status.rackcraft.booting": "Booting: %s%% (%s RC/s so far)",
+  "rack_status.rackcraft.booting.hint": "Racks start slowly once they have power: a couple of seconds per Pi Node, four per 1U Server, five per ASIC, eight per GPU Blade or Tensor Accelerator and fifteen per Quantum Core, so a full rack of Quantum Cores takes two minutes. Power, mining and heat ramp up as it boots. Losing power means booting from cold again.",
   "rack_status.rackcraft.crafting": "Busy: autocrafting",
   "rack_status.rackcraft.crafting.hint": "This rack is lending its compute to an autocrafting job, so it is not mining. It resumes when the job finishes.",
   "rack_status.rackcraft.empty": "Idle: no modules",

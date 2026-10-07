@@ -30,10 +30,21 @@ import net.minecraft.util.Rarity;
 /**
  * "Buy almost anything": every survival-obtainable item, priced in RackCoin. Raw materials come from
  * {@link #baseValues()}; anything craftable, smeltable or stonecuttable is priced from its cheapest recipe
- * plus a 10% markup; whatever is left falls back to a price by rarity. Rebuilt on server start and /reload.
+ * plus a 10% markup; whatever is left falls back to a price by rarity. Then everything but plain building blocks
+ * costs {@link #MATERIAL_PREMIUM} times that. Rebuilt on server start and /reload.
  */
 public final class ExchangeCatalog {
 	private static final double MARKUP = 1.1;
+	/**
+	 * Everything except plain building blocks costs this many times its value: materials, tools, parts and machines
+	 * are what RackCoin is really for, while decorating stays cheap.
+	 */
+	public static final int MATERIAL_PREMIUM = 2;
+	/** Blocks that are tools or machinery even without a block entity. */
+	private static final List<String> FUNCTIONAL = List.of("crafting_table", "anvil", "grindstone", "stonecutter", "loom",
+			"cartography_table", "fletching_table", "smithing_table", "composter", "cauldron", "respawn_anchor", "lodestone",
+			"scaffolding", "rail", "tnt", "redstone", "repeater", "lever", "button", "pressure_plate", "target", "observer",
+			"piston", "note_block", "tripwire_hook", "slime_block", "honey_block", "beacon", "conduit", "end_crystal");
 	private static final int PASSES = 12;
 	private static final Set<String> EXCLUDED = Set.of(
 			"air", "bedrock", "spawner", "end_portal_frame", "budding_amethyst", "reinforced_deepslate",
@@ -41,8 +52,8 @@ public final class ExchangeCatalog {
 			"debug_stick", "knowledge_book", "written_book", "filled_map", "enchanted_book", "potion",
 			"splash_potion", "lingering_potion", "tipped_arrow", "suspicious_stew", "goat_horn", "dragon_egg",
 			"suspicious_sand", "suspicious_gravel", "player_head", "chorus_plant", "bundle", "recipe_pattern",
-			// Training data and AI work have to be earned.
-			"art_aggregate", "text_corpus", "generated_image", "generated_document");
+			// Training data and AI work have to be earned, and nuclear waste has to be made (and dealt with).
+			"art_aggregate", "text_corpus", "generated_image", "generated_document", "spent_fuel", "waste_cask");
 
 	private static volatile Map<Item, Long> prices = Map.of();
 
@@ -99,7 +110,9 @@ public final class ExchangeCatalog {
 			// Smithing upgrades have no ingredient list: price netherite gear as its diamond version plus an ingot.
 			for (Item item : Registries.ITEM) {
 				String path = Registries.ITEM.getId(item).getPath();
-				if (!path.startsWith("netherite_") || values.containsKey(item)) continue;
+				// Gear only: the block of netherite has a real recipe, and pricing it as a diamond block plus one ingot
+				// made netherite ingots (nine to a block) cheaper than their own scrap.
+				if (!path.startsWith("netherite_") || item instanceof BlockItem || values.containsKey(item)) continue;
 				Item diamond = Registries.ITEM.get(new Identifier("minecraft", "diamond_" + path.substring("netherite_".length())));
 				if (diamond != Items.AIR && values.containsKey(diamond) && values.containsKey(Items.NETHERITE_INGOT)) {
 					values.put(item, values.get(diamond) + values.get(Items.NETHERITE_INGOT));
@@ -109,12 +122,14 @@ public final class ExchangeCatalog {
 			if (!changed) break;
 		}
 
+		Set<Item> useful = usefulBlocks(server, recipes);
 		Map<Item, Long> built = new LinkedHashMap<>();
 		for (Item item : Registries.ITEM) {
 			if (!sellable(item, features)) continue;
 			Double value = values.get(item);
 			long price = value == null ? fallback(item)
 					: fixed.contains(item) ? Math.round(value) : (long) Math.ceil(value * MARKUP);
+			if (!building(item, useful)) price *= MATERIAL_PREMIUM;
 			built.put(item, Math.max(1, price));
 		}
 		prices = Collections.unmodifiableMap(built);
@@ -168,6 +183,33 @@ public final class ExchangeCatalog {
 			any = true;
 		}
 		return any ? cost : null;
+	}
+
+	/**
+	 * A plain building block: a block with no block entity that isn't machinery, and that isn't a store of something
+	 * useful (a block of iron, an ore, a log) that a recipe turns back into items. Everything else pays the premium.
+	 */
+	public static boolean building(Item item, Set<Item> useful) {
+		if (!(item instanceof BlockItem blockItem)) return false;
+		if (blockItem.getBlock() instanceof net.minecraft.block.BlockEntityProvider) return false;
+		String path = Registries.ITEM.getId(item).getPath();
+		if (FUNCTIONAL.stream().anyMatch(path::contains)) return false;
+		// Weathered and waxed copper blocks scrape back to a block of copper with an axe, so they're copper stock too.
+		if (path.matches("(waxed_)?((exposed|weathered|oxidized)_)?copper(_block)?")) return false;
+		return !useful.contains(item);
+	}
+
+	/** Blocks that a one-ingredient recipe (crafting or smelting) turns into a non-block item. */
+	private static Set<Item> usefulBlocks(MinecraftServer server, List<Recipe<?>> recipes) {
+		Set<Item> useful = new java.util.HashSet<>();
+		for (Recipe<?> recipe : recipes) {
+			List<Ingredient> ingredients = recipe.getIngredients().stream().filter(ingredient -> !ingredient.isEmpty()).toList();
+			if (ingredients.size() != 1 || recipe.getOutput(server.getRegistryManager()).getItem() instanceof BlockItem) continue;
+			for (ItemStack option : ingredients.get(0).getMatchingStacks()) {
+				if (option.getItem() instanceof BlockItem) useful.add(option.getItem());
+			}
+		}
+		return useful;
 	}
 
 	private static long fallback(Item item) {
@@ -268,6 +310,13 @@ public final class ExchangeCatalog {
 		put(base, 40_000, Items.NETHER_STAR);
 		put(base, 5, RcItems.ITEMS.get("raw_bauxite"));
 		put(base, 10, RcItems.ITEMS.get("failed_module"));
+		// The nuclear chain is priced by the work behind it: ore deep underground, then each multiblock step.
+		put(base, 1_000, RcItems.ITEMS.get("raw_uranium"));
+		put(base, 1_200, RcBlocks.get("uranium_ore").asItem());
+		put(base, 2_500, RcItems.ITEMS.get("yellowcake"));
+		put(base, 500, RcItems.ITEMS.get("depleted_uranium"));
+		put(base, 20_000, RcItems.ITEMS.get("enriched_uranium"));
+		put(base, 25_000, RcItems.ITEMS.get("fuel_cell"));
 		for (Item item : Registries.ITEM) {
 			var entry = item.getRegistryEntry();
 			String path = Registries.ITEM.getId(item).getPath();

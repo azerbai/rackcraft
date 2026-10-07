@@ -210,9 +210,13 @@ public final class SimTicker {
 			double supplied = satisfaction.getOrDefault(rack, 0.0);
 			double inlet = intakeCells.isEmpty() ? chokedInlet(heat, rack) : averageTemperature(heat, intakeCells, heat.ambientCelsius());
 			boolean hasCdu = adjacentMachine(machines, rack.getPos(), "cdu");
-			ServerModel.RackStep result = ServerModel.calculate(rack.modules(), rack.loadLimitPercent(),
-					supplied, inlet, hasCdu, loops.cooled(rack.getPos()));
 			if (supplied < 0.5) rack.setTripped(true);
+			// Racks boot slowly once they have power, and go cold again when they lose it.
+			double bootSeconds = ServerModel.bootSeconds(rack.modules()) * RackcraftConfig.values.sim.rackBootScale;
+			if (supplied < 0.5 || rack.modules().isEmpty()) rack.setBootProgress(0);
+			else rack.setBootProgress(bootSeconds <= 0 ? 1 : rack.bootProgress() + dt / bootSeconds);
+			ServerModel.RackStep result = ServerModel.calculate(rack.modules(), rack.loadLimitPercent(),
+					supplied, inlet, hasCdu, loops.cooled(rack.getPos()), rack.bootProgress());
 			if (rack.isTripped() && inlet < 32 && result.thermalFactor() > 0) rack.setTripped(false);
 			if (rack.isTripped()) result = new ServerModel.RackStep(result.usedBays(), result.demandKw(),
 					0, 0, result.thermalFactor(), result.quantumBlocked(), result.tripped(), result.waterBlocked());
@@ -440,6 +444,13 @@ public final class SimTicker {
 		}
 	}
 
+	/** How far a rack will have booted after this step if it gets its power, which is what it asks the grid for. */
+	private static double nextBoot(MachineBlockEntity rack) {
+		double seconds = ServerModel.bootSeconds(rack.modules()) * RackcraftConfig.values.sim.rackBootScale;
+		double dt = Math.max(1, RackcraftConfig.values.sim.stepTicks) / 20.0;
+		return seconds <= 0 ? 1 : Math.min(1, rack.bootProgress() + dt / seconds);
+	}
+
 	/** Multiblock cores switch to their array casing while they are part of a whole cube. */
 	private static void updateFormedStates(ServerWorld world, Map<MachineBlockEntity, ReactorArrays.Array> arrays) {
 		arrays.forEach((machine, array) -> {
@@ -465,7 +476,7 @@ public final class SimTicker {
 	private static double demandFor(MachineBlockEntity machine) {
 		return switch (machine.blockId()) {
 			case "server_rack" -> ServerModel.calculate(machine.modules(), machine.loadLimitPercent(), 1,
-					machine.inletCelsius(), true).demandKw();
+					machine.inletCelsius(), true, true, nextBoot(machine)).demandKw();
 			case "exhaust_fan" -> 0.2;
 			case "cooling_tower" -> 4;
 			case "crac_unit" -> 3;
@@ -676,6 +687,7 @@ public final class SimTicker {
 			else if (result.waterBlocked()) status = RackStatus.NEEDS_WATER;
 			else if (result.thermalFactor() <= 0) status = RackStatus.OVERHEATED;
 			else if (bandwidth <= 0) status = RackStatus.NO_NETWORK;
+			else if (rack.bootProgress() < 1) status = RackStatus.BOOTING;
 			else if (bandwidth < demand) status = RackStatus.NETWORK_LIMITED;
 			else if (result.thermalFactor() < 1) status = RackStatus.THROTTLED;
 			else status = RackStatus.MINING;

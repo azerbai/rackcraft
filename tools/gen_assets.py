@@ -550,6 +550,8 @@ def main():
         "rack_status.rackcraft.generating.hint": "This rack is generating work for an AI contract, which pays better than mining. It goes back to mining when the item is finished.",
         "rack_status.rackcraft.training": "Busy: training a model",
         "rack_status.rackcraft.training.hint": "This rack is training an AI model on uploaded data. Set its cluster to Mining at an Operations Terminal to keep it mining instead.",
+        "rack_status.rackcraft.booting": "Booting: %s%% (%s RC/s so far)",
+        "rack_status.rackcraft.booting.hint": "Racks start slowly once they have power: a couple of seconds per Pi Node, four per 1U Server, five per ASIC, eight per GPU Blade or Tensor Accelerator and fifteen per Quantum Core, so a full rack of Quantum Cores takes two minutes. Power, mining and heat ramp up as it boots. Losing power means booting from cold again.",
         "rack_status.rackcraft.needs_water": "Stopped: needs liquid cooling",
         "rack_status.rackcraft.needs_water.hint": "ASIC Miners, GPU Blades, Tensor Accelerators and Quantum Cores are liquid-cooled. Run Coolant Pipe from this rack to a heat sink: a Cooling Tower, Dry Cooler, Chiller or Water Heat Exchanger. The pipe carries 85% of their heat away.",
         "transmitter.rackcraft.level": "Level %s: %s",

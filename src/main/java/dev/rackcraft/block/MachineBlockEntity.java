@@ -90,6 +90,8 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 	private int processStatus;
 	private boolean processActive;
 	private int pendingWaste;
+	// Racks: how far through booting, 0 to 1. Saved, so a reload doesn't cold-start the hall.
+	private double bootProgress;
 
 	public MachineBlockEntity(BlockPos pos, BlockState state) {
 		super(RcBlocks.MACHINE_ENTITY, pos, state);
@@ -340,6 +342,12 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 		processStatus = status;
 		processActive = active;
 	}
+	public double bootProgress() { return bootProgress; }
+	public void setBootProgress(double value) {
+		double clamped = Math.max(0, Math.min(1, value));
+		if (clamped != bootProgress) markDirty();
+		bootProgress = clamped;
+	}
 	public int pendingWaste() { return pendingWaste; }
 	public void setPendingWaste(int value) { pendingWaste = Math.max(0, value); markDirty(); }
 	public java.util.UUID boundVillager() { return boundVillager; }
@@ -464,6 +472,7 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 		toolUses = Math.max(0, nbt.getInt("ToolUses"));
 		boundVillager = nbt.containsUuid("BoundVillager") ? nbt.getUuid("BoundVillager") : null;
 		pendingWaste = Math.max(0, nbt.getInt("PendingWaste"));
+		bootProgress = Math.max(0, Math.min(1, nbt.getDouble("Boot")));
 		creativeValues.clear();
 		NbtCompound creative = nbt.getCompound("Creative");
 		for (String key : creative.getKeys()) creativeValues.put(key, creative.getDouble(key));
@@ -494,6 +503,7 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 		if (toolUses > 0) nbt.putInt("ToolUses", toolUses);
 		if (boundVillager != null) nbt.putUuid("BoundVillager", boundVillager);
 		if (pendingWaste > 0) nbt.putInt("PendingWaste", pendingWaste);
+		if (bootProgress > 0) nbt.putDouble("Boot", bootProgress);
 		if (!creativeValues.isEmpty()) {
 			NbtCompound creative = new NbtCompound();
 			creativeValues.forEach(creative::putDouble);

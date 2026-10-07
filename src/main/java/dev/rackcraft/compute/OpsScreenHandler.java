@@ -237,7 +237,8 @@ public final class OpsScreenHandler extends ScreenHandler {
 			Map.entry(RackStatus.GENERATING, "generating"), Map.entry(RackStatus.TRAINING, "training"),
 			Map.entry(RackStatus.EMPTY, "empty"), Map.entry(RackStatus.TRIPPED, "tripped"), Map.entry(RackStatus.NO_POWER, "unpowered"),
 			Map.entry(RackStatus.NEEDS_CDU, "need a CDU"), Map.entry(RackStatus.NEEDS_WATER, "need liquid cooling"),
-			Map.entry(RackStatus.OVERHEATED, "overheated"), Map.entry(RackStatus.NO_NETWORK, "offline"));
+			Map.entry(RackStatus.OVERHEATED, "overheated"), Map.entry(RackStatus.NO_NETWORK, "offline"),
+			Map.entry(RackStatus.BOOTING, "booting"));
 
 	private static boolean problem(RackStatus status) {
 		return switch (status) {

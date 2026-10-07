@@ -95,47 +95,123 @@ public final class GuideScreen extends Screen {
 	}
 
 	/**
-	 * One page per chapter and entry. Entries whose text leaves too little room for their recipes
-	 * continue onto extra pages, so a long description never hides a crafting grid.
+	 * Pages are laid out by lines of text, so nothing ever runs under the buttons: a chapter's introduction or an
+	 * entry's description that doesn't fit continues on the next page, followed by the chapter's item grid or the
+	 * entry's recipes wherever there is room.
 	 */
 	private void buildPages() {
 		pages.clear();
 		entryPages.clear();
-		pages.add(new Page(null, null, false, 0, 0));
-		int available = PANEL_HEIGHT - 32 - 32;
+		pages.add(new Page(null, null, false, 0, 0, 0, 0, false));
 		for (GuideChapter chapter : ContentIds.GUIDE_CHAPTERS) {
-			pages.add(new Page(chapter, null, false, 0, 0));
+			int body = bodyHeight(CHAPTER_HEADER_HEIGHT);
+			Layout layout = new Layout(chapter, null);
+			for (int line = 0; line < chapterLines(chapter).size(); line++) layout.line(body);
+			int rows = (chapter.entries().size() + GRID_COLUMNS - 1) / GRID_COLUMNS;
+			layout.reserve(6 + rows * 22, body);
+			layout.close(0, 0, true);
 			for (String entry : chapter.entries()) {
 				entryPages.put(entry, pages.size());
+				body = bodyHeight(ENTRY_HEADER_HEIGHT);
+				Layout entryLayout = new Layout(chapter, entry);
+				for (int line = 0; line < entryLines(entry).size(); line++) entryLayout.line(body);
 				List<Recipe<?>> recipes = recipesByOutput.getOrDefault(stackOf(entry).getItem(), List.of());
-				int used = entryTextHeight(entry);
+				entryLayout.reserve(RECIPE_HEADER_HEIGHT + (recipes.isEmpty() ? 10 : recipeHeight(recipes.get(0))), body);
+				entryLayout.used += RECIPE_HEADER_HEIGHT;
 				int first = 0;
 				int count = 0;
-				boolean continuation = false;
 				for (int index = 0; index < recipes.size(); index++) {
 					int height = recipeHeight(recipes.get(index));
-					if (used + height > available) {
-						// Close this page (possibly with no recipes if the text filled it) and continue.
-						pages.add(new Page(chapter, entry, continuation, first, count));
-						continuation = true;
+					if (entryLayout.used + height > body && count > 0) {
+						entryLayout.close(first, count, true);
+						entryLayout.used = RECIPE_HEADER_HEIGHT;
 						first = index;
 						count = 0;
-						used = ENTRY_HEADER_HEIGHT + RECIPE_HEADER_HEIGHT;
 					}
-					used += height;
+					entryLayout.used += height;
 					count++;
 				}
-				pages.add(new Page(chapter, entry, continuation, first, count));
+				entryLayout.close(first, count, true);
 			}
 		}
 	}
 
+	/** Builds one chapter's or entry's pages: lines go on until the page is full, then a continuation page starts. */
+	private final class Layout {
+		private final GuideChapter chapter;
+		private final String entry;
+		private boolean continuation;
+		private int firstLine;
+		private int lineCount;
+		private int used;
+
+		Layout(GuideChapter chapter, String entry) {
+			this.chapter = chapter;
+			this.entry = entry;
+		}
+
+		void line(int body) {
+			if (used + 10 > body) close(0, 0, false);
+			used += 10;
+			lineCount++;
+		}
+
+		/** Starts a new page unless this much more fits on the current one. */
+		void reserve(int height, int body) {
+			if (used + height > body && (lineCount > 0 || continuation)) close(0, 0, false);
+		}
+
+		void close(int firstRecipe, int recipeCount, boolean extras) {
+			pages.add(new Page(chapter, entry, continuation, firstLine, lineCount, firstRecipe, recipeCount, extras));
+			continuation = true;
+			firstLine += lineCount;
+			lineCount = 0;
+			used = 0;
+		}
+	}
+
+	private static final int CHAPTER_HEADER_HEIGHT = 18;
 	private static final int ENTRY_HEADER_HEIGHT = 26;
 	private static final int RECIPE_HEADER_HEIGHT = 18;
+	private static final int GRID_COLUMNS = TEXT_WIDTH / 22;
 
-	private int entryTextHeight(String entry) {
-		int lines = textRenderer.wrapLines(Text.translatable("guide.rackcraft.entry." + entry), TEXT_WIDTH).size();
-		return ENTRY_HEADER_HEIGHT + lines * 10 + (ContentIds.FUEL_TICKS.containsKey(entry) ? 12 : 0) + RECIPE_HEADER_HEIGHT;
+	/** Room for text, grids and recipes below a page's header, above the buttons. */
+	private static int bodyHeight(int header) {
+		return PANEL_HEIGHT - 31 - 32 - header;
+	}
+
+	private record Line(OrderedText text, int color) {}
+
+	private List<Line> chapterLines(GuideChapter chapter) {
+		List<Line> lines = new ArrayList<>();
+		for (OrderedText text : textRenderer.wrapLines(Text.translatable("guide.rackcraft.chapter." + chapter.id() + ".intro"), TEXT_WIDTH)) {
+			lines.add(new Line(text, COLOR_TEXT));
+		}
+		if (chapter.fuelPage()) {
+			lines.add(new Line(OrderedText.EMPTY, COLOR_TEXT));
+			for (OrderedText text : textRenderer.wrapLines(Text.translatable("guide.rackcraft.fuel_notes"), TEXT_WIDTH)) {
+				lines.add(new Line(text, COLOR_MUTED));
+			}
+		}
+		return lines;
+	}
+
+	private List<Line> entryLines(String entry) {
+		List<Line> lines = new ArrayList<>();
+		for (OrderedText text : textRenderer.wrapLines(Text.translatable("guide.rackcraft.entry." + entry), TEXT_WIDTH)) {
+			lines.add(new Line(text, COLOR_TEXT));
+		}
+		Integer burnTicks = ContentIds.FUEL_TICKS.get(entry);
+		if (burnTicks != null) lines.add(new Line(Text.translatable("guide.rackcraft.burn_time", burnTicks / 20).asOrderedText(), COLOR_WARM));
+		return lines;
+	}
+
+	private int drawLines(DrawContext context, List<Line> lines, Page page, int x, int y) {
+		for (Line line : lines.subList(Math.min(page.firstLine(), lines.size()), Math.min(lines.size(), page.firstLine() + page.lineCount()))) {
+			context.drawText(textRenderer, line.text(), x, y, line.color(), false);
+			y += 10;
+		}
+		return y;
 	}
 
 	private static int recipeHeight(Recipe<?> recipe) {
@@ -187,7 +263,7 @@ public final class GuideScreen extends Screen {
 		hotspots.clear();
 		Page current = pages.get(page);
 		if (current.chapter() == null) renderContents(context);
-		else if (current.entry() == null) renderChapter(context, current.chapter());
+		else if (current.entry() == null) renderChapter(context, current);
 		else renderEntry(context, current);
 		super.render(context, mouseX, mouseY, delta);
 
@@ -230,21 +306,23 @@ public final class GuideScreen extends Screen {
 		}
 	}
 
-	private void renderChapter(DrawContext context, GuideChapter chapter) {
+	private void renderChapter(DrawContext context, Page current) {
+		GuideChapter chapter = current.chapter();
 		int x = left + 12;
 		int y = top + 32;
 		context.drawItem(stackOf(chapter.icon()), x, y - 4);
-		context.drawText(textRenderer, Text.translatable("guide.rackcraft.chapter." + chapter.id()),
+		Text title = Text.translatable("guide.rackcraft.chapter." + chapter.id());
+		context.drawText(textRenderer, current.continuation() ? Text.translatable("guide.rackcraft.continued", title) : title,
 				x + 20, y, COLOR_ACCENT, false);
-		y += 18;
-		y = paragraph(context, Text.translatable("guide.rackcraft.chapter." + chapter.id() + ".intro"), x, y, COLOR_TEXT);
-		if (chapter.fuelPage()) y = paragraph(context, Text.translatable("guide.rackcraft.fuel_notes"), x, y + 4, COLOR_MUTED);
+		y += CHAPTER_HEADER_HEIGHT;
+		y = drawLines(context, chapterLines(chapter), current, x, y);
+		if (!current.extras()) return;
 		y += 6;
 		int column = 0;
 		for (String entry : chapter.entries()) {
 			int slotX = x + column * 22;
 			slot(context, slotX, y, stackOf(entry), entryPages.get(entry));
-			if (++column == TEXT_WIDTH / 22) {
+			if (++column == GRID_COLUMNS) {
 				column = 0;
 				y += 22;
 			}
@@ -266,22 +344,13 @@ public final class GuideScreen extends Screen {
 				? Text.translatable("guide.rackcraft.continued", stack.getName()) : stack.getName();
 		context.drawText(textRenderer, name, x + 30, y + 4, COLOR_ACCENT, false);
 		y += ENTRY_HEADER_HEIGHT;
-		if (!current.continuation()) {
-			y = paragraph(context, Text.translatable("guide.rackcraft.entry." + entry), x, y, COLOR_TEXT);
-			Integer burnTicks = ContentIds.FUEL_TICKS.get(entry);
-			if (burnTicks != null) {
-				context.drawText(textRenderer, Text.translatable("guide.rackcraft.burn_time", burnTicks / 20),
-						x, y + 2, COLOR_WARM, false);
-				y += 12;
-			}
-		}
-
-		List<Recipe<?>> recipes = recipesByOutput.getOrDefault(stack.getItem(), List.of());
-		if (current.recipeCount() == 0 && !recipes.isEmpty()) {
-			// The text filled this page; recipes follow on the next one.
-			context.drawText(textRenderer, Text.translatable("guide.rackcraft.recipes_next"), x, y + 6, COLOR_MUTED, false);
+		y = drawLines(context, entryLines(entry), current, x, y);
+		if (!current.extras()) {
+			// The text fills this page; recipes follow, and say so if there's a line to spare.
+			if (y + 16 <= top + PANEL_HEIGHT - 31) context.drawText(textRenderer, Text.translatable("guide.rackcraft.recipes_next"), x, y + 6, COLOR_MUTED, false);
 			return;
 		}
+		List<Recipe<?>> recipes = recipesByOutput.getOrDefault(stack.getItem(), List.of());
 		y += 6;
 		context.drawText(textRenderer, Text.translatable("guide.rackcraft.recipes"), x, y, COLOR_MUTED, false);
 		y += 12;
@@ -410,7 +479,12 @@ public final class GuideScreen extends Screen {
 		return false;
 	}
 
-	private record Page(GuideChapter chapter, String entry, boolean continuation, int firstRecipe, int recipeCount) {}
+	/**
+	 * A page: the lines of its chapter's or entry's text it shows, and whether it carries the extras (the chapter's
+	 * item grid, or the entry's recipes from {@code firstRecipe}).
+	 */
+	private record Page(GuideChapter chapter, String entry, boolean continuation, int firstLine, int lineCount,
+			int firstRecipe, int recipeCount, boolean extras) {}
 
 	private record Hotspot(int x, int y, int width, int height, ItemStack stack, int target, boolean slot) {
 		boolean contains(double mouseX, double mouseY) {
