@@ -30,8 +30,8 @@ public final class RackcraftCommands {
 			"hardware_failure", "cable_cut", "heat_wave", "surge");
 
 	private static final int DEFAULT_LOCATE_RADIUS = 100;
-	/** One campus per 128 x 128 chunks at most, and fewer after the flat-ground check, so look further. */
-	private static final int CAMPUS_LOCATE_RADIUS = 400;
+	/** At most one campus per 320 x 320 chunks, a third of those, never within 5000 blocks of spawn: look far. */
+	private static final int CAMPUS_LOCATE_RADIUS = 1500;
 
 	private RackcraftCommands() {}
 
@@ -63,7 +63,7 @@ public final class RackcraftCommands {
 						.executes(context -> locateDataCenter(context.getSource(), StringArgumentType.getString(context, "variant"),
 								StringArgumentType.getString(context, "variant").equals("hyperscale_campus") ? CAMPUS_LOCATE_RADIUS
 										: DEFAULT_LOCATE_RADIUS))
-						.then(argument("radius", IntegerArgumentType.integer(1, 500))
+						.then(argument("radius", IntegerArgumentType.integer(1, 3000))
 								.executes(context -> locateDataCenter(context.getSource(), StringArgumentType.getString(context, "variant"),
 										IntegerArgumentType.getInteger(context, "radius"))))));
 	}

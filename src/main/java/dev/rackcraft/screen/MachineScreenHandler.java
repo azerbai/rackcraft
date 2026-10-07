@@ -172,7 +172,8 @@ public final class MachineScreenHandler extends ScreenHandler {
 			case Stat.FUEL_TOTAL -> machine.blockId().equals("modular_reactor") ? machine.arrayFuelTotal() : machine.fuelBurnTotal();
 			case Stat.NETWORK_DELIVERED -> tenths(machine.networkSupplyKw());
 			case Stat.NETWORK_DEMAND -> tenths(machine.networkDemandKw());
-			case Stat.BATTERY_PERMILLE -> (int) Math.round(machine.chargeKws() / 3000 * 1000);
+			case Stat.BATTERY_PERMILLE -> (int) Math.round(machine.chargeKws()
+					/ dev.rackcraft.world.SimTicker.batteryCapacityPerBank(machine.reactorArraySize()) * 1000);
 			case Stat.MINING_RACKS -> facility != null ? facility.miningRacks() : 0;
 			case Stat.TOTAL_RACKS -> facility != null ? facility.totalRacks() : 0;
 			case Stat.NETWORK_CAPACITY -> tenths(machine.networkCapacityKw());

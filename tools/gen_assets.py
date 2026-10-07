@@ -260,21 +260,21 @@ def data_center_loot_tables():
         "common": chest_loot((4, 7), [
             loot_item("minecraft:coal", 4, 12, 4), loot_item("rackcraft:coke", 1, 4, 3), loot_item("rackcraft:copper_wire", 2, 8, 4),
             loot_item("rackcraft:silicon", 2, 6, 3), loot_item("rackcraft:circuit_board", 1, 3, 3), loot_item("rackcraft:steel_ingot", 2, 6, 3),
-            loot_item("rackcraft:cpu_chip", 1, 2, 2), loot_item("rackcraft:ram_module", 1, 2, 2), loot_item("rackcraft:pi_node", 1, 1, 2),
-            loot_item("rackcraft:server_1u", 1, 1, 1), loot_item("rackcraft:failed_module", 1, 2, 2), loot_item("rackcraft:repair_kit", 1, 1, 2),
+            loot_item("rackcraft:cpu_chip", 1, 2, 2), loot_item("rackcraft:ram_module", 1, 2, 2), loot_item("rackcraft:pi_node", 1, 1, 1),
+            loot_item("rackcraft:failed_module", 1, 2, 3), loot_item("rackcraft:repair_kit", 1, 1, 2),
             loot_item("rackcraft:drive_1k", 1, 1, 1), loot_item("rackcraft:field_manual", 1, 1, 1), loot_item("minecraft:paper", 2, 8, 2),
             loot_item("minecraft:emerald", 1, 3, 1)]),
         "garage": chest_loot((4, 6), [
             loot_item("minecraft:honey_bottle", 2, 5, 4), loot_item("rackcraft:gpu_chip", 1, 2, 3), loot_item("minecraft:gold_nugget", 3, 9, 3),
-            loot_item("rackcraft:gpu_blade", 1, 1, 1), loot_item("rackcraft:coke", 2, 6, 3), loot_item("rackcraft:copper_wire", 2, 6, 2),
+            loot_item("rackcraft:failed_module", 1, 2, 2), loot_item("rackcraft:coke", 2, 6, 3), loot_item("rackcraft:copper_wire", 2, 6, 2),
             loot_item("minecraft:redstone", 2, 8, 2), *images]),
         "vault": chest_loot((3, 5), [
             loot_item("minecraft:diamond", 1, 3, 3), loot_item("minecraft:emerald", 2, 6, 3), loot_item("minecraft:gold_ingot", 2, 6, 3),
-            loot_item("rackcraft:quantum_core", 1, 1, 1), loot_item("rackcraft:gpu_blade", 1, 1, 2), loot_item("rackcraft:tensor_accelerator", 1, 1, 2),
-            loot_item("rackcraft:drive_64k", 1, 1, 1), loot_item("rackcraft:cryo_coil", 1, 2, 2), loot_item("rackcraft:freshwater_pump", 1, 1, 1)]),
+            loot_item("rackcraft:gpu_chip", 1, 1, 2), loot_item("rackcraft:failed_module", 1, 2, 2),
+            loot_item("rackcraft:drive_4k", 1, 1, 1), loot_item("rackcraft:cryo_coil", 1, 1, 1), loot_item("rackcraft:freshwater_pump", 1, 1, 1)]),
         "ai_lab": chest_loot((4, 7), [
             loot_item("rackcraft:crayons", 1, 1, 4), loot_item("rackcraft:shackles", 1, 1, 3), loot_item("minecraft:paper", 6, 16, 4),
-            loot_item("minecraft:ink_sac", 2, 6, 3), loot_item("rackcraft:tensor_accelerator", 1, 1, 1), loot_item("rackcraft:art_aggregate", 1, 3, 3),
+            loot_item("minecraft:ink_sac", 2, 6, 3), loot_item("rackcraft:cpu_chip", 1, 2, 1), loot_item("rackcraft:art_aggregate", 1, 3, 3),
             loot_item("rackcraft:text_corpus", 1, 3, 3), *classics], guaranteed=[loot_item("rackcraft:shackles")]),
         "content_mill": chest_loot((4, 7), [
             loot_item("minecraft:paper", 8, 24, 5), loot_item("minecraft:ink_sac", 2, 8, 4), loot_item("rackcraft:crayons", 1, 1, 3),
@@ -283,7 +283,7 @@ def data_center_loot_tables():
             *classics], guaranteed=[loot_item("rackcraft:text_corpus", 2, 4)]),
         "archive": chest_loot((4, 6), [
             loot_item("rackcraft:tape_cartridge", 1, 1, 4), loot_item("rackcraft:drive_1k", 1, 1, 3), loot_item("rackcraft:drive_4k", 1, 1, 2),
-            loot_item("rackcraft:drive_16k", 1, 1, 1), loot_item("minecraft:book", 1, 3, 3), loot_item("minecraft:paper", 4, 12, 3),
+            loot_item("minecraft:book", 1, 3, 3), loot_item("minecraft:paper", 4, 12, 3),
             loot_item("rackcraft:blank_pattern", 1, 4, 3), *documents]),
         "office": chest_loot((4, 7), [
             loot_item("minecraft:paper", 6, 20, 4), loot_item("minecraft:book", 1, 2, 2), loot_item("minecraft:cookie", 2, 6, 2),
@@ -304,10 +304,10 @@ def data_center_worldgen():
             "step": "surface_structures", "spawn_overrides": {}, "terrain_adaptation": adaptation})
     write_json(RESOURCES / "data/rackcraft/worldgen/structure_set/data_centers.json", {
         "structures": [{"structure": f"rackcraft:{variant}", "weight": weight} for variant, _, _, weight in DATA_CENTERS],
-        "placement": {"type": "minecraft:random_spread", "spacing": 26, "separation": 10, "salt": 20761123}})
+        "placement": {"type": "minecraft:random_spread", "spacing": 40, "separation": 16, "salt": 20761123}})
     write_json(RESOURCES / "data/rackcraft/worldgen/structure_set/hyperscale_campus.json", {
         "structures": [{"structure": f"rackcraft:{CAMPUS[0]}", "weight": 1}],
-        "placement": {"type": "minecraft:random_spread", "spacing": 128, "separation": 48, "salt": 20761124}})
+        "placement": {"type": "minecraft:random_spread", "spacing": 320, "separation": 96, "salt": 20761124}})
     write_json(RESOURCES / "data/rackcraft/tags/worldgen/structure/data_centers.json",
                {"replace": False, "values": [f"rackcraft:{variant}" for variant, *_ in DATA_CENTERS] + [f"rackcraft:{CAMPUS[0]}"]})
     for name, table in data_center_loot_tables().items():
@@ -615,7 +615,7 @@ def main():
     })
     write_json(RESOURCES / "data/rackcraft/worldgen/configured_feature/uranium_ore.json", {
         "type": "minecraft:ore",
-        "config": {"size": 4, "discard_chance_on_air_exposure": 0.5, "targets": [
+        "config": {"size": 5, "discard_chance_on_air_exposure": 0.5, "targets": [
             {"target": {"predicate_type": "minecraft:tag_match", "tag": "minecraft:deepslate_ore_replaceables"}, "state": {"Name": "rackcraft:uranium_ore"}},
             {"target": {"predicate_type": "minecraft:tag_match", "tag": "minecraft:stone_ore_replaceables"}, "state": {"Name": "rackcraft:uranium_ore"}}
         ]}
@@ -623,7 +623,7 @@ def main():
     write_json(RESOURCES / "data/rackcraft/worldgen/placed_feature/uranium_ore.json", {
         "feature": "rackcraft:uranium_ore",
         "placement": [
-            {"type": "minecraft:count", "count": 4},
+            {"type": "minecraft:count", "count": 6},
             {"type": "minecraft:in_square"},
             {"type": "minecraft:height_range", "height": {
                 "type": "minecraft:uniform",

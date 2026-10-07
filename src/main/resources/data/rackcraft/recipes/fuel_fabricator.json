@@ -1,22 +1,22 @@
 {
   "key": {
     "B": {
-      "item": "rackcraft:circuit_board"
+      "item": "rackcraft:steel_block"
     },
     "C": {
       "item": "rackcraft:cpu_chip"
     },
-    "F": {
-      "item": "minecraft:furnace"
+    "D": {
+      "item": "minecraft:diamond"
     },
-    "S": {
-      "item": "rackcraft:steel_ingot"
+    "F": {
+      "item": "minecraft:blast_furnace"
     }
   },
   "pattern": [
-    "SCS",
-    "FBF",
-    "SSS"
+    "BCB",
+    "FDF",
+    "BBB"
   ],
   "result": {
     "count": 1,

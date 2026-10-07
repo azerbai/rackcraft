@@ -28,7 +28,7 @@ Racks mine RackCoin (RC) into one balance shared by the whole world. A rack mine
 
 ## Abandoned Data Centers
 
-Thirteen kinds of ruined data center generate as real structures (so `/locate structure #rackcraft:data_centers` works too). Most have racks, a cut cable or two, and a loot chest:
+Thirteen kinds of ruined data center generate as real structures (so `/locate structure #rackcraft:data_centers` works too). They are ruins, not free farms: their racks hold mostly Failed Modules, empty bays and the odd Pi Node or 1U Server, with only a small chance of anything better, and their loot is parts rather than hardware. The Field Manual is how you learn to build the real thing. Most have a cut cable or two and a loot chest:
 
 | Variant | Where | What's there |
 | --- | --- | --- |
@@ -44,9 +44,9 @@ Thirteen kinds of ruined data center generate as real structures (so `/locate st
 | `content_mill` | Temperate | A timber "data labelling" mill: six shackled librarians, a playroom of kids at three art tables, and a Middle Manager |
 | `solar_farm` | Deserts, savannas, plains | Rows of panels and a control hut |
 | `tape_archive` | Temperate | Tape libraries and storage arrays behind the cobwebs |
-| `hyperscale_campus` | Plains, savannas, deserts, snowy plains, meadows (**very rare**: at most one per 128 x 128 chunks) | **176 x 176 blocks, fully working**: four data halls (192 racks of ASICs, GPUs, 1U servers and Tensor Accelerators, all with Rear-Door Coolers and chiller banks), a quantum vault (8 Quantum Core racks cooled by towers on the reservoir), a 3x3x3 reactor array with spare Fuel Cells, an operations centre with an AI wing, and backup utility, diesel and batteries. Only five cut cables keep it dark; repair kits are in the guard hut by the gate |
+| `hyperscale_campus` | Plains, savannas, deserts, snowy plains, meadows (**extremely rare**: never within 5,000 blocks of spawn, at most one per 320 x 320 chunks and only a third of those) | **176 x 176 blocks, fully working**: four data halls (192 racks of ASICs, GPUs, 1U servers and Tensor Accelerators, all with Rear-Door Coolers and chiller banks), a quantum vault (8 Quantum Core racks cooled by towers on the reservoir), a 3x3x3 reactor array with spare Fuel Cells, an operations centre with an AI wing, and backup utility, diesel and batteries. Only five cut cables keep it dark; repair kits are in the guard hut by the gate |
 
-Operators can find one with `/rackcraft locate datacenter [variant] [radius]` (radius in chunks, default 100, or 400 for the campus) and build one in front of them with `/rackcraft structure place <variant>` (`/rackcraft structure datacenter` still builds Site 7).
+Operators can find one with `/rackcraft locate datacenter [variant] [radius]` (radius in chunks, default 100, or 1,500 for the campus) and build one in front of them with `/rackcraft structure place <variant>` (`/rackcraft structure datacenter` still builds Site 7).
 
 ## Compute: Mining, Autocrafting and AI Work
 
@@ -159,7 +159,7 @@ Power cables, coolant pipes, fiber and item pipes connect only toward cables of 
 - **Tape Library:** 4 bays for **Tape Cartridges** of 1,048,576 items each. This is cold storage: 0.3 kW, but players wait 2 seconds for each read. When drives pass 85% full, the least recently used items are archived to tape automatically.
 - **Storage Terminal:** a searchable grid of everything on its fiber network, a 3x3 crafting grid that refills from storage, and pattern encoding. Left-click takes a stack, right-click half, Shift-click to inventory; clicking with a held item deposits it. Items only on tape are tinted blue.
 - **Autocrafting runs on your racks.** Encode a **Recipe Pattern** from a **Blank Pattern** and store it on the network; its output shows a `+`. Ctrl-click to request any amount, and the planner chains patterns for multi-step recipes. Racks lend general compute (see *Compute* below) at 0.25 crafts per second per point: first racks on the storage's fiber network, then any online cluster. **Racks lending compute stop mining** while the job runs. The terminal's job row shows the job's status and progress; hover it for details.
-- **Wireless Transmitter + Wireless Terminal:** sneak-right-click the transmitter with the terminal to link it. Range levels are 16, 32, 64, 128, 256 and 1,024 blocks, then unlimited in the dimension, then every dimension. Each level is bought with RackCoin or resources in the transmitter's screen, and doubles its power draw (0.5 kW up to 64 kW). While the transmitter's area is unloaded, wireless access uses the drives it last saw.
+- **Wireless Transmitter + Wireless Terminal:** sneak-right-click the transmitter with the terminal to link it. Range levels are 16, 32, 64, 128, 256 and 1,024 blocks, then unlimited in the dimension, then every dimension. Each level is bought with RackCoin or resources in the transmitter's screen. Up to 1,024 blocks each level doubles its power draw (0.5 to 16 kW). The last two are endgame: unlimited range in the dimension costs 1,000,000 RC (or 4 nether stars, 8 netherite ingots and 32 eyes of ender) and draws 250 kW; every dimension costs 10,000,000 RC (or the dragon egg, 8 nether stars and 4 netherite blocks) and draws 1 MW. While the transmitter's area is unloaded, wireless access uses the drives it last saw.
 
 - **Item Pipe:** connects Storage Arrays and Tape Libraries to the machines that use items. Once a second it tops up Kids' Art Tables (32 paper, a box of crayons) and Scriptorium Desks (32 paper, 8 ink sacs) and sends their Art Aggregates and Text Corpora back to storage; it fuels Diesel Generators (the best fuel on hand first, empty buckets go back) and keeps 4 Fuel Cells in each Modular Reactor. Hoppers still work for chest-fed setups.
 
@@ -172,17 +172,23 @@ Every nuclear machine is a **cube multiblock**: build a solid cube of the same m
 | Step | Machine | In | Out | Per batch, per core |
 | --- | --- | --- | --- | --- |
 | Mine | Uranium Ore (Y -64 to 16, iron pickaxe) | | Raw Uranium | |
-| Mill | Uranium Mill | Raw Uranium | Yellowcake | 10 s, 4 kW |
-| Enrich | Gas Centrifuge | 4 Yellowcake | Enriched Uranium + 3 Depleted Uranium | 30 s, 10 kW |
-| Fabricate | Fuel Fabricator | Enriched Uranium + Steel Ingot | 2 Fuel Cells | 20 s, 6 kW |
+| Mill | Uranium Mill | 2 Raw Uranium | Yellowcake | 30 s, 20 kW |
+| Enrich | Gas Centrifuge | 6 Yellowcake | Enriched Uranium + 4 Depleted Uranium | 120 s, 60 kW |
+| Fabricate | Fuel Fabricator | Enriched Uranium + 2 Steel Ingots | Fuel Cell | 60 s, 30 kW |
 | Burn | Modular Reactor | Fuel Cell | 500 kW for 30 min, then Spent Fuel | |
-| Seal | Cask Sealer | 4 Spent Fuel + 4 Depleted Uranium | Sealed Waste Cask | 30 s, 4 kW |
+| Seal | Cask Sealer | 4 Spent Fuel + 4 Depleted Uranium | Sealed Waste Cask | 60 s, 15 kW |
+
+Fuel Cells can't be crafted or bought: every one comes out of a Fuel Fabricator, twelve Raw Uranium each. The machines themselves are built from steel blocks, diamonds, GPU chips and cryo coils, and a working cube draws hundreds of kilowatts, so nuclear power takes real power to bootstrap.
 
 A **Modular Reactor** runs on its own too: 500 kW, one Fuel Cell per 30 minutes at full output, less at part load. A reactor array adds up every core (4 MW for a 2-cube, 62.5 MW for a 5-cube) and shares fuel and waste across the cores. Every burnt-out cell comes out as **Spent Fuel** in the waste slot (16 per core); once the waste slots are full the reactor stops until you empty them. A reactor's heat, 30% of its output, goes into its coolant loop if it is piped to one, otherwise into the air around it.
 
 **Spent Fuel is radioactive**: carrying any gives Radiation Sickness (level II from 8 rods, III from 32), which hurts every two seconds. It's safe inside machines, chests and storage, and a Sealed Waste Cask is safe anywhere.
 
 **Automation:** connect the cubes and a Storage Array with Item Pipe. Each cube is stocked from storage and sends its products and by-products back, and reactors take Fuel Cells and hand back Spent Fuel, so ore in storage ends up as Fuel Cells, and Spent Fuel ends up as casks, without anyone touching it. Hoppers work on any core too.
+
+## Grid-Scale Batteries
+
+A Battery Bank stores 3,000 kJ, charges at 15 kW and discharges at 60 kW, losing 10% each way. Build Battery Banks into a solid cube, 2x2x2 up to 5x5x5, and they become one **Grid-Scale Battery**: one store with every bank's charge and rates, 10% more capacity per bank for each step up in size (40% more in a 5-cube), and smaller losses: 8% each way for a 2-cube down to 2% for a 5-cube. The casing changes when it forms, and its screen and the Multimeter show its size, capacity and efficiency.
 
 ## Finding Problems
 

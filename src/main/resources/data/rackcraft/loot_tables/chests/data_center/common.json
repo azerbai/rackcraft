@@ -125,11 +125,6 @@
         {
           "name": "rackcraft:pi_node",
           "type": "minecraft:item",
-          "weight": 2
-        },
-        {
-          "name": "rackcraft:server_1u",
-          "type": "minecraft:item",
           "weight": 1
         },
         {
@@ -145,7 +140,7 @@
           ],
           "name": "rackcraft:failed_module",
           "type": "minecraft:item",
-          "weight": 2
+          "weight": 3
         },
         {
           "name": "rackcraft:repair_kit",

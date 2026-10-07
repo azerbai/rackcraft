@@ -6,20 +6,20 @@
     "C": {
       "item": "rackcraft:circuit_board"
     },
+    "D": {
+      "item": "minecraft:diamond"
+    },
     "H": {
       "item": "minecraft:hopper"
     },
     "P": {
       "item": "minecraft:piston"
-    },
-    "S": {
-      "item": "rackcraft:steel_ingot"
     }
   },
   "pattern": [
-    "SHS",
+    "BHB",
     "PCP",
-    "SBS"
+    "BDB"
   ],
   "result": {
     "count": 1,

@@ -22,6 +22,9 @@ public final class DataCenterStructure extends Structure {
 			Codec.STRING.fieldOf("variant").forGetter(structure -> structure.variant)
 	).apply(instance, DataCenterStructure::new));
 
+	/** No hyperscale campus within this many blocks of the world's origin, where players spawn. */
+	public static final int CAMPUS_MIN_DISTANCE = 5000;
+
 	private final String variant;
 
 	public DataCenterStructure(Structure.Config config, String variant) {
@@ -40,7 +43,12 @@ public final class DataCenterStructure extends Structure {
 		int x0 = context.chunkPos().getStartX() + context.random().nextInt(16);
 		int z0 = context.chunkPos().getStartZ() + context.random().nextInt(16);
 		if (layout.levelToAverage()) {
-			// The campus spans eleven chunks: centre it on its start chunk, or chunks past the eighth wouldn't build.
+			// The campus is meant to be a once-a-world find: never near spawn, and only one eligible spot in three.
+			int cx = context.chunkPos().getCenterX();
+			int cz = context.chunkPos().getCenterZ();
+			if ((long) cx * cx + (long) cz * cz < (long) CAMPUS_MIN_DISTANCE * CAMPUS_MIN_DISTANCE) return Optional.empty();
+			if (context.random().nextInt(3) != 0) return Optional.empty();
+			// It spans eleven chunks: centre it on its start chunk, or chunks past the eighth wouldn't build.
 			x0 -= spanX / 2;
 			z0 -= spanZ / 2;
 		}

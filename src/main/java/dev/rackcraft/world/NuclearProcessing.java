@@ -15,10 +15,10 @@ import net.minecraft.item.Items;
  * Slots: 0 and 1 are inputs, 2 the product, 3 the by-product. Inputs are pooled evenly across the cube.
  *
  * <ul>
- *   <li>Uranium Mill: Raw Uranium to Yellowcake.</li>
- *   <li>Gas Centrifuge: four Yellowcake to one Enriched Uranium and three Depleted Uranium.</li>
- *   <li>Fuel Fabricator: Enriched Uranium and a Steel Ingot to two Fuel Cells.</li>
- *   <li>Cask Sealer: four Spent Fuel and four Depleted Uranium to a Sealed Waste Cask.</li>
+ *   <li>Uranium Mill: two Raw Uranium to a Yellowcake (30 s, 20 kW per core).</li>
+ *   <li>Gas Centrifuge: six Yellowcake to one Enriched Uranium and four Depleted Uranium (120 s, 60 kW).</li>
+ *   <li>Fuel Fabricator: Enriched Uranium and two Steel Ingots to a Fuel Cell, the only way to make one (60 s, 30 kW).</li>
+ *   <li>Cask Sealer: four Spent Fuel and four Depleted Uranium to a Sealed Waste Cask (60 s, 15 kW).</li>
  * </ul>
  */
 public final class NuclearProcessing {
@@ -36,12 +36,12 @@ public final class NuclearProcessing {
 
 	public static Recipe recipe(String machine) {
 		return switch (machine) {
-			case "uranium_mill" -> new Recipe(item("raw_uranium"), 1, null, 0, item("yellowcake"), 1, null, 0, 10, 4);
-			case "gas_centrifuge" -> new Recipe(item("yellowcake"), 4, null, 0, item("enriched_uranium"), 1,
-					item("depleted_uranium"), 3, 30, 10);
-			case "fuel_fabricator" -> new Recipe(item("enriched_uranium"), 1, item("steel_ingot"), 1, item("fuel_cell"), 2, null, 0, 20, 6);
+			case "uranium_mill" -> new Recipe(item("raw_uranium"), 2, null, 0, item("yellowcake"), 1, null, 0, 30, 20);
+			case "gas_centrifuge" -> new Recipe(item("yellowcake"), 6, null, 0, item("enriched_uranium"), 1,
+					item("depleted_uranium"), 4, 120, 60);
+			case "fuel_fabricator" -> new Recipe(item("enriched_uranium"), 1, item("steel_ingot"), 2, item("fuel_cell"), 1, null, 0, 60, 30);
 			case "cask_sealer" -> new Recipe(item("spent_fuel"), 4, item("depleted_uranium"), 4,
-					RcBlocks.get("waste_cask").asItem(), 1, null, 0, 30, 4);
+					RcBlocks.get("waste_cask").asItem(), 1, null, 0, 60, 15);
 			default -> null;
 		};
 	}

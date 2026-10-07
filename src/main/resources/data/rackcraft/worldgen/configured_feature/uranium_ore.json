@@ -1,7 +1,7 @@
 {
   "config": {
     "discard_chance_on_air_exposure": 0.5,
-    "size": 4,
+    "size": 5,
     "targets": [
       {
         "state": {

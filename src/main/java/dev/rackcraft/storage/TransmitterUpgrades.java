@@ -25,11 +25,12 @@ public final class TransmitterUpgrades {
 			costs = List.of(
 					new Cost(500, Map.of(RcItems.ITEMS.get("circuit_board"), 4, RcItems.ITEMS.get("copper_wire"), 8)),
 					new Cost(1_500, Map.of(Items.GOLD_INGOT, 8, Items.ENDER_PEARL, 2)),
-					new Cost(4_000, Map.of(Items.ENDER_PEARL, 8, Items.DIAMOND, 2)),
-					new Cost(10_000, Map.of(Items.ENDER_EYE, 4, Items.DIAMOND, 4)),
-					new Cost(25_000, Map.of(Items.ENDER_EYE, 16, RcItems.ITEMS.get("cryo_coil"), 2)),
-					new Cost(60_000, Map.of(Items.NETHER_STAR, 1, Items.ENDER_EYE, 8)),
-					new Cost(150_000, Map.of(Items.NETHERITE_INGOT, 2, Items.SHULKER_SHELL, 8)));
+					new Cost(5_000, Map.of(Items.ENDER_PEARL, 8, Items.DIAMOND, 2)),
+					new Cost(15_000, Map.of(Items.ENDER_EYE, 4, Items.DIAMOND, 4)),
+					new Cost(60_000, Map.of(Items.ENDER_EYE, 16, RcItems.ITEMS.get("cryo_coil"), 4)),
+					// The last two levels are endgame: everywhere in a dimension, then everywhere at once.
+					new Cost(1_000_000, Map.of(Items.NETHER_STAR, 4, Items.NETHERITE_INGOT, 8, Items.ENDER_EYE, 32)),
+					new Cost(10_000_000, Map.of(Items.DRAGON_EGG, 1, Items.NETHER_STAR, 8, Items.NETHERITE_BLOCK, 4)));
 		}
 		return costs;
 	}
@@ -38,9 +39,15 @@ public final class TransmitterUpgrades {
 		return level >= 0 && level < costs().size() ? costs().get(level) : null;
 	}
 
-	/** Power draw doubles with every level: 0.5 kW at level 0, 64 kW at the multidimensional level. */
+	/**
+	 * Power draw doubles with every level up to 1,024 blocks (0.5 to 16 kW); holding a link across a whole dimension
+	 * takes 250 kW, and across every dimension 1 MW.
+	 */
 	public static double drawKw(int level) {
-		return 0.5 * (1 << Math.max(0, Math.min(StorageService.MAX_LEVEL, level)));
+		int clamped = Math.max(0, Math.min(StorageService.MAX_LEVEL, level));
+		if (clamped >= StorageService.MULTIDIMENSIONAL_LEVEL) return 1000;
+		if (clamped >= StorageService.INFINITE_LEVEL) return 250;
+		return 0.5 * (1 << clamped);
 	}
 
 	public static boolean hasItems(PlayerEntity player, Map<Item, Integer> items) {

@@ -123,7 +123,7 @@ public final class RackcraftSelfTest {
 		MachineBlockEntity rackB = machine(world, base.add(4, 0, 3));
 		for (int step = 0; step < 4; step++) SimTicker.stepNow(world);
 		check("S7.a", world.getBlockState(power).get(CableBlock.CUT) && world.getBlockState(fiber).get(CableBlock.CUT)
-						&& !rackA.rackStatus().mining() && rackA.modules().size() == 4 && rackB.modules().size() == 4
+						&& !rackA.rackStatus().mining() && rackA.modules().size() == 2 && rackB.modules().size() == 1
 						&& world.getBlockState(base.add(7, 0, 1)).isOf(RcBlocks.get("crypto_exchange")),
 				"before repair: " + rackA.rackStatus(), failures);
 		boolean kit = false;
@@ -139,7 +139,7 @@ public final class RackcraftSelfTest {
 		CableBlock.setCut(world, fiber, false);
 		for (int step = 0; step < 40; step++) SimTicker.stepNow(world);
 		check("S7.c", rackA.rackStatus().mining() && rackB.rackStatus().mining()
-						&& rackA.miningRate() + rackB.miningRate() > 6.9,
+						&& rackA.miningRate() + rackB.miningRate() > 1.4,
 				"after repair: " + rackA.rackStatus() + "/" + rackB.rackStatus() + " rate="
 						+ (rackA.miningRate() + rackB.miningRate()) + " inlet=" + rackA.inletCelsius(), failures);
 		check("S7.d", ExchangeCatalog.prices().size() > 900 && ExchangeCatalog.price(Items.DIAMOND) == 1000
@@ -262,7 +262,8 @@ public final class RackcraftSelfTest {
 		var link = dev.rackcraft.storage.StorageState.get(world.getServer()).transmitter(
 				dev.rackcraft.storage.StorageState.transmitterKey(world.getRegistryKey(), transmitter));
 		check("S9.e", link != null && link.online() && link.drives().size() == 2
-						&& dev.rackcraft.storage.TransmitterUpgrades.drawKw(7) == 64,
+						&& dev.rackcraft.storage.TransmitterUpgrades.drawKw(5) == 16 && dev.rackcraft.storage.TransmitterUpgrades.drawKw(7) == 1000
+						&& dev.rackcraft.storage.TransmitterUpgrades.next(6).rackCoin() >= 10_000_000,
 				"transmitter=" + link, failures);
 		source.setCreativeValue(CreativeSettings.OUTPUT_KW, 0);
 		for (int step = 0; step < 3; step++) SimTicker.stepNow(world);
@@ -613,7 +614,7 @@ public final class RackcraftSelfTest {
 			for (BlockPos pos : BlockPos.iterate(origin, origin.add(1, 1, 1))) cores.add(place(world, pos.toImmutable(), run[0], Direction.NORTH));
 			cores.get(6).setStack(0, new ItemStack(item(run[1]), Integer.parseInt(run[2])));
 			if (!run[3].isEmpty()) cores.get(2).setStack(1, new ItemStack(item(run[3]), Integer.parseInt(run[4])));
-			for (int step = 0; step < 24; step++) SimTicker.stepNow(world);
+			for (int step = 0; step < 40; step++) SimTicker.stepNow(world);
 			net.minecraft.item.Item product = item(run[5]);
 			int made = dev.rackcraft.world.ReactorArrays.count(cores, 2, product);
 			boolean formed = world.getBlockState(origin).get(dev.rackcraft.block.ArrayMachineBlock.FORMED);
@@ -630,6 +631,23 @@ public final class RackcraftSelfTest {
 		check("N1.single", single.getStack(2).isEmpty() && single.processStatus() == dev.rackcraft.world.NuclearProcessing.Status.NOT_FORMED.ordinal(),
 				"a lone mill does nothing: out=" + single.getStack(2) + " status=" + single.processStatus(), failures);
 		clearArea(world, lone, 4, 4, 4);
+		// Battery Banks in a 2x2x2 charge as one Grid-Scale Battery, shared evenly, at the 2-cube's 92% efficiency.
+		BlockPos bank = clearArea(world, new BlockPos(-720, 150, -360), 4, 4, 4);
+		world.setBlockState(bank.west(), RcBlocks.get("creative_power").getDefaultState());
+		List<MachineBlockEntity> banks = new java.util.ArrayList<>();
+		for (BlockPos pos : BlockPos.iterate(bank, bank.add(1, 1, 1))) banks.add(place(world, pos.toImmutable(), "battery_bank", Direction.NORTH));
+		banks.forEach(member -> member.setChargeKws(0));
+		SimTicker.stepNow(world);
+		double first = banks.stream().mapToDouble(MachineBlockEntity::chargeKws).sum();
+		for (int step = 0; step < 4; step++) SimTicker.stepNow(world);
+		double total = banks.stream().mapToDouble(MachineBlockEntity::chargeKws).sum();
+		double expected = 4 * 0.5 * 8 * 15 * SimTicker.batteryEfficiency(2);
+		boolean even = banks.stream().allMatch(member -> Math.abs(member.chargeKws() - total / 8) < 1e-6);
+		boolean formedBattery = world.getBlockState(bank).get(dev.rackcraft.block.ArrayMachineBlock.FORMED);
+		check("B1.a", formedBattery && even && Math.abs(total - first - expected) < 0.5 && Math.abs(banks.get(0).reactorCapacityKw() - 8 * 3300) < 0.01,
+				"formed=" + formedBattery + " even=" + even + " charged=" + (total - first) + " expected=" + expected
+						+ " capacity=" + banks.get(0).reactorCapacityKw(), failures);
+		clearArea(world, bank, 4, 4, 4);
 		var placed = world.getRegistryManager().get(net.minecraft.registry.RegistryKeys.PLACED_FEATURE);
 		check("N2.a", placed.containsId(Rackcraft.id("uranium_ore")) && RcBlocks.BLOCKS.containsKey("uranium_ore"),
 				"uranium ore feature registered=" + placed.containsId(Rackcraft.id("uranium_ore")), failures);
@@ -819,8 +837,18 @@ public final class RackcraftSelfTest {
 					Rackcraft.id(layout.id())));
 			if (entry.isEmpty()) continue;
 			boolean campus = layout.id().equals("hyperscale_campus");
+			if (campus) {
+				// Never within 5000 blocks of spawn: nothing within 312 chunks of the origin.
+				var near = world.getChunkManager().getChunkGenerator().locateStructure(world,
+						net.minecraft.registry.entry.RegistryEntryList.of(entry.get()), BlockPos.ORIGIN, 312, false);
+				// locate can answer past its radius, so check the distance itself.
+				boolean far = near == null || Math.hypot(near.getFirst().getX(), near.getFirst().getZ()) >= 5000;
+				check("D7.a", far, "nearest campus to spawn: " + (near == null ? "none within range" : near.getFirst()), failures);
+			}
+			// The campus is far out by design: look for it from 20,000 blocks away.
+			BlockPos from = campus ? new BlockPos(20000, 0, 20000) : BlockPos.ORIGIN;
 			var found = world.getChunkManager().getChunkGenerator().locateStructure(world,
-					net.minecraft.registry.entry.RegistryEntryList.of(entry.get()), BlockPos.ORIGIN, campus ? 300 : 100, false);
+					net.minecraft.registry.entry.RegistryEntryList.of(entry.get()), from, campus ? 1000 : 100, false);
 			if (found == null) {
 				check("D6." + layout.id(), true, "skipped: none within range of 0,0 in this seed", failures);
 				continue;

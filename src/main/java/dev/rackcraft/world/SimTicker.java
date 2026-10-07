@@ -119,7 +119,8 @@ public final class SimTicker {
 			Map<String, MachineBlockEntity> sinkOwners = new HashMap<>();
 			for (MachineBlockEntity machine : members) {
 				PowerSolver.Source source = machine.blockId().equals("modular_reactor")
-						? reactorSource(machine, reactors.get(machine)) : sourceFor(world, machine);
+						? reactorSource(machine, reactors.get(machine))
+						: machine.blockId().equals("battery_bank") ? batterySource(machine, arrays.get(machine)) : sourceFor(world, machine);
 				if (source != null) {
 					sources.add(source);
 					powerSources.put(machine, source);
@@ -157,9 +158,7 @@ public final class SimTicker {
 			PowerSolver.Source source = entry.getValue();
 			double output = sourceOutput.getOrDefault(machine, 0.0);
 			if (machine.blockId().equals("battery_bank")) {
-				// Signed: positive while charging, negative while discharging.
-				machine.setPowerKw((source.chargeKws() - machine.chargeKws()) / dt);
-				machine.setChargeKws(source.chargeKws());
+				settleBattery(arrays.get(machine), source, dt);
 			} else {
 				machine.setPowerKw(output);
 			}
@@ -328,8 +327,6 @@ public final class SimTicker {
 			case "diesel_generator" -> dieselSource(machine);
 			case "creative_power" -> new PowerSolver.Source(id(machine), PowerSolver.SourceKind.UTILITY,
 					machine.creativeValue(CreativeSettings.OUTPUT_KW));
-		case "battery_bank" -> new PowerSolver.Source(id(machine), PowerSolver.SourceKind.BATTERY,
-				0, 3000, machine.chargeKws(), 15, 60);
 		default -> null;
 		};
 	}
@@ -350,6 +347,47 @@ public final class SimTicker {
 				0, 0, 0, 0, machine.dieselSpinupSteps());
 	}
 
+	public static final double BATTERY_KWS = 3000;
+	private static final double BATTERY_IN_KW = 15;
+	private static final double BATTERY_OUT_KW = 60;
+
+	/** Capacity per bank in a Grid-Scale Battery of this edge: 10% more per step up in size. */
+	public static double batteryCapacityPerBank(int edge) {
+		return BATTERY_KWS * (1 + 0.1 * (Math.max(1, edge) - 1));
+	}
+
+	/** One-way efficiency (charging, and again discharging): 90% for a lone bank, up to 98% for a 5-cube. */
+	public static double batteryEfficiency(int edge) {
+		return 0.9 + 0.02 * (Math.max(1, edge) - 1);
+	}
+
+	/**
+	 * A Grid-Scale Battery (or a lone bank) is one source on its controller, holding every bank's charge at once.
+	 * The other banks in the cube supply nothing themselves.
+	 */
+	private static PowerSolver.Source batterySource(MachineBlockEntity machine, ReactorArrays.Array array) {
+		if (array == null || array.controller() != machine) return null;
+		int banks = array.cores();
+		double capacity = batteryCapacityPerBank(array.edge()) * banks;
+		double charge = array.members().stream().mapToDouble(MachineBlockEntity::chargeKws).sum();
+		return new PowerSolver.Source(id(machine), PowerSolver.SourceKind.BATTERY, 0, capacity, Math.min(capacity, charge),
+				BATTERY_IN_KW * banks, BATTERY_OUT_KW * banks).efficiency(batteryEfficiency(array.edge()));
+	}
+
+	/** Shares a battery's new charge evenly over its banks; each reports the whole battery's signed rate and size. */
+	private static void settleBattery(ReactorArrays.Array array, PowerSolver.Source source, double dt) {
+		if (array == null) return;
+		double before = array.members().stream().mapToDouble(MachineBlockEntity::chargeKws).sum();
+		double rate = (source.chargeKws() - before) / dt;
+		double capacity = batteryCapacityPerBank(array.edge()) * array.cores();
+		for (MachineBlockEntity member : array.members()) {
+			member.setChargeKws(source.chargeKws() / array.cores());
+			// Signed: positive while charging, negative while discharging.
+			member.setPowerKw(rate);
+			member.setReactorArray(array.edge(), capacity, 0, 0, 0);
+		}
+	}
+
 	/** A reactor array is one source, on its controller; the other cores in it supply nothing themselves. */
 	private static PowerSolver.Source reactorSource(MachineBlockEntity machine, ReactorArrays.Array array) {
 		if (array == null || array.controller() != machine) return null;
@@ -364,8 +402,9 @@ public final class SimTicker {
 		for (MachineBlockEntity machine : machines) {
 			boolean active = switch (machine.blockId()) {
 				case "server_rack" -> satisfaction.getOrDefault(machine, 0.0) > 0 && !machine.isTripped();
-				case "solar_panel", "wind_turbine", "utility_intake", "diesel_generator",
-						"battery_bank", "creative_power" -> sourceOutput.getOrDefault(machine, 0.0) > 0;
+				case "solar_panel", "wind_turbine", "utility_intake", "diesel_generator", "creative_power" ->
+						sourceOutput.getOrDefault(machine, 0.0) > 0;
+				case "battery_bank" -> machine.powerKw() < -0.01;
 				case "modular_reactor" -> machine.powerKw() > 0;
 				case "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer" ->
 						machine.processStatus() == NuclearProcessing.Status.RUNNING.ordinal();

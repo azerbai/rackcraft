@@ -25,8 +25,8 @@ public final class ControllerScreen extends RackcraftHandledScreen {
 					.dimensions(left + 12 + index * 82, top + 126, 76, 18).build());
 		}
 		String[] purchases = {"coal", "copper_ingot", "silicon", "steel_ingot",
-				"repair_kit", "suppression_canister", "pi_node", "server_1u", "gpu_blade", "fuel_cell"};
-		String[] labels = {"Coal", "Copper", "Silicon", "Steel", "Repair", "Suppress", "Pi", "1U", "GPU", "Fuel"};
+				"repair_kit", "suppression_canister", "pi_node", "server_1u", "asic_miner", "gpu_blade"};
+		String[] labels = {"Coal", "Copper", "Silicon", "Steel", "Repair", "Suppress", "Pi", "1U", "ASIC", "GPU"};
 		for (int index = 0; index < purchases.length; index++) {
 			int row = index / 5;
 			int column = index % 5;

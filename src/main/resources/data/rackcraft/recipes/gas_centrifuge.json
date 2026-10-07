@@ -3,23 +3,23 @@
     "A": {
       "item": "rackcraft:aluminum_ingot"
     },
-    "C": {
-      "item": "rackcraft:cpu_chip"
+    "B": {
+      "item": "rackcraft:steel_block"
     },
-    "R": {
-      "item": "minecraft:redstone_block"
+    "G": {
+      "item": "rackcraft:gpu_chip"
     },
-    "S": {
-      "item": "rackcraft:steel_ingot"
+    "Q": {
+      "item": "rackcraft:cryo_coil"
     },
     "W": {
       "item": "rackcraft:copper_wire"
     }
   },
   "pattern": [
-    "ACA",
-    "WRW",
-    "ASA"
+    "AGA",
+    "WQW",
+    "ABA"
   ],
   "result": {
     "count": 1,

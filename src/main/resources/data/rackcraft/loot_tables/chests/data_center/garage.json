@@ -48,9 +48,19 @@
           "weight": 3
         },
         {
-          "name": "rackcraft:gpu_blade",
+          "functions": [
+            {
+              "count": {
+                "max": 2,
+                "min": 1,
+                "type": "minecraft:uniform"
+              },
+              "function": "minecraft:set_count"
+            }
+          ],
+          "name": "rackcraft:failed_module",
           "type": "minecraft:item",
-          "weight": 1
+          "weight": 2
         },
         {
           "functions": [

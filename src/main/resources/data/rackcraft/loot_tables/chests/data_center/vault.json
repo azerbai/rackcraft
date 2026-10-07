@@ -48,24 +48,9 @@
           "weight": 3
         },
         {
-          "name": "rackcraft:quantum_core",
-          "type": "minecraft:item",
-          "weight": 1
-        },
-        {
-          "name": "rackcraft:gpu_blade",
+          "name": "rackcraft:gpu_chip",
           "type": "minecraft:item",
           "weight": 2
-        },
-        {
-          "name": "rackcraft:tensor_accelerator",
-          "type": "minecraft:item",
-          "weight": 2
-        },
-        {
-          "name": "rackcraft:drive_64k",
-          "type": "minecraft:item",
-          "weight": 1
         },
         {
           "functions": [
@@ -78,9 +63,19 @@
               "function": "minecraft:set_count"
             }
           ],
-          "name": "rackcraft:cryo_coil",
+          "name": "rackcraft:failed_module",
           "type": "minecraft:item",
           "weight": 2
+        },
+        {
+          "name": "rackcraft:drive_4k",
+          "type": "minecraft:item",
+          "weight": 1
+        },
+        {
+          "name": "rackcraft:cryo_coil",
+          "type": "minecraft:item",
+          "weight": 1
         },
         {
           "name": "rackcraft:freshwater_pump",

@@ -52,7 +52,6 @@ public final class ExchangeOffers {
 			add(map, "server_1u", Category.PARTS, RcItems.ITEMS.get("server_1u"), 1, 600);
 			add(map, "asic_miner", Category.PARTS, RcItems.ITEMS.get("asic_miner"), 1, 2_000);
 			add(map, "gpu_blade", Category.PARTS, RcItems.ITEMS.get("gpu_blade"), 1, 4_000);
-			add(map, "fuel_cell", Category.PARTS, RcItems.ITEMS.get("fuel_cell"), 1, 500);
 			offers = map;
 		}
 		return offers;
@@ -60,7 +59,7 @@ public final class ExchangeOffers {
 
 	/** The Facility Controller keeps its original procurement buttons. */
 	public static final List<String> CONTROLLER_OFFERS = List.of("coal", "copper_ingot", "silicon", "steel_ingot",
-			"repair_kit", "suppression_canister", "pi_node", "server_1u", "gpu_blade", "fuel_cell");
+			"repair_kit", "suppression_canister", "pi_node", "server_1u", "asic_miner", "gpu_blade");
 
 	private static void add(Map<String, Offer> map, String id, Category category, Item item, int count, long price) {
 		map.put(id, new Offer(id, category, item, count, price));

@@ -53,7 +53,17 @@
           "weight": 3
         },
         {
-          "name": "rackcraft:tensor_accelerator",
+          "functions": [
+            {
+              "count": {
+                "max": 2,
+                "min": 1,
+                "type": "minecraft:uniform"
+              },
+              "function": "minecraft:set_count"
+            }
+          ],
+          "name": "rackcraft:cpu_chip",
           "type": "minecraft:item",
           "weight": 1
         },

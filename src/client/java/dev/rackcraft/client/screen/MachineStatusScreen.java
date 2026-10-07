@@ -42,7 +42,10 @@ public final class MachineStatusScreen extends RackcraftHandledScreen {
 			int permille = stat(Stat.BATTERY_PERMILLE);
 			String trend = power > 0 ? "Charging +" + kw(power) : power < 0 ? "Discharging " + kw(-power) : "Holding charge";
 			line(context, trend, 12, 30, power < 0 ? WARN : GOOD);
-			line(context, "Charge " + permille / 10 + "%", 12, 44, TEXT);
+			int edge = Math.max(1, stat(Stat.ARRAY_EDGE));
+			line(context, "Charge " + permille / 10 + "%" + (edge > 1 ? String.format(java.util.Locale.ROOT,
+					"  Grid-Scale Battery %dx%dx%d, %.1f MJ, %d%% efficient", edge, edge, edge, stat(Stat.SOURCE_CAPACITY) / 10000.0,
+					90 + 2 * (edge - 1)) : ""), 12, 44, TEXT);
 			bar(context, 12, 56, 206, permille / 1000.0, GOOD);
 		} else if (id.equals("freshwater_pump")) {
 			String[] states = {"Pumping fresh water", "No power", "Not touching water: place it beside a lake or river",

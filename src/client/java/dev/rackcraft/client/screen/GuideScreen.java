@@ -207,17 +207,26 @@ public final class GuideScreen extends Screen {
 		int y = top + 30;
 		context.drawText(textRenderer, Text.translatable("guide.rackcraft.contents"), x, y, COLOR_ACCENT, false);
 		y += 12;
-		for (int index = 0; index < ContentIds.GUIDE_CHAPTERS.size(); index++) {
+		// Rows shrink to fit every chapter above the buttons; below 15 px the icons shrink with them.
+		int chapters = ContentIds.GUIDE_CHAPTERS.size();
+		int available = top + PANEL_HEIGHT - 31 - y;
+		int rowHeight = Math.max(10, Math.min(15, available / Math.max(1, chapters)));
+		float iconScale = rowHeight >= 15 ? 1 : (rowHeight - 1) / 16f;
+		for (int index = 0; index < chapters; index++) {
 			GuideChapter chapter = ContentIds.GUIDE_CHAPTERS.get(index);
 			int target = pageOfChapter(chapter);
-			context.drawItem(stackOf(chapter.icon()), x, y);
+			context.getMatrices().push();
+			context.getMatrices().translate(x, y, 0);
+			context.getMatrices().scale(iconScale, iconScale, 1);
+			context.drawItem(stackOf(chapter.icon()), 0, 0);
+			context.getMatrices().pop();
+			int textY = y + Math.max(1, (rowHeight - 8) / 2);
 			context.drawText(textRenderer, Text.translatable("guide.rackcraft.chapter." + chapter.id()),
-					x + 22, y + 4, COLOR_TEXT, false);
+					x + 22, textY, COLOR_TEXT, false);
 			context.drawText(textRenderer, Text.literal(chapter.entries().size() + ""),
-					left + PANEL_WIDTH - 22, y + 4, COLOR_MUTED, false);
-			hotspots.add(new Hotspot(x, y, TEXT_WIDTH, 15, stackOf(chapter.icon()), target, false));
-			// 15 px rows keep ten chapters on one page; icons overlap their neighbours by a pixel.
-			y += 15;
+					left + PANEL_WIDTH - 22, textY, COLOR_MUTED, false);
+			hotspots.add(new Hotspot(x, y, TEXT_WIDTH, rowHeight, stackOf(chapter.icon()), target, false));
+			y += rowHeight;
 		}
 	}
 

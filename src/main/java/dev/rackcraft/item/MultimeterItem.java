@@ -88,8 +88,15 @@ public final class MultimeterItem extends Item {
 				lines.add(row("Fuel left", Text.literal(machine.fuelBurnTicks() / 20 + " s"),
 						machine.fuelBurnTicks() > 0 ? Formatting.WHITE : Formatting.RED));
 			}
-			case "battery_bank" -> lines.add(row("Charge", Text.literal(Math.round(machine.chargeKws() / 30) + "% ("
-					+ format(machine.powerKw()) + " kW)"), Formatting.WHITE));
+			case "battery_bank" -> {
+				int edge = machine.reactorArraySize();
+				double perBank = dev.rackcraft.world.SimTicker.batteryCapacityPerBank(edge);
+				lines.add(row("Charge", Text.literal(Math.round(machine.chargeKws() / perBank * 100) + "% (" + format(machine.powerKw())
+						+ " kW)"), Formatting.WHITE));
+				if (edge > 1) lines.add(row("Grid-Scale Battery", Text.literal(edge + "x" + edge + "x" + edge + ", "
+						+ format(machine.reactorCapacityKw() / 1000) + " MJ, " + Math.round(dev.rackcraft.world.SimTicker.batteryEfficiency(edge) * 100)
+						+ "% efficient each way"), Formatting.GREEN));
+			}
 			case "creative_rack" -> {
 				lines.add(row("Mining", Text.literal(format(machine.miningRate()) + " RC/s"), Formatting.LIGHT_PURPLE));
 				lines.add(row("Test load", Text.literal(format(machine.powerKw()) + " of "

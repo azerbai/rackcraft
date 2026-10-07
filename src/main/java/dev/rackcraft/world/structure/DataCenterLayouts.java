@@ -150,10 +150,8 @@ public final class DataCenterLayouts {
 		s.set(2, 2, 0, b(Blocks.IRON_BARS));
 		s.set(6, 2, 0, b(Blocks.IRON_BARS));
 		s.machine(1, 1, 3, "diesel_generator", N, new ItemStack(Items.COAL, 12));
-		s.machine(3, 1, 3, "server_rack", N, Site.item("server_1u", 1), Site.item("server_1u", 1),
-				Site.item("pi_node", 1), Site.item("pi_node", 1));
-		s.machine(4, 1, 3, "server_rack", N, Site.item("pi_node", 1), Site.item("pi_node", 1),
-				Site.item("pi_node", 1), Site.item("pi_node", 1));
+		s.machine(3, 1, 3, "server_rack", N, Site.item("pi_node", 1), Site.item("pi_node", 1));
+		s.machine(4, 1, 3, "server_rack", N, Site.item("pi_node", 1), Site.item("failed_module", 1));
 		s.machine(6, 1, 3, "uplink_router", N);
 		s.machine(4, 1, 5, "exhaust_fan", N);
 		s.machine(7, 1, 1, "crypto_exchange", W);
@@ -185,7 +183,7 @@ public final class DataCenterLayouts {
 		s.set(3, 2, 0, AIR);
 		s.set(1, 2, 0, b(Blocks.GLASS_PANE));
 		s.set(5, 2, 0, b(Blocks.GLASS_PANE));
-		s.rack(3, 1, 4, N, "pi_node:3,server_1u:2,empty:1");
+		s.rack(3, 1, 4, N, "pi_node:2,failed_module:3,empty:6");
 		s.machine(4, 1, 4, "uplink_router", N);
 		s.machine(3, 4, 4, "solar_panel", N);
 		s.cable(3, 2, 4, "power_cable", false);
@@ -224,8 +222,8 @@ public final class DataCenterLayouts {
 		s.set(x0 + 3, 3, doorZ, b(Blocks.IRON_BARS));
 		Direction facing = doorsSouth ? S : N;
 		int rackZ = doorsSouth ? z0 + 1 : z1 - 1;
-		s.rack(x0 + 2, 1, rackZ, facing, "asic_miner:5,failed_module:2,empty:1");
-		s.rack(x0 + 6, 1, rackZ, facing, "asic_miner:5,failed_module:2,empty:1");
+		s.rack(x0 + 2, 1, rackZ, facing, "failed_module:5,empty:12,asic_miner:1");
+		s.rack(x0 + 6, 1, rackZ, facing, "failed_module:5,empty:12,asic_miner:1");
 		if (doorsSouth) {
 			for (int x = x0 + 1; x <= x1 - 1; x += 2) s.machine(x, 5, z0 + 1, "solar_panel", S);
 		}
@@ -249,7 +247,7 @@ public final class DataCenterLayouts {
 		s.machine(1, 1, 8, "diesel_generator", E, new ItemStack(RcItems.ITEMS.get("coke"), 6));
 		s.cable(2, 1, 8, "power_cable", false);
 		s.cable(3, 1, 8, "power_cable", true);
-		s.rack(4, 1, 8, N, "gpu_blade:4,server_1u:1");
+		s.rack(4, 1, 8, N, "failed_module:5,server_1u:1,empty:10,gpu_blade:1");
 		s.machine(5, 1, 8, "monitoring_wall", N);
 		s.machine(6, 1, 8, "monitoring_wall", N);
 		s.machine(7, 1, 8, "uplink_router", N);
@@ -284,7 +282,7 @@ public final class DataCenterLayouts {
 		s.cable(9, 1, 6, "power_cable", false);
 		s.cable(9, 1, 7, "power_cable", true);
 		s.cable(9, 1, 8, "power_cable", false);
-		for (int x = 4; x <= 8; x++) s.rack(x, 1, 8, N, "server_1u:3,pi_node:2,failed_module:1");
+		for (int x = 4; x <= 8; x++) s.rack(x, 1, 8, N, "pi_node:2,server_1u:1,failed_module:4,empty:8");
 		s.machine(3, 1, 8, "uplink_router", N);
 		s.machine(1, 1, 5, "fire_suppression_tank", E, Site.item("suppression_canister", 1));
 		s.set(6, 4, 4, hangingLantern());
@@ -305,8 +303,8 @@ public final class DataCenterLayouts {
 		s.set(7, 1, 0, b(Blocks.WATER));
 		s.set(7, 2, 0, AIR);
 		for (int x = 2; x <= 12; x++) {
-			if (!s.chance(x, 1, 3, 4, 4)) s.rack(x, 1, 3, N, "server_1u:3,pi_node:2,failed_module:2");
-			if (!s.chance(x, 1, 7, 4, 4)) s.rack(x, 1, 7, S, "server_1u:3,pi_node:2,failed_module:2");
+			if (!s.chance(x, 1, 3, 4, 4)) s.rack(x, 1, 3, N, "pi_node:1,server_1u:1,failed_module:4,empty:10");
+			if (!s.chance(x, 1, 7, 4, 4)) s.rack(x, 1, 7, S, "pi_node:1,server_1u:1,failed_module:4,empty:10");
 		}
 		s.machine(13, 1, 5, "crac_unit", W);
 		s.machine(1, 1, 5, "crac_unit", E);
@@ -328,8 +326,8 @@ public final class DataCenterLayouts {
 			int cageX = x0;
 			s.walls(x0, 1, 3, x0 + 3, 3, 8, (x, y, z) -> run(Blocks.IRON_BARS, x != cageX && x != cageX + 3));
 			s.fill(x0 + 1, 1, 3, x0 + 2, 2, 3, AIR);
-			s.rack(x0 + 1, 1, 6, N, "server_1u:3,gpu_blade:1,failed_module:2,empty:1");
-			s.rack(x0 + 2, 1, 6, N, "server_1u:3,gpu_blade:1,failed_module:2,empty:1");
+			s.rack(x0 + 1, 1, 6, N, "pi_node:1,failed_module:4,empty:10");
+			s.rack(x0 + 2, 1, 6, N, "pi_node:1,failed_module:4,empty:10");
 		}
 		// The tree that won.
 		s.fill(14, 1, 10, 14, 9, 10, b(Blocks.JUNGLE_LOG));
@@ -349,13 +347,14 @@ public final class DataCenterLayouts {
 		s.fill(0, 6, 0, 8, 6, 10, b(Blocks.SNOW));
 		s.fill(6, 1, 0, 6, 2, 0, AIR);
 		s.set(6, 0, 1, b(Blocks.POWDER_SNOW));
-		for (int x = 4; x <= 7; x++) s.rack(x, 1, 3, S, "server_1u:2,gpu_blade:2,asic_miner:1,failed_module:1");
+		for (int x = 4; x <= 7; x++) s.rack(x, 1, 3, S, "server_1u:1,failed_module:5,empty:10");
 		// The vault: iron walls, an iron door, a Quantum Core with its CDU.
 		s.walls(0, 1, 5, 4, 3, 10, b(Blocks.IRON_BLOCK));
 		s.fill(1, 1, 6, 3, 3, 9, AIR);
 		door(s, 2, 1, 5, Blocks.IRON_DOOR, S);
 		s.set(1, 2, 4, b(Blocks.STONE_BUTTON));
-		s.rack(2, 1, 8, N, "quantum_core:1");
+		// One vault in four still has its Quantum Core; the rest were cleared out long ago.
+		s.machine(2, 1, 8, "server_rack", N, Site.item(s.chance(2, 1, 8, 31, 4) ? "quantum_core" : "failed_module", 1));
 		s.machine(3, 1, 8, "cdu", N);
 		s.chest(1, 1, 9, E, VAULT_LOOT);
 		// The yard: cooling towers in the snow.
@@ -399,8 +398,8 @@ public final class DataCenterLayouts {
 		s.fill(1, 1, 8, 9, 5, 8, partition);
 		s.fill(5, 1, 8, 5, 2, 8, AIR);
 		for (int x = 2; x <= 6; x++) {
-			s.rack(x, 1, 2, S, "tensor_accelerator:3,gpu_blade:2,failed_module:1");
-			s.rack(x, 1, 6, N, "tensor_accelerator:3,gpu_blade:2,failed_module:1");
+			s.rack(x, 1, 2, S, "pi_node:1,failed_module:4,empty:10");
+			s.rack(x, 1, 6, N, "pi_node:1,failed_module:4,empty:10");
 		}
 		s.machine(7, 1, 2, "uplink_router", S);
 		s.machine(7, 1, 6, "uplink_router", N);
@@ -509,8 +508,8 @@ public final class DataCenterLayouts {
 
 		// The office, glassed off in the corner: the racks, the terminal and the manager.
 		s.fill(21, 1, 9, 21, 4, z1 - 1, partitionGlass());
-		s.rack(x1 - 1, 1, 11, W, "tensor_accelerator:3,gpu_blade:1,server_1u:2");
-		s.rack(x1 - 1, 1, 12, W, "tensor_accelerator:3,gpu_blade:1,server_1u:2");
+		s.rack(x1 - 1, 1, 11, W, "server_1u:1,failed_module:4,empty:10");
+		s.rack(x1 - 1, 1, 12, W, "server_1u:1,failed_module:4,empty:10");
 		s.machine(x1 - 1, 1, 13, "uplink_router", W);
 		s.machine(x1 - 1, 1, 15, "operations_terminal", W);
 		s.set(23, 1, 15, stairs(Blocks.SPRUCE_STAIRS, W));
@@ -556,7 +555,8 @@ public final class DataCenterLayouts {
 		for (int z : new int[] {2, 5, 8, 11}) {
 			s.fill(2, 0, z, 15, 0, z, b(Blocks.GRAVEL));
 			for (int x = 2; x <= 15; x++) {
-				if (s.chance(x, 1, z, 1, 6)) s.set(x, 1, z, s.chance(x, 1, z, 2, 2) ? b(Blocks.COBWEB) : b(Blocks.SMOOTH_STONE_SLAB));
+				// Hail and scavengers left about one panel in five.
+				if (!s.chance(x, 1, z, 1, 5)) s.set(x, 1, z, s.chance(x, 1, z, 2, 2) ? b(Blocks.COBWEB) : b(Blocks.SMOOTH_STONE_SLAB));
 				else s.machine(x, 1, z, "solar_panel", S);
 			}
 		}
@@ -572,7 +572,7 @@ public final class DataCenterLayouts {
 		s.machine(19, 1, 3, "battery_bank", S);
 		s.machine(20, 1, 3, "pdu", S);
 		s.cable(20, 1, 4, "power_cable", false);
-		s.rack(20, 1, 5, W, "server_1u:3,pi_node:2");
+		s.rack(20, 1, 5, W, "pi_node:1,failed_module:3,empty:6");
 		s.machine(20, 1, 6, "uplink_router", W);
 		s.chest(18, 1, 6, E, COMMON_LOOT);
 	}

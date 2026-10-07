@@ -90,6 +90,8 @@ public final class PowerSolver {
 		private final double maxOutKw;
 		private double chargeKws;
 		private int spinupSteps;
+		/** Charging stores this share of the power put in, and discharging draws 1/efficiency per kW delivered. */
+		private double efficiency = 0.9;
 
 		public Source(String id, SourceKind kind, double capacityKw) {
 			this(id, kind, capacityKw, 0, 0, 0, 0, 0);
@@ -110,6 +112,12 @@ public final class PowerSolver {
 			this.maxInKw = Math.max(0, maxInKw);
 			this.maxOutKw = Math.max(0, maxOutKw);
 			this.spinupSteps = Math.max(0, Math.min(20, spinupSteps));
+		}
+
+		/** Sets a battery's one-way efficiency (0.9 by default); returns this source. */
+		public Source efficiency(double value) {
+			efficiency = Math.max(0.5, Math.min(1, value));
+			return this;
 		}
 
 		public String id() { return id; }
@@ -133,14 +141,14 @@ public final class PowerSolver {
 		private double charge(double requestedKw, double dtSeconds) {
 			if (kind != SourceKind.BATTERY || dtSeconds <= 0) return 0;
 			double inputKw = Math.min(Math.min(requestedKw, maxInKw), (capacityKws - chargeKws) / dtSeconds);
-			double storedKw = inputKw * 0.9;
+			double storedKw = inputKw * efficiency;
 			chargeKws = Math.min(capacityKws, chargeKws + storedKw * dtSeconds);
 			return inputKw;
 		}
 
 		private void discharge(double deliveredKw, double dtSeconds) {
 			if (kind != SourceKind.BATTERY || dtSeconds <= 0) return;
-			chargeKws = Math.max(0, chargeKws - deliveredKw * dtSeconds / 0.9);
+			chargeKws = Math.max(0, chargeKws - deliveredKw * dtSeconds / efficiency);
 		}
 	}
 

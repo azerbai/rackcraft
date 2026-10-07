@@ -6,17 +6,17 @@
     "C": {
       "item": "rackcraft:circuit_board"
     },
+    "O": {
+      "item": "minecraft:obsidian"
+    },
     "P": {
       "item": "minecraft:piston"
-    },
-    "S": {
-      "item": "rackcraft:steel_ingot"
     }
   },
   "pattern": [
-    "SPS",
-    "BCB",
-    "SSS"
+    "BPB",
+    "OCO",
+    "BBB"
   ],
   "result": {
     "count": 1,

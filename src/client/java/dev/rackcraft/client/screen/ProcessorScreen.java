@@ -30,10 +30,10 @@ public final class ProcessorScreen extends RackcraftHandledScreen {
 
 	private static String recipe(String id) {
 		return switch (id) {
-			case "uranium_mill" -> "Raw Uranium -> Yellowcake. 10 s per batch per core.";
-			case "gas_centrifuge" -> "4 Yellowcake -> 1 Enriched + 3 Depleted Uranium. 30 s per batch per core.";
-			case "fuel_fabricator" -> "Enriched Uranium + Steel Ingot -> 2 Fuel Cells. 20 s per batch per core.";
-			case "cask_sealer" -> "4 Spent Fuel + 4 Depleted Uranium -> Sealed Waste Cask. 30 s per batch per core.";
+			case "uranium_mill" -> "2 Raw Uranium -> Yellowcake. 30 s per batch per core, 20 kW.";
+			case "gas_centrifuge" -> "6 Yellowcake -> 1 Enriched + 4 Depleted Uranium. 120 s per batch per core, 60 kW.";
+			case "fuel_fabricator" -> "Enriched Uranium + 2 Steel Ingots -> Fuel Cell. 60 s per batch per core, 30 kW.";
+			case "cask_sealer" -> "4 Spent Fuel + 4 Depleted Uranium -> Sealed Waste Cask. 60 s per batch per core, 15 kW.";
 			default -> "";
 		};
 	}
