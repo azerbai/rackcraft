@@ -299,7 +299,12 @@ public final class Site {
 		if (world.getBlockEntity(pos) instanceof net.minecraft.block.entity.SignBlockEntity sign) {
 			net.minecraft.block.entity.SignText text = new net.minecraft.block.entity.SignText();
 			for (int line = 0; line < lines.length && line < 4; line++) text = text.withMessage(line, net.minecraft.text.Text.literal(lines[line]));
-			sign.setText(text, true);
+			// setText notifies the world, and during worldgen the block entity has none yet: load the text as NBT.
+			net.minecraft.nbt.NbtCompound nbt = sign.createNbt();
+			net.minecraft.block.entity.SignText.CODEC.encodeStart(net.minecraft.nbt.NbtOps.INSTANCE, text)
+					.result().ifPresent(encoded -> nbt.put("front_text", encoded));
+			sign.readNbt(nbt);
+			sign.markDirty();
 		}
 	}
 

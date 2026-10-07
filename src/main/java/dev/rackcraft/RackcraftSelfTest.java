@@ -705,6 +705,7 @@ public final class RackcraftSelfTest {
 				new net.minecraft.util.math.Box(new BlockPos(4096, 120, 4096)).expand(2700, 64, 240), entity -> true)
 				.forEach(net.minecraft.entity.Entity::discard);
 		if (campusOrigin != null) checkCampusRuns(world, campusOrigin, failures);
+		checkWorldgen(world, failures);
 		BlockPos found = world.locateStructure(Worldgen.DATA_CENTERS, BlockPos.ORIGIN, 100, false);
 		check("D4.a", found != null, "nearest data center to 0,0: " + found, failures);
 		if (found == null) return;
@@ -730,6 +731,59 @@ public final class RackcraftSelfTest {
 		}
 		check("D4.b", machines > 0, "generated " + chunks + " chunks around " + found + ": machines=" + machines
 				+ " starts=" + starts + " machines=" + ids, failures);
+	}
+
+	/**
+	 * Every variant through real worldgen, not just {@code buildNow}: block entities in a generating chunk have no
+	 * world yet, so anything that touches it (a sign's setText did) crashes chunk generation. Locates the nearest
+	 * of each variant and generates every chunk its piece covers.
+	 */
+	private static void checkWorldgen(ServerWorld world, int[] failures) {
+		var registry = world.getRegistryManager().get(net.minecraft.registry.RegistryKeys.STRUCTURE);
+		for (var layout : dev.rackcraft.world.structure.DataCenterLayouts.all().values()) {
+			var entry = registry.getEntry(net.minecraft.registry.RegistryKey.of(net.minecraft.registry.RegistryKeys.STRUCTURE,
+					Rackcraft.id(layout.id())));
+			if (entry.isEmpty()) continue;
+			boolean campus = layout.id().equals("hyperscale_campus");
+			var found = world.getChunkManager().getChunkGenerator().locateStructure(world,
+					net.minecraft.registry.entry.RegistryEntryList.of(entry.get()), BlockPos.ORIGIN, campus ? 300 : 100, false);
+			if (found == null) {
+				check("D6." + layout.id(), true, "skipped: none within range of 0,0 in this seed", failures);
+				continue;
+			}
+			String error = null;
+			int machines = 0;
+			int racks = 0;
+			int chunks = 0;
+			int missingEntities = 0;
+			String where = "";
+			try {
+				var start = world.getChunk(found.getFirst().getX() >> 4, found.getFirst().getZ() >> 4,
+						net.minecraft.world.chunk.ChunkStatus.STRUCTURE_STARTS).getStructureStart(entry.get().value());
+				net.minecraft.util.math.BlockBox box = start != null && start.hasChildren() ? start.getBoundingBox()
+						: new net.minecraft.util.math.BlockBox(found.getFirst());
+				where = " box=" + box + " pieces=" + (start == null ? "none" : start.getChildren().size());
+				for (int cx = box.getMinX() >> 4; cx <= box.getMaxX() >> 4; cx++) {
+					for (int cz = box.getMinZ() >> 4; cz <= box.getMaxZ() >> 4; cz++) {
+						world.getChunk(cx, cz);
+						chunks++;
+					}
+				}
+				// Count machine blocks, and make sure every one got its block entity (and with it, its contents).
+				for (BlockPos pos : BlockPos.iterate(box.getMinX(), box.getMinY(), box.getMinZ(), box.getMaxX(), box.getMaxY(), box.getMaxZ())) {
+					if (!(world.getBlockState(pos).getBlock() instanceof MachineBlock)) continue;
+					machines++;
+					if (!(world.getBlockEntity(pos) instanceof MachineBlockEntity machine)) missingEntities++;
+					else if (machine.blockId().equals("server_rack") && !machine.modules().isEmpty()) racks++;
+				}
+			} catch (RuntimeException exception) {
+				error = exception.toString();
+				Rackcraft.LOGGER.error("Generating {} failed", layout.id(), exception);
+			}
+			check("D6." + layout.id(), error == null && machines >= 2 && missingEntities == 0 && (!campus || racks >= 200),
+					"generated " + chunks + " chunks at " + found.getFirst().toShortString() + ": machines=" + machines + " loadedRacks=" + racks + " missingEntities=" + missingEntities + where
+							+ (error == null ? "" : " error=" + error), failures);
+		}
 	}
 
 	/**
