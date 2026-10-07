@@ -1,0 +1,26 @@
+{
+  "key": {
+    "B": {
+      "item": "rackcraft:steel_block"
+    },
+    "C": {
+      "item": "rackcraft:circuit_board"
+    },
+    "P": {
+      "item": "minecraft:piston"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    }
+  },
+  "pattern": [
+    "SPS",
+    "BCB",
+    "SSS"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:cask_sealer"
+  },
+  "type": "minecraft:crafting_shaped"
+}

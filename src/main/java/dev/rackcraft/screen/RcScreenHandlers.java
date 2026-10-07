@@ -20,6 +20,8 @@ public final class RcScreenHandlers {
 	public static final ScreenHandlerType<MachineScreenHandler> TAPE_LIBRARY = register("tape_library", MachineScreenHandler.Mode.TAPE_LIBRARY);
 	public static final ScreenHandlerType<MachineScreenHandler> TRANSMITTER = register("transmitter", MachineScreenHandler.Mode.TRANSMITTER);
 	public static final ScreenHandlerType<MachineScreenHandler> WORKSTATION = register("workstation", MachineScreenHandler.Mode.WORKSTATION);
+	public static final ScreenHandlerType<MachineScreenHandler> REACTOR = register("reactor", MachineScreenHandler.Mode.REACTOR);
+	public static final ScreenHandlerType<MachineScreenHandler> PROCESSOR = register("processor", MachineScreenHandler.Mode.PROCESSOR);
 	public static final ScreenHandlerType<dev.rackcraft.compute.OpsScreenHandler> OPERATIONS = Registry.register(
 			Registries.SCREEN_HANDLER, Rackcraft.id("operations"), new ExtendedScreenHandlerType<>((syncId, inventory, buf) ->
 					new dev.rackcraft.compute.OpsScreenHandler(syncId, inventory, buf.readBlockPos())));
@@ -48,6 +50,8 @@ public final class RcScreenHandlers {
 			case TAPE_LIBRARY -> TAPE_LIBRARY;
 			case TRANSMITTER -> TRANSMITTER;
 			case WORKSTATION -> WORKSTATION;
+			case REACTOR -> REACTOR;
+			case PROCESSOR -> PROCESSOR;
 		};
 	}
 }

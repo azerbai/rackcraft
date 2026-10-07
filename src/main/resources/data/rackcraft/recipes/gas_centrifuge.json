@@ -1,0 +1,29 @@
+{
+  "key": {
+    "A": {
+      "item": "rackcraft:aluminum_ingot"
+    },
+    "C": {
+      "item": "rackcraft:cpu_chip"
+    },
+    "R": {
+      "item": "minecraft:redstone_block"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    },
+    "W": {
+      "item": "rackcraft:copper_wire"
+    }
+  },
+  "pattern": [
+    "ACA",
+    "WRW",
+    "ASA"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:gas_centrifuge"
+  },
+  "type": "minecraft:crafting_shaped"
+}

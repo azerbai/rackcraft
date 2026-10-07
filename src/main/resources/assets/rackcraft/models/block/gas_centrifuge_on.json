@@ -1,0 +1,51 @@
+{
+  "elements": [
+    {
+      "faces": {
+        "down": {
+          "cullface": "down",
+          "texture": "#bottom"
+        },
+        "east": {
+          "cullface": "east",
+          "texture": "#side"
+        },
+        "north": {
+          "cullface": "north",
+          "texture": "#front"
+        },
+        "south": {
+          "cullface": "south",
+          "texture": "#back"
+        },
+        "up": {
+          "cullface": "up",
+          "texture": "#top"
+        },
+        "west": {
+          "cullface": "west",
+          "texture": "#side"
+        }
+      },
+      "from": [
+        0,
+        0,
+        0
+      ],
+      "to": [
+        16,
+        16,
+        16
+      ]
+    }
+  ],
+  "parent": "minecraft:block/block",
+  "textures": {
+    "back": "rackcraft:block/gas_centrifuge_back",
+    "bottom": "rackcraft:block/gas_centrifuge_bottom",
+    "front": "rackcraft:block/gas_centrifuge_front_on",
+    "particle": "rackcraft:block/gas_centrifuge_side",
+    "side": "rackcraft:block/gas_centrifuge_side",
+    "top": "rackcraft:block/gas_centrifuge_top"
+  }
+}

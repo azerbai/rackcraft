@@ -1,0 +1,60 @@
+{
+  "variants": {
+    "facing=east,lit=false,formed=false": {
+      "model": "rackcraft:block/fuel_fabricator",
+      "y": 90
+    },
+    "facing=east,lit=false,formed=true": {
+      "model": "rackcraft:block/fuel_fabricator_formed"
+    },
+    "facing=east,lit=true,formed=false": {
+      "model": "rackcraft:block/fuel_fabricator_on",
+      "y": 90
+    },
+    "facing=east,lit=true,formed=true": {
+      "model": "rackcraft:block/fuel_fabricator_formed_on"
+    },
+    "facing=north,lit=false,formed=false": {
+      "model": "rackcraft:block/fuel_fabricator",
+      "y": 0
+    },
+    "facing=north,lit=false,formed=true": {
+      "model": "rackcraft:block/fuel_fabricator_formed"
+    },
+    "facing=north,lit=true,formed=false": {
+      "model": "rackcraft:block/fuel_fabricator_on",
+      "y": 0
+    },
+    "facing=north,lit=true,formed=true": {
+      "model": "rackcraft:block/fuel_fabricator_formed_on"
+    },
+    "facing=south,lit=false,formed=false": {
+      "model": "rackcraft:block/fuel_fabricator",
+      "y": 180
+    },
+    "facing=south,lit=false,formed=true": {
+      "model": "rackcraft:block/fuel_fabricator_formed"
+    },
+    "facing=south,lit=true,formed=false": {
+      "model": "rackcraft:block/fuel_fabricator_on",
+      "y": 180
+    },
+    "facing=south,lit=true,formed=true": {
+      "model": "rackcraft:block/fuel_fabricator_formed_on"
+    },
+    "facing=west,lit=false,formed=false": {
+      "model": "rackcraft:block/fuel_fabricator",
+      "y": 270
+    },
+    "facing=west,lit=false,formed=true": {
+      "model": "rackcraft:block/fuel_fabricator_formed"
+    },
+    "facing=west,lit=true,formed=false": {
+      "model": "rackcraft:block/fuel_fabricator_on",
+      "y": 270
+    },
+    "facing=west,lit=true,formed=true": {
+      "model": "rackcraft:block/fuel_fabricator_formed_on"
+    }
+  }
+}

@@ -13,7 +13,7 @@ import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.math.Vec3d;
 
 /**
- * Smog's own status effects. Dizziness does nothing on the server: the client sways the camera gently
+ * Rackcraft's status effects: smog's, and radiation. Dizziness does nothing on the server: the client sways the camera gently
  * (a lighter cousin of Nausea, see the client's DizzyView). Smoker's Cough makes whoever has it cough every
  * so often: a hacking sound, a puff of smoke, a little lost stamina, and no sprinting through it.
  */
@@ -34,11 +34,30 @@ public final class RcEffects {
 		}
 	};
 
+	/**
+	 * Radiation Sickness, from carrying Spent Fuel: a little damage every two seconds (more at higher levels) and
+	 * hunger. It wears off a few seconds after the fuel leaves your pockets.
+	 */
+	public static final StatusEffect RADIATION = new StatusEffect(StatusEffectCategory.HARMFUL, 0x7FD13B) {
+		@Override
+		public boolean canApplyUpdateEffect(int duration, int amplifier) {
+			return duration % 40 == 0;
+		}
+
+		@Override
+		public void applyUpdateEffect(LivingEntity entity, int amplifier) {
+			if (!(entity.getWorld() instanceof ServerWorld world)) return;
+			entity.damage(world.getDamageSources().magic(), 1 + amplifier);
+			if (entity instanceof PlayerEntity player) player.addExhaustion(0.6f * (1 + amplifier));
+		}
+	};
+
 	private RcEffects() {}
 
 	public static void register() {
 		Registry.register(Registries.STATUS_EFFECT, Rackcraft.id("dizzy"), DIZZY);
 		Registry.register(Registries.STATUS_EFFECT, Rackcraft.id("coughing"), COUGHING);
+		Registry.register(Registries.STATUS_EFFECT, Rackcraft.id("radiation"), RADIATION);
 	}
 
 	public static void cough(ServerWorld world, LivingEntity entity) {

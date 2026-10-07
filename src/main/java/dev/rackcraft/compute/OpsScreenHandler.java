@@ -249,15 +249,26 @@ public final class OpsScreenHandler extends ScreenHandler {
 	private static void machineAlerts(ServerWorld world, List<MachineBlockEntity> machines, List<OpsSnapshot.Alert> alerts) {
 		// Machines on one loop, or cores of one reactor array, report the same figures: one alert each is enough.
 		java.util.Set<String> reported = new java.util.HashSet<>();
+		// Rack problems are grouped by kind and by 32-block area, so a hall full of unpowered racks is one line.
+		Map<String, int[]> rackGroups = new java.util.LinkedHashMap<>();
+		Map<String, BlockPos> rackGroupAt = new java.util.HashMap<>();
+		int racks = 0;
+		int stopped = 0;
+		int slowed = 0;
 		for (MachineBlockEntity machine : machines) {
 			String at = " at " + machine.getPos().toShortString();
 			switch (machine.blockId()) {
 				case "server_rack" -> {
+					racks++;
 					RackStatus status = machine.rackStatus();
-					if (problem(status)) alerts.add(new OpsSnapshot.Alert(2, "Rack" + at + ": " + STATUS_WORDS.get(status)));
-					else if (status == RackStatus.THROTTLED || status == RackStatus.NETWORK_LIMITED) {
-						alerts.add(new OpsSnapshot.Alert(1, "Rack" + at + ": " + STATUS_WORDS.get(status)));
-					}
+					boolean bad = problem(status);
+					boolean slow = status == RackStatus.THROTTLED || status == RackStatus.NETWORK_LIMITED;
+					if (!bad && !slow) break;
+					if (bad) stopped++;
+					else slowed++;
+					String key = status.name() + " " + (machine.getPos().getX() >> 5) + " " + (machine.getPos().getZ() >> 5);
+					rackGroups.computeIfAbsent(key, ignored -> new int[] {bad ? 2 : 1, 0})[1]++;
+					rackGroupAt.putIfAbsent(key, machine.getPos());
 				}
 				case "storage_array", "tape_library" -> {
 					String name = machine.blockId().equals("storage_array") ? "Storage Array" : "Tape Library";
@@ -295,9 +306,25 @@ public final class OpsScreenHandler extends ScreenHandler {
 					}
 				}
 				case "modular_reactor" -> {
-					if (machine.arrayFuelTicks() <= 0 && machine.arrayFuelCells() == 0
-							&& (machine.reactorArraySize() == 1 || reported.add("reactor " + machine.reactorCapacityKw() + " " + machine.reactorArraySize()))) {
+					String key = "reactor " + machine.reactorArraySize() + " " + machine.arrayFuelTicks() + " " + machine.arrayFuelCells();
+					int status = machine.processStatus();
+					if (status == dev.rackcraft.world.ReactorArrays.ReactorStatus.WASTE_FULL.ordinal() && reported.add(key)) {
+						alerts.add(new OpsSnapshot.Alert(2, "Modular Reactor" + at + ": stopped, waste slots full of Spent Fuel"));
+					} else if (status == dev.rackcraft.world.ReactorArrays.ReactorStatus.NO_FUEL.ordinal() && reported.add(key)) {
 						alerts.add(new OpsSnapshot.Alert(1, "Modular Reactor" + at + ": out of Fuel Cells"));
+					}
+				}
+				case "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer" -> {
+					String name = Text.translatable("block.rackcraft." + machine.blockId()).getString();
+					int status = machine.processStatus();
+					// One alert per cube: its cores share the same work progress.
+					String key = machine.blockId() + " " + machine.reactorArraySize() + " " + machine.workProgress();
+					if (status == dev.rackcraft.world.NuclearProcessing.Status.NO_POWER.ordinal() && reported.add(key)) {
+						alerts.add(new OpsSnapshot.Alert(2, name + at + ": no power"));
+					} else if (status == dev.rackcraft.world.NuclearProcessing.Status.OUTPUT_FULL.ordinal() && reported.add(key)) {
+						alerts.add(new OpsSnapshot.Alert(1, name + at + ": output full"));
+					} else if (status == dev.rackcraft.world.NuclearProcessing.Status.NOT_FORMED.ordinal()) {
+						alerts.add(new OpsSnapshot.Alert(1, name + at + ": not part of a whole 2x2x2 to 5x5x5 cube"));
 					}
 				}
 				case "diesel_generator" -> {
@@ -314,6 +341,17 @@ public final class OpsScreenHandler extends ScreenHandler {
 				}
 				default -> {}
 			}
+		}
+		rackGroups.forEach((key, group) -> {
+			BlockPos pos = rackGroupAt.get(key);
+			String what = STATUS_WORDS.get(RackStatus.valueOf(key.substring(0, key.indexOf(' '))));
+			alerts.add(new OpsSnapshot.Alert(group[0], group[1] == 1 ? "Rack at " + pos.toShortString() + ": " + what
+					: group[1] + " racks " + what + " around " + pos.toShortString()));
+		});
+		if (stopped + slowed > 0) {
+			// Severity 3 sorts the summary above the alerts it sums up.
+			alerts.add(new OpsSnapshot.Alert(stopped > 0 ? 3 : 1, String.format(Locale.ROOT,
+					"Racks: %d of %d stopped, %d slowed. Hold a Multimeter to see them through walls.", stopped, racks, slowed)));
 		}
 		NetworkManager networks = NetworkManager.get(world);
 		for (NetKind kind : NetKind.values()) {

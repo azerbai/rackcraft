@@ -1,0 +1,51 @@
+{
+  "elements": [
+    {
+      "faces": {
+        "down": {
+          "cullface": "down",
+          "texture": "#bottom"
+        },
+        "east": {
+          "cullface": "east",
+          "texture": "#side"
+        },
+        "north": {
+          "cullface": "north",
+          "texture": "#front"
+        },
+        "south": {
+          "cullface": "south",
+          "texture": "#back"
+        },
+        "up": {
+          "cullface": "up",
+          "texture": "#top"
+        },
+        "west": {
+          "cullface": "west",
+          "texture": "#side"
+        }
+      },
+      "from": [
+        0,
+        0,
+        0
+      ],
+      "to": [
+        16,
+        16,
+        16
+      ]
+    }
+  ],
+  "parent": "minecraft:block/block",
+  "textures": {
+    "back": "rackcraft:block/fuel_fabricator_back",
+    "bottom": "rackcraft:block/fuel_fabricator_bottom",
+    "front": "rackcraft:block/fuel_fabricator_front_on",
+    "particle": "rackcraft:block/fuel_fabricator_side",
+    "side": "rackcraft:block/fuel_fabricator_side",
+    "top": "rackcraft:block/fuel_fabricator_top"
+  }
+}

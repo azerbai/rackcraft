@@ -165,9 +165,32 @@ Power cables, coolant pipes, fiber and item pipes connect only toward cables of 
 
 Drive contents are stored with the world, keyed to each drive, so drives keep their items when moved between arrays.
 
-## Modular Reactors
+## Nuclear
 
-A Modular Reactor makes 500 kW and burns one Fuel Cell per 30 minutes at full output, less at part load. Build reactors into a solid cube, 2x2x2 up to 5x5x5, and the cube runs as one **reactor array**: the output of every core (4 MW for a 2-cube, 62.5 MW for a 5-cube), one shared fuel supply from any core's slot, and less fuel per core the bigger it is: 95% for a 2-cube, 90%, 85%, and 80% for a 5-cube. Anything that isn't a whole cube runs as separate reactors. A reactor's heat, 30% of its output, goes into its coolant loop if it is piped to one, otherwise into the air around it. The reactor screen and the Multimeter show the array size, output and fuel.
+Every nuclear machine is a **cube multiblock**: build a solid cube of the same machine, 2x2x2 up to 5x5x5, and it works as one (the casing changes to show it). Every block is a core, items put into any core are shared evenly across the cube, and bigger cubes are more economical: 5% less fuel or power per core for a 2-cube, up to 20% for a 5-cube. Anything that isn't a whole cube shows an amber "not formed" fault.
+
+| Step | Machine | In | Out | Per batch, per core |
+| --- | --- | --- | --- | --- |
+| Mine | Uranium Ore (Y -64 to 16, iron pickaxe) | | Raw Uranium | |
+| Mill | Uranium Mill | Raw Uranium | Yellowcake | 10 s, 4 kW |
+| Enrich | Gas Centrifuge | 4 Yellowcake | Enriched Uranium + 3 Depleted Uranium | 30 s, 10 kW |
+| Fabricate | Fuel Fabricator | Enriched Uranium + Steel Ingot | 2 Fuel Cells | 20 s, 6 kW |
+| Burn | Modular Reactor | Fuel Cell | 500 kW for 30 min, then Spent Fuel | |
+| Seal | Cask Sealer | 4 Spent Fuel + 4 Depleted Uranium | Sealed Waste Cask | 30 s, 4 kW |
+
+A **Modular Reactor** runs on its own too: 500 kW, one Fuel Cell per 30 minutes at full output, less at part load. A reactor array adds up every core (4 MW for a 2-cube, 62.5 MW for a 5-cube) and shares fuel and waste across the cores. Every burnt-out cell comes out as **Spent Fuel** in the waste slot (16 per core); once the waste slots are full the reactor stops until you empty them. A reactor's heat, 30% of its output, goes into its coolant loop if it is piped to one, otherwise into the air around it.
+
+**Spent Fuel is radioactive**: carrying any gives Radiation Sickness (level II from 8 rods, III from 32), which hurts every two seconds. It's safe inside machines, chests and storage, and a Sealed Waste Cask is safe anywhere.
+
+**Automation:** connect the cubes and a Storage Array with Item Pipe. Each cube is stocked from storage and sends its products and by-products back, and reactors take Fuel Cells and hand back Spent Fuel, so ore in storage ends up as Fuel Cells, and Spent Fuel ends up as casks, without anyone touching it. Hoppers work on any core too.
+
+## Finding Problems
+
+On a big farm, three things point you to trouble:
+
+- **Rack fronts** show their health: a blinking amber bar when a rack is slowed (hot, or short of bandwidth), red when it is stopped (no power, tripped, offline, overheated, no liquid cooling, no CDU).
+- **The fault finder:** hold a **Multimeter** and every machine with a problem within 128 blocks is outlined through walls, red for stopped and amber for slowed, with a line at the top of the screen counting them and pointing to the nearest ("Nearest: Rack: no power, 23 m north-east"). It covers racks, cut cables, offline storage, dry pumps, overloaded coolant loops, generators and reactors out of fuel, full reactor waste, and nuclear cubes that aren't formed, have no power or are full.
+- **The Operations Terminal** groups rack problems by kind and area ("48 racks unpowered around 72, 64, 30") under a one-line summary of how many racks are stopped and slowed.
 
 ## Creative Machines
 

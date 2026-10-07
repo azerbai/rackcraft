@@ -24,6 +24,7 @@ public final class RackcraftClient implements ClientModInitializer {
 		CoinHud.register();
 		ShackleChains.register();
 		DizzyView.register();
+		FaultOverlay.register();
 		ScreenRegistry.register(RcScreenHandlers.RACK, RackScreen::new);
 		ScreenRegistry.register(RcScreenHandlers.SINGLE_SLOT, SingleSlotScreen::new);
 		ScreenRegistry.register(RcScreenHandlers.MACHINE_STATUS, MachineStatusScreen::new);
@@ -36,6 +37,8 @@ public final class RackcraftClient implements ClientModInitializer {
 		ScreenRegistry.register(RcScreenHandlers.TRANSMITTER, dev.rackcraft.client.screen.TransmitterScreen::new);
 		ScreenRegistry.register(RcScreenHandlers.TERMINAL, dev.rackcraft.client.screen.TerminalScreen::new);
 		ScreenRegistry.register(RcScreenHandlers.WORKSTATION, dev.rackcraft.client.screen.WorkstationScreen::new);
+		ScreenRegistry.register(RcScreenHandlers.REACTOR, dev.rackcraft.client.screen.ReactorScreen::new);
+		ScreenRegistry.register(RcScreenHandlers.PROCESSOR, dev.rackcraft.client.screen.ProcessorScreen::new);
 		ScreenRegistry.register(RcScreenHandlers.OPERATIONS, dev.rackcraft.client.screen.OpsScreen::new);
 		net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.registerGlobalReceiver(
 				dev.rackcraft.compute.OpsScreenHandler.SYNC, (client, handler, buf, responseSender) -> {

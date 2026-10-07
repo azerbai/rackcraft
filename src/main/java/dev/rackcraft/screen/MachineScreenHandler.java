@@ -92,6 +92,16 @@ public final class MachineScreenHandler extends ScreenHandler {
 		} else if (mode == Mode.SINGLE_SLOT) {
 			addSlot(new MachineSlot(machineInventory, 0, 80, 46));
 			addPlayerInventory(playerInventory, 8, 108);
+		} else if (mode == Mode.REACTOR) {
+			addSlot(new MachineSlot(machineInventory, 0, 17, 56));
+			addSlot(new MachineSlot(machineInventory, 1, 45, 56));
+			addPlayerInventory(playerInventory, 8, 122);
+		} else if (mode == Mode.PROCESSOR) {
+			addSlot(new MachineSlot(machineInventory, 0, 17, 62));
+			addSlot(new MachineSlot(machineInventory, 1, 39, 62));
+			addSlot(new MachineSlot(machineInventory, 2, 117, 62));
+			addSlot(new MachineSlot(machineInventory, 3, 139, 62));
+			addPlayerInventory(playerInventory, 8, 122);
 		}
 		addProperties(properties);
 	}
@@ -189,6 +199,7 @@ public final class MachineScreenHandler extends ScreenHandler {
 			case Stat.ARRAY_EDGE -> machine.reactorArraySize();
 			case Stat.SOURCE_CAPACITY -> tenths(machine.reactorCapacityKw());
 			case Stat.FUEL_CELLS -> machine.arrayFuelCells();
+			case Stat.PROCESS_STATUS -> machine.processStatus();
 			default -> 0;
 		};
 	}
@@ -240,7 +251,8 @@ public final class MachineScreenHandler extends ScreenHandler {
 		public static final int ARRAY_EDGE = 38;        // reactor array edge length, 1 for a lone reactor
 		public static final int SOURCE_CAPACITY = 39;   // tenths of kW a reactor (array) can supply
 		public static final int FUEL_CELLS = 40;        // Fuel Cells waiting in a reactor array's slots
-		static final int COUNT = 41;
+		public static final int PROCESS_STATUS = 41;    // ReactorArrays.ReactorStatus or NuclearProcessing.Status ordinal
+		static final int COUNT = 42;
 
 		private Stat() {}
 	}
@@ -248,5 +260,5 @@ public final class MachineScreenHandler extends ScreenHandler {
 	public String activeEvent() { return activeEvent; }
 
 	public enum Mode { RACK, SINGLE_SLOT, MACHINE_STATUS, CONTROLLER, MONITOR_WALL, EXCHANGE, CREATIVE,
-		STORAGE_ARRAY, TAPE_LIBRARY, TRANSMITTER, WORKSTATION }
+		STORAGE_ARRAY, TAPE_LIBRARY, TRANSMITTER, WORKSTATION, REACTOR, PROCESSOR }
 }

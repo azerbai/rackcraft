@@ -465,10 +465,11 @@ def back_heat_exchanger(base, key):
 BACK_STYLES = {"exhaust_mesh": back_exhaust_mesh, "radiator": back_radiator, "heat_exchanger": back_heat_exchanger}
 
 
-def rack_face(base, key, on):
+def rack_face(base, key, on, alert=None):
+    """Rack front. ``alert`` "warn" or "fault" swaps the status LEDs for blinking amber or red ones."""
     frames = []
     rng = rng_for(key + ":leds")
-    for frame in range(4 if on else 1):
+    for frame in range(4 if on or alert else 1):
         canvas = plate(base, key)
         canvas.inset(1, 1, 14, 14, darken(base, 0.55), lighten(base, 0.05), darken(base, 0.75))
         for row, y in enumerate((2, 5, 8, 11)):
@@ -478,7 +479,11 @@ def rack_face(base, key, on):
             canvas.set(2, y + 1, lighten(STEEL, 0.2))
             for x in range(4, 9):
                 canvas.set(x, y + 1, darken(bay, 0.35) if x % 2 else darken(bay, 0.2))
-            if on:
+            if alert:
+                led = LED_RED if alert == "fault" else LED_AMBER
+                canvas.set(11, y + 1, led if frame % 2 == 0 else darken(led, 0.6))
+                canvas.set(12, y + 1, led if frame % 2 == 0 else darken(led, 0.6))
+            elif on:
                 blink = rng.random() < 0.55 or frame % 2 == 0
                 canvas.set(11, y + 1, LED_GREEN if blink else darken(LED_GREEN, 0.5))
                 canvas.set(12, y + 1, LED_AMBER if rng.random() < 0.4 else darken(LED_AMBER, 0.6))
@@ -487,6 +492,10 @@ def rack_face(base, key, on):
                 canvas.set(12, y + 1, LED_OFF)
         for x in range(3, 13, 2):
             canvas.set(x, 13, darken(base, 0.6))
+        if alert and frame % 2 == 0:
+            # A status bar across the top that reads from across a hall.
+            led = LED_RED if alert == "fault" else LED_AMBER
+            canvas.hline(2, 13, 1, led)
         frames.append(canvas)
     return frames
 
@@ -869,7 +878,7 @@ def machine_textures(entry):
     side = SIDE_STYLES[entry.get("side", "panel")](base, key)
     back = BACK_STYLES[entry["back"]](base, key) if "back" in entry else side
     bottom = plate(darken(base, 0.35), key + ":bottom")
-    return {
+    faces = {
         "side": [side],
         "back": [back],
         "top": [TOP_STYLES[entry.get("top", "plate")](base, key)],
@@ -877,12 +886,40 @@ def machine_textures(entry):
         "front": FRONT_STYLES[style](base, key, False),
         "front_on": FRONT_STYLES[style](base, key, True),
     }
+    if style == "rack":
+        faces["front_warn"] = rack_face(base, key, True, "warn")
+        faces["front_fault"] = rack_face(base, key, True, "fault")
+    if entry.get("array"):
+        faces["formed"] = formed_face(base, key, False)
+        faces["formed_on"] = formed_face(base, key, True)
+    return faces
+
+
+def formed_face(base, key, on):
+    """Casing for a formed multiblock: riveted panels with a hazard band and a window onto the core, so a whole cube
+    reads as one big machine. The core glows and pulses while it runs."""
+    frames = []
+    for frame in range(4 if on else 1):
+        canvas = plate(darken(base, 0.15), key + ":formed", rivets=True)
+        canvas.frame(0, 0, 15, 15, darken(base, 0.55))
+        for x in range(1, 15):
+            canvas.set(x, 2, (226, 184, 72) if (x // 2) % 2 == 0 else BLACK)
+            canvas.set(x, 13, (226, 184, 72) if (x // 2) % 2 == 0 else BLACK)
+        canvas.inset(4, 5, 11, 10, GLASS_DARK, darken(base, 0.4), lighten(base, 0.2))
+        if on:
+            glow = mix((92, 236, 128), (190, 255, 210), [0.0, 0.4, 0.8, 0.4][frame])
+            canvas.rect(5, 6, 10, 9, darken(glow, 0.25))
+            canvas.rect(6, 7, 9, 8, glow)
+        else:
+            canvas.rect(6, 7, 9, 8, darken(base, 0.5))
+        frames.append(canvas)
+    return frames
 
 
 # ---------------------------------------------------------------- plain blocks
 
 def ore_block(entry):
-    stone = (126, 126, 126)
+    stone = (74, 74, 80) if entry.get("stone") == "deepslate" else (126, 126, 126)
     canvas = noisy(stone, entry["id"] + ":stone", 0.12)
     rng = rng_for(entry["id"] + ":veins")
     for y in range(SIZE):
@@ -1007,12 +1044,30 @@ def cable_joint(entry, cut=False):
     return canvas
 
 
+def cask_block(entry):
+    """A sealed dry cask: ribbed steel with a radiation trefoil."""
+    base = rgb(entry["color"])
+    canvas = noisy(base, entry["id"], 0.05)
+    for y in range(0, SIZE, 4):
+        canvas.hline(0, 15, y, darken(base, 0.25))
+        canvas.hline(0, 15, y + 1, lighten(base, 0.15))
+    canvas.disc(7.5, 7.5, 4.6, (226, 196, 60))
+    canvas.disc(7.5, 7.5, 1.2, BLACK)
+    for angle in (90, 210, 330):
+        for r in (2.2, 2.9, 3.6):
+            for spread in (-22, 0, 22):
+                a = math.radians(angle + spread)
+                canvas.set(int(7.5 + r * math.cos(a)), int(7.5 - r * math.sin(a)), BLACK)
+    return canvas
+
+
 BLOCK_STYLES = {
     "ore": ore_block,
     "brushed": brushed_block,
     "floor": floor_tile,
     "blank": blank_panel,
     "coal_block": coal_block,
+    "cask": cask_block,
 }
 
 
@@ -1628,6 +1683,37 @@ def item_generated_document(base, key):
 
 
 ITEM_STYLES["tensor"] = item_tensor
+
+
+def item_powder(base, key):
+    """A heap of powder, like yellowcake."""
+    canvas = Canvas()
+    rng = rng_for(key)
+    for y in range(SIZE):
+        for x in range(SIZE):
+            height = 12 - abs(x - 7.5) * 0.9
+            if 6 + (12 - height) * 0.5 <= y <= 13 and rng.random() < 0.94:
+                canvas.set(x, y, lighten(base, 0.2) if y < 9 else darken(base, rng.uniform(0, 0.25)))
+    return canvas
+
+
+def item_rod(base, key):
+    """A fuel rod, still glowing."""
+    canvas = Canvas()
+    for i in range(10):
+        x, y = 3 + i, 12 - i
+        canvas.set(x, y, (150, 160, 166))
+        canvas.set(x + 1, y, base)
+        canvas.set(x, y - 1, lighten(base, 0.35))
+        canvas.set(x + 1, y + 1, darken(base, 0.3))
+    canvas.set(3, 13, (90, 96, 100))
+    canvas.set(13, 2, (90, 96, 100))
+    canvas.set(8, 7, (230, 255, 230))
+    return canvas
+
+
+ITEM_STYLES["powder"] = item_powder
+ITEM_STYLES["rod"] = item_rod
 ITEM_STYLES["crayons"] = item_crayons
 ITEM_STYLES["shackles"] = item_shackles
 ITEM_STYLES["art_aggregate"] = item_art_aggregate
@@ -1737,6 +1823,17 @@ def effect_icon(kind):
             put(round(9 + r * math.cos(t)), round(9 + r * math.sin(t)), mix((214, 200, 150), SMOG, step / 90))
         for x, y in ((3, 3), (14, 4), (4, 14)):
             put(x, y, (246, 222, 120))
+    elif kind == "radiation":
+        # A trefoil on a yellow disc.
+        for y in range(18):
+            for x in range(18):
+                dx, dy = x - 8.5, y - 8.5
+                distance = math.hypot(dx, dy)
+                if distance > 8:
+                    continue
+                angle = (math.degrees(math.atan2(-dy, dx)) - 90) % 120
+                blade = 1.6 < distance < 6.8 and (angle < 30 or angle > 90)
+                put(x, y, (24, 24, 28) if distance < 1.3 or blade else (236, 206, 64))
     else:
         for cx, cy, radius in ((6, 10, 3.4), (10, 8, 4.0), (13, 11, 3.0), (9, 12, 3.2)):
             for y in range(18):

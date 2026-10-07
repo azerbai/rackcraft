@@ -3,6 +3,7 @@
   "values": [
     "rackcraft:art_table",
     "rackcraft:blanking_panel",
+    "rackcraft:cask_sealer",
     "rackcraft:cdu",
     "rackcraft:chiller",
     "rackcraft:cooling_tower",
@@ -12,6 +13,8 @@
     "rackcraft:dry_cooler",
     "rackcraft:exhaust_fan",
     "rackcraft:freshwater_pump",
+    "rackcraft:fuel_fabricator",
+    "rackcraft:gas_centrifuge",
     "rackcraft:modular_reactor",
     "rackcraft:raised_floor_tile",
     "rackcraft:rear_door_cooler",
@@ -20,6 +23,7 @@
     "rackcraft:solar_panel",
     "rackcraft:storage_array",
     "rackcraft:tape_library",
+    "rackcraft:uranium_mill",
     "rackcraft:water_heat_exchanger",
     "rackcraft:wind_turbine",
     "rackcraft:writing_desk"

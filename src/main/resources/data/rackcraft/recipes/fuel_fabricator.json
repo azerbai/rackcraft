@@ -1,0 +1,26 @@
+{
+  "key": {
+    "B": {
+      "item": "rackcraft:circuit_board"
+    },
+    "C": {
+      "item": "rackcraft:cpu_chip"
+    },
+    "F": {
+      "item": "minecraft:furnace"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    }
+  },
+  "pattern": [
+    "SCS",
+    "FBF",
+    "SSS"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:fuel_fabricator"
+  },
+  "type": "minecraft:crafting_shaped"
+}

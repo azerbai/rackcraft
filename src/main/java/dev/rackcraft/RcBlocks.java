@@ -31,7 +31,9 @@ public final class RcBlocks {
 				case "coolant_pipe" -> new CableBlock(settings, NetKind.COOLANT);
 				case "fiber_cable" -> new CableBlock(settings, NetKind.DATA);
 				case "item_pipe" -> new CableBlock(settings, NetKind.ITEM);
-				default -> ContentIds.MACHINE_IDS.contains(id) ? new MachineBlock(settings) : new Block(settings);
+				case "server_rack" -> new dev.rackcraft.block.RackBlock(settings);
+				default -> ContentIds.ARRAY_IDS.contains(id) ? new dev.rackcraft.block.ArrayMachineBlock(settings)
+						: ContentIds.MACHINE_IDS.contains(id) ? new MachineBlock(settings) : new Block(settings);
 			};
 			BLOCKS.put(id, Registry.register(Registries.BLOCK, Rackcraft.id(id), block));
 		}

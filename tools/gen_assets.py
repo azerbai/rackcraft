@@ -130,6 +130,8 @@ def write_java(blocks, items):
         f"\tpublic static final List<String> BLOCK_IDS = {java_list([entry['id'] for entry in blocks])};",
         f"\tpublic static final List<String> ITEM_IDS = {java_list([entry['id'] for entry in items])};",
         f"\tpublic static final List<String> MACHINE_IDS = {java_list([entry['id'] for entry in blocks if entry.get('machine')])};",
+        "\t/** Machines that form cube multiblocks (2x2x2 to 5x5x5) and have a FORMED block state. */",
+        f"\tpublic static final List<String> ARRAY_IDS = {java_list([entry['id'] for entry in blocks if entry.get('array')])};",
         "\t/** Storage capacity in items for drives and tapes. */",
         "\tpublic static final Map<String, Long> DRIVE_CAPACITY = Map.ofEntries("
         + ", ".join(f"Map.entry({json.dumps(entry['id'])}, {entry['capacity']}L)" for entry in items if entry.get("capacity")) + ");",
@@ -370,6 +372,13 @@ def main():
                 write_texture(block_textures / f"{identifier}_{suffix}.png", frames)
             model = machine_model(identifier, "front")
             write_json(RESOURCES / f"assets/rackcraft/models/block/{identifier}_on.json", machine_model(identifier, "front_on"))
+            if block.get("front") == "rack":
+                for alert in ("warn", "fault"):
+                    write_json(RESOURCES / f"assets/rackcraft/models/block/{identifier}_{alert}.json", machine_model(identifier, f"front_{alert}"))
+            if block.get("array"):
+                for suffix in ("formed", "formed_on"):
+                    write_json(RESOURCES / f"assets/rackcraft/models/block/{identifier}_{suffix}.json", {
+                        "parent": "minecraft:block/cube_all", "textures": {"all": f"rackcraft:block/{identifier}_{suffix}"}})
         else:
             write_texture(block_textures / f"{identifier}.png", textures.block_texture(block))
             model = {"parent": "minecraft:block/cube_all", "textures": {"all": texture_path}}
@@ -383,6 +392,16 @@ def main():
                 for facing, rotation in rotations.items()
                 for lit in (False, True)
             }
+            if block.get("array"):
+                # A formed cube shows its casing on every face; facing doesn't matter then.
+                variants = {f"{key},formed={str(formed).lower()}": (
+                    {"model": f"rackcraft:block/{identifier}_formed{'_on' if 'lit=true' in key else ''}"} if formed else value)
+                    for key, value in variants.items() for formed in (False, True)}
+            if block.get("front") == "rack":
+                # Health: amber for a slowed rack, red for a stopped one, whether or not it is lit.
+                variants = {f"{key},health={health}": (value if health == "ok" else
+                    {"model": f"rackcraft:block/{identifier}_{health}", "y": value["y"]})
+                    for key, value in variants.items() for health in ("ok", "warn", "fault")}
         else:
             variants = {"": {"model": f"rackcraft:block/{identifier}"}}
         if identifier in CABLE_IDS:
@@ -393,19 +412,19 @@ def main():
             write_json(RESOURCES / f"assets/rackcraft/models/item/{identifier}.json", {
                 "parent": f"rackcraft:block/{identifier}"
             })
-        drops = "raw_bauxite" if identifier == "bauxite_ore" else identifier
-        if identifier == "bauxite_ore":
+        drops = block.get("drops", identifier)
+        if drops != identifier:
             loot = {"type": "minecraft:block", "pools": [{
                 "rolls": 1,
                 "entries": [{"type": "minecraft:alternatives", "children": [
-                    {"type": "minecraft:item", "name": "rackcraft:bauxite_ore", "conditions": [{
+                    {"type": "minecraft:item", "name": f"rackcraft:{identifier}", "conditions": [{
                         "condition": "minecraft:match_tool",
                         "predicate": {"enchantments": [{
                             "enchantment": "minecraft:silk_touch",
                             "levels": {"min": 1}
                         }]}
                     }]},
-                    {"type": "minecraft:item", "name": "rackcraft:raw_bauxite", "functions": [
+                    {"type": "minecraft:item", "name": f"rackcraft:{drops}", "functions": [
                         {"function": "minecraft:apply_bonus", "enchantment": "minecraft:fortune", "formula": "minecraft:ore_drops"},
                         {"function": "minecraft:explosion_decay"}
                     ]}
@@ -559,6 +578,7 @@ def main():
         "creative.rackcraft.live_router": "Adds this bandwidth to every rack on its fiber network.",
         "effect.rackcraft.dizzy": "Smog Dizziness",
         "effect.rackcraft.coughing": "Smoker's Cough",
+        "effect.rackcraft.radiation": "Radiation Sickness",
     })
     for entry in blocks + items:
         lang[f"guide.rackcraft.entry.{entry['id']}"] = entry["desc"]
@@ -593,11 +613,32 @@ def main():
             {"type": "minecraft:biome"}
         ]
     })
+    write_json(RESOURCES / "data/rackcraft/worldgen/configured_feature/uranium_ore.json", {
+        "type": "minecraft:ore",
+        "config": {"size": 4, "discard_chance_on_air_exposure": 0.5, "targets": [
+            {"target": {"predicate_type": "minecraft:tag_match", "tag": "minecraft:deepslate_ore_replaceables"}, "state": {"Name": "rackcraft:uranium_ore"}},
+            {"target": {"predicate_type": "minecraft:tag_match", "tag": "minecraft:stone_ore_replaceables"}, "state": {"Name": "rackcraft:uranium_ore"}}
+        ]}
+    })
+    write_json(RESOURCES / "data/rackcraft/worldgen/placed_feature/uranium_ore.json", {
+        "feature": "rackcraft:uranium_ore",
+        "placement": [
+            {"type": "minecraft:count", "count": 4},
+            {"type": "minecraft:in_square"},
+            {"type": "minecraft:height_range", "height": {
+                "type": "minecraft:uniform",
+                "min_inclusive": {"absolute": -64},
+                "max_inclusive": {"absolute": 16}
+            }},
+            {"type": "minecraft:biome"}
+        ]
+    })
+    write_json(RESOURCES / "data/minecraft/tags/blocks/needs_iron_tool.json", {"replace": False, "values": ["rackcraft:uranium_ore"]})
     write_json(RESOURCES / "data/rackcraft/loot_tables/chests/abandoned_data_center.json", data_center_loot())
     data_center_worldgen()
     effect_textures = RESOURCES / "assets/rackcraft/textures/mob_effect"
     effect_textures.mkdir(parents=True, exist_ok=True)
-    for effect in ("dizzy", "coughing"):
+    for effect in ("dizzy", "coughing", "radiation"):
         (effect_textures / f"{effect}.png").write_bytes(textures.effect_icon(effect))
     # Armor materials in 1.20.1 can only name textures in the minecraft namespace.
     armor = RESOURCES / "assets/minecraft/textures/models/armor/rackcraft_respirator_layer_1.png"

@@ -25,7 +25,9 @@ import net.minecraft.util.math.BlockPos;
  *   <li>Kids' Art Tables get paper and a box of Crayons, Scriptorium Desks paper and ink sacs; their finished
  *       Art Aggregates and Text Corpora go back into storage.</li>
  *   <li>Diesel Generators get fuel (the best on hand first) and hand back empty buckets; Modular Reactors get
- *       Fuel Cells.</li>
+ *       Fuel Cells and hand back Spent Fuel.</li>
+ *   <li>The nuclear processing cubes get their inputs and hand back what they make, so storage can run the whole
+ *       fuel cycle: ore to Fuel Cells, and Spent Fuel to sealed casks.</li>
  * </ul>
  */
 public final class ItemPipes {
@@ -33,6 +35,8 @@ public final class ItemPipes {
 	public static final int INK_STOCK = 8;
 	public static final int FUEL_STOCK = 32;
 	public static final int FUEL_CELL_STOCK = 4;
+	/** Input kept in each core of a nuclear processing cube. */
+	public static final int PROCESS_STOCK = 8;
 
 	private ItemPipes() {}
 
@@ -85,7 +89,17 @@ public final class ItemPipes {
 					return;
 				}
 			}
-			case "modular_reactor" -> stock(machine, 0, ItemKey.of(RcItems.ITEMS.get("fuel_cell")), FUEL_CELL_STOCK, items);
+			case "modular_reactor" -> {
+				stock(machine, ReactorArrays.FUEL_SLOT, ItemKey.of(RcItems.ITEMS.get("fuel_cell")), FUEL_CELL_STOCK, items);
+				store(machine, ReactorArrays.WASTE_SLOT, items);
+			}
+			case "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer" -> {
+				NuclearProcessing.Recipe recipe = NuclearProcessing.recipe(machine.blockId());
+				stock(machine, 0, ItemKey.of(recipe.inputA()), Math.max(PROCESS_STOCK, recipe.countA() * 4), items);
+				if (recipe.inputB() != null) stock(machine, 1, ItemKey.of(recipe.inputB()), Math.max(PROCESS_STOCK, recipe.countB() * 4), items);
+				store(machine, NuclearProcessing.OUTPUT_SLOT, items);
+				store(machine, NuclearProcessing.BYPRODUCT_SLOT, items);
+			}
 			default -> {}
 		}
 	}

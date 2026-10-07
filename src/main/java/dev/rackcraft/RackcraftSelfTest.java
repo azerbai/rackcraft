@@ -32,7 +32,7 @@ public final class RackcraftSelfTest {
 
 	private static void run(MinecraftServer server) {
 		int[] failures = {0};
-		check("S0.a", RcBlocks.BLOCKS.size() == 44 && RcItems.ITEMS.size() == 42,
+		check("S0.a", RcBlocks.BLOCKS.size() == 50 && RcItems.ITEMS.size() == 47,
 				"blocks=" + RcBlocks.BLOCKS.size() + " items=" + RcItems.ITEMS.size(), failures);
 		ServerWorld world = server.getOverworld();
 		BlockPos generatorPos = new BlockPos(0, 80, 0);
@@ -104,6 +104,7 @@ public final class RackcraftSelfTest {
 		checkCooling(world, failures);
 		checkReactorArray(world, failures);
 		checkItemPipes(world, failures);
+		checkNuclear(world, failures);
 		checkStructures(world, failures);
 		check("S0.b", SimTicker.failedSteps() == 0, "simulation steps that threw=" + SimTicker.failedSteps(), failures);
 		Rackcraft.LOGGER.info("RACKCRAFT_SELFTEST DONE failures={}", failures[0]);
@@ -510,6 +511,11 @@ public final class RackcraftSelfTest {
 		for (int step = 0; step < 20; step++) SimTicker.stepNow(world);
 		check("H1.a", dark.inletCelsius() < ambient + 0.5 && dark.exhaustCelsius() < ambient + 0.5 && dark.heatToAirKw() == 0,
 				"unpowered rack: inlet=" + dark.inletCelsius() + " exhaust=" + dark.exhaustCelsius() + " toAir=" + dark.heatToAirKw(), failures);
+		// It shows red on its front, and the fault finder lists it.
+		var health = world.getBlockState(origin).get(dev.rackcraft.block.RackBlock.HEALTH);
+		boolean listed = dev.rackcraft.world.FaultFinder.faults(world, SimTicker.machines(world)).stream()
+				.anyMatch(fault -> fault.pos().equals(origin) && fault.severity() == 2);
+		check("F1.a", health == dev.rackcraft.block.RackBlock.Health.FAULT && listed, "health=" + health + " listedByFaultFinder=" + listed, failures);
 
 		BlockPos airRackPos = origin.east(6);
 		world.setBlockState(airRackPos.west(), RcBlocks.get("creative_power").getDefaultState());
@@ -559,17 +565,79 @@ public final class RackcraftSelfTest {
 		load.setCreativeValue(CreativeSettings.MINING_RATE, 0);
 		for (int step = 0; step < 4; step++) SimTicker.stepNow(world);
 		boolean formed = cores.stream().allMatch(core -> core.reactorArraySize() == 2 && core.reactorCapacityKw() == 4000);
-		int cells = cores.get(5).getStack(0).getCount();
+		// Pooling spreads the spare cells over the cores, so count the whole cube.
+		int cells = cores.stream().mapToInt(core -> core.getStack(0).getCount()).sum();
 		int ticks = cores.get(0).arrayFuelTicks();
 		check("R1.a", formed && load.powerSatisfaction() > 0.99 && cells == 2 && ticks > 0
 						&& ticks < dev.rackcraft.world.ReactorArrays.FUEL_CELL_TICKS && cores.get(3).powerKw() > 2999,
 				"formed=" + formed + " supplied=" + load.powerSatisfaction() + " cellsLeft=" + cells + " fuelTicks=" + ticks
 						+ " output=" + cores.get(3).powerKw() + " efficiency=" + dev.rackcraft.world.ReactorArrays.efficiency(2), failures);
+		boolean formedState = cores.stream().allMatch(core -> world.getBlockState(core.getPos()).get(dev.rackcraft.block.ArrayMachineBlock.FORMED));
+		int most = cores.stream().mapToInt(core -> core.getStack(0).getCount()).max().orElse(0);
+		check("R2.a", formedState && most <= 1 && cores.stream().mapToInt(core -> core.getStack(0).getCount()).sum() == 2,
+				"formed=" + formedState + " fuel per core=" + cores.stream().map(core -> core.getStack(0).getCount()).toList(), failures);
+		// Burn the current cell out: it comes back as Spent Fuel. Fill every waste slot and the next one can't go anywhere.
+		cores.get(0).setFuelBurnTicks(1);
+		SimTicker.stepNow(world);
+		int spent = dev.rackcraft.world.ReactorArrays.count(cores, 1, RcItems.ITEMS.get("spent_fuel"));
+		for (MachineBlockEntity core : cores) core.setStack(1, new ItemStack(RcItems.ITEMS.get("spent_fuel"), 16));
+		cores.get(0).setFuelBurnTicks(1);
+		for (int step = 0; step < 3; step++) SimTicker.stepNow(world);
+		boolean stopped = cores.get(0).pendingWaste() == 1 && cores.get(3).powerKw() == 0
+				&& cores.get(3).processStatus() == dev.rackcraft.world.ReactorArrays.ReactorStatus.WASTE_FULL.ordinal();
+		check("R2.b", spent == 1 && stopped, "spentAfterOneCell=" + spent + " pending=" + cores.get(0).pendingWaste()
+				+ " output=" + cores.get(3).powerKw() + " status=" + cores.get(3).processStatus(), failures);
+		for (MachineBlockEntity core : cores) core.setStack(1, ItemStack.EMPTY);
+		SimTicker.stepNow(world);
+		check("R2.c", cores.get(0).pendingWaste() == 0 && cores.get(3).powerKw() > 0,
+				"after emptying the waste: pending=" + cores.get(0).pendingWaste() + " output=" + cores.get(3).powerKw(), failures);
 		world.setBlockState(origin.add(1, 1, 1), Blocks.AIR.getDefaultState());
 		SimTicker.stepNow(world);
 		check("R1.b", cores.get(0).reactorArraySize() == 1 && cores.get(0).reactorCapacityKw() == 500,
 				"after breaking the cube: size=" + cores.get(0).reactorArraySize() + " capacity=" + cores.get(0).reactorCapacityKw(), failures);
 		clearArea(world, origin, 10, 6, 10);
+	}
+
+	/** Each nuclear processing machine as a powered 2x2x2: inputs in one core are shared, and it makes its product. */
+	private static void checkNuclear(ServerWorld world, int[] failures) {
+		String[][] runs = {
+				{"uranium_mill", "raw_uranium", "16", "", "0", "yellowcake"},
+				{"gas_centrifuge", "yellowcake", "16", "", "0", "enriched_uranium"},
+				{"fuel_fabricator", "enriched_uranium", "4", "steel_ingot", "4", "fuel_cell"},
+				{"cask_sealer", "spent_fuel", "8", "depleted_uranium", "8", "waste_cask"}};
+		for (int index = 0; index < runs.length; index++) {
+			String[] run = runs[index];
+			BlockPos origin = clearArea(world, new BlockPos(-768 + index * 12, 150, -384), 6, 6, 6);
+			world.setBlockState(origin.west(), RcBlocks.get("creative_power").getDefaultState());
+			List<MachineBlockEntity> cores = new java.util.ArrayList<>();
+			for (BlockPos pos : BlockPos.iterate(origin, origin.add(1, 1, 1))) cores.add(place(world, pos.toImmutable(), run[0], Direction.NORTH));
+			cores.get(6).setStack(0, new ItemStack(item(run[1]), Integer.parseInt(run[2])));
+			if (!run[3].isEmpty()) cores.get(2).setStack(1, new ItemStack(item(run[3]), Integer.parseInt(run[4])));
+			for (int step = 0; step < 24; step++) SimTicker.stepNow(world);
+			net.minecraft.item.Item product = item(run[5]);
+			int made = dev.rackcraft.world.ReactorArrays.count(cores, 2, product);
+			boolean formed = world.getBlockState(origin).get(dev.rackcraft.block.ArrayMachineBlock.FORMED);
+			check("N1." + run[0], made > 0 && formed && cores.get(0).reactorArraySize() == 2,
+					"made " + made + " " + run[5] + ", status=" + cores.get(0).processStatus() + " formed=" + formed
+							+ " power=" + cores.get(0).powerSatisfaction() + " inputsLeft=" + cores.stream().map(core -> core.getStack(0).getCount()).toList(), failures);
+			clearArea(world, origin, 6, 6, 6);
+		}
+		BlockPos lone = clearArea(world, new BlockPos(-768, 150, -360), 4, 4, 4);
+		world.setBlockState(lone.west(), RcBlocks.get("creative_power").getDefaultState());
+		MachineBlockEntity single = place(world, lone, "uranium_mill", Direction.NORTH);
+		single.setStack(0, new ItemStack(item("raw_uranium"), 4));
+		for (int step = 0; step < 6; step++) SimTicker.stepNow(world);
+		check("N1.single", single.getStack(2).isEmpty() && single.processStatus() == dev.rackcraft.world.NuclearProcessing.Status.NOT_FORMED.ordinal(),
+				"a lone mill does nothing: out=" + single.getStack(2) + " status=" + single.processStatus(), failures);
+		clearArea(world, lone, 4, 4, 4);
+		var placed = world.getRegistryManager().get(net.minecraft.registry.RegistryKeys.PLACED_FEATURE);
+		check("N2.a", placed.containsId(Rackcraft.id("uranium_ore")) && RcBlocks.BLOCKS.containsKey("uranium_ore"),
+				"uranium ore feature registered=" + placed.containsId(Rackcraft.id("uranium_ore")), failures);
+	}
+
+	private static net.minecraft.item.Item item(String id) {
+		net.minecraft.item.Item item = RcItems.ITEMS.get(id);
+		return item != null ? item : RcBlocks.get(id).asItem();
 	}
 
 	/** An Item Pipe from a Storage Array stocks an art table, a desk and a generator, and files the art aggregates. */
@@ -586,6 +654,8 @@ public final class RackcraftSelfTest {
 		MachineBlockEntity table = place(world, origin.add(3, 1, 0), "art_table", Direction.SOUTH);
 		MachineBlockEntity desk = place(world, origin.add(4, 1, 0), "writing_desk", Direction.SOUTH);
 		MachineBlockEntity generator = place(world, origin.add(6, 1, 0), "diesel_generator", Direction.SOUTH);
+		MachineBlockEntity reactor = place(world, origin.add(5, 1, 0), "modular_reactor", Direction.SOUTH);
+		reactor.setStack(1, new ItemStack(RcItems.ITEMS.get("spent_fuel"), 2));
 		table.setStack(2, new ItemStack(RcItems.ITEMS.get("art_aggregate"), 3));
 		SimTicker.stepNow(world);
 		var storage = dev.rackcraft.storage.StorageService.networkAt(world, array.getPos());
@@ -593,8 +663,12 @@ public final class RackcraftSelfTest {
 		storage.insert(dev.rackcraft.storage.ItemKey.of(Items.INK_SAC), 10, false);
 		storage.insert(dev.rackcraft.storage.ItemKey.of(RcItems.ITEMS.get("crayons")), 2, false);
 		storage.insert(dev.rackcraft.storage.ItemKey.of(Items.COAL), 40, false);
+		storage.insert(dev.rackcraft.storage.ItemKey.of(RcItems.ITEMS.get("fuel_cell")), 6, false);
 		dev.rackcraft.world.ItemPipes.step(world, SimTicker.machines(world));
 		long aggregates = storage.count(dev.rackcraft.storage.ItemKey.of(RcItems.ITEMS.get("art_aggregate")), true);
+		long spentStored = storage.count(dev.rackcraft.storage.ItemKey.of(RcItems.ITEMS.get("spent_fuel")), true);
+		check("P1.b", spentStored == 2 && reactor.getStack(1).isEmpty() && reactor.getStack(0).getCount() == 4,
+				"reactor on the pipe: spentStored=" + spentStored + " waste=" + reactor.getStack(1) + " fuel=" + reactor.getStack(0), failures);
 		check("P1.a", table.getStack(0).getCount() == 32 && table.getStack(1).isOf(RcItems.ITEMS.get("crayons"))
 						&& desk.getStack(0).getCount() == 32 && desk.getStack(1).getCount() == 8 && table.getStack(2).isEmpty()
 						&& aggregates == 3 && generator.getStack(0).isOf(Items.COAL) && generator.getStack(0).getCount() == 32,
@@ -816,7 +890,10 @@ public final class RackcraftSelfTest {
 		String reactorInfo = reactor == null ? "none" : reactor.reactorArraySize() + "-cube, " + Math.round(reactor.powerKw()) + " / "
 				+ Math.round(reactor.reactorCapacityKw()) + " kW, loop " + Math.round(reactor.loopHeatKw()) + "/"
 				+ Math.round(reactor.loopCapacityKw());
-		check("D5.a", cuts.size() == 5 && racks.size() == 200 && darkBefore > 150 && bad == 0 && hottest < 27,
+		reactorInfo += " pumps=" + SimTicker.machines(world).stream().filter(machine -> machine.blockId().equals("freshwater_pump")
+				&& machine.getPos().isWithinDistance(origin, size * 1.5)).map(pump -> pump.pumpStatus() + "/" + pump.pumpUnits()
+				+ "@" + world.getBiome(pump.getPos()).getKey().map(key -> key.getValue().getPath()).orElse("?")).toList();
+		check("D5.a", cuts.size() == 5 && racks.size() == 200 && darkBefore > 150 && bad == 0 && hottest < 27 && toAir < 1,
 				"cuts=" + cuts.size() + " racks=" + racks.size() + " darkBeforeRepair=" + darkBefore + " after=" + statuses
 						+ " hottestInlet=" + String.format(java.util.Locale.ROOT, "%.1f", hottest) + " maxToAir=" + toAir
 						+ " reactor=" + reactorInfo, failures);

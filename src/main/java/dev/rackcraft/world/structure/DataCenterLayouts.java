@@ -712,7 +712,8 @@ public final class DataCenterLayouts {
 
 	/**
 	 * The quantum vault: one row of eight Quantum Core racks, each beside a CDU, with Rear-Door Coolers behind.
-	 * Its loop runs out to six cooling towers, and two pumps on the reservoir keep the towers in water.
+	 * Its loop runs through three chillers out to six cooling towers, and two pumps on the reservoir keep the towers
+	 * in water.
 	 */
 	private static void quantumVault(Site s, int x0, int z0) {
 		int x1 = x0 + 21;
@@ -739,6 +740,8 @@ public final class DataCenterLayouts {
 		// Coolant out through the east wall to the towers, power alongside.
 		s.cableRun(xe + 1, 1, z, x1 + 2, 1, z, "coolant_pipe");
 		s.cableRun(xe + 1, 1, z + 1, x1 + 8, 1, z + 1, "power_cable");
+		// Three chillers inline on the loop carry the vault on their own, in case the reservoir turns out to be salt.
+		for (int i = 0; i < 3; i++) s.machine(xe + 2 + i, 1, z, "chiller", N);
 		for (int i = 0; i < 6; i++) s.machine(x1 + 3 + i, 1, z, "cooling_tower", N);
 		for (int x = x0 + 3; x <= x1 - 3; x += 5) s.set(x, 6, z0 + 3, hangingLantern());
 		s.chest(x1 - 2, 1, z1 - 2, W, VAULT_LOOT);

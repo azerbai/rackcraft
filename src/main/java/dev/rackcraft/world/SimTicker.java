@@ -8,7 +8,9 @@ import dev.rackcraft.compute.ComputeScheduler;
 import dev.rackcraft.compute.TrainingStations;
 import dev.rackcraft.storage.StorageService;
 import dev.rackcraft.storage.TransmitterUpgrades;
+import dev.rackcraft.block.ArrayMachineBlock;
 import dev.rackcraft.block.MachineBlock;
+import dev.rackcraft.block.RackBlock;
 import dev.rackcraft.block.MachineBlockEntity;
 import dev.rackcraft.block.CableBlock;
 import dev.rackcraft.block.RackStatus;
@@ -107,6 +109,7 @@ public final class SimTicker {
 			if (!machine.blockId().equals("server_rack")) machine.setPowerKw(0);
 		}
 		Map<MachineBlockEntity, ReactorArrays.Array> reactors = ReactorArrays.scan(machines);
+		Map<MachineBlockEntity, ReactorArrays.Array> arrays = ReactorArrays.scanAll(machines);
 
 		for (Set<BlockPos> component : networks.components(NetKind.POWER)) {
 			List<MachineBlockEntity> members = machines.stream()
@@ -172,13 +175,19 @@ public final class SimTicker {
 		for (ReactorArrays.Array array : new HashSet<>(reactors.values())) {
 			double output = sourceOutput.getOrDefault(array.controller(), 0.0);
 			ReactorArrays.burn(array, output, RackcraftConfig.values.sim.stepTicks);
+			// Fuel and waste are shared evenly across the cores, wherever they went in.
+			ReactorArrays.pool(array.members(), ReactorArrays.FUEL_SLOT);
+			ReactorArrays.pool(array.members(), ReactorArrays.WASTE_SLOT);
 			MachineBlockEntity controller = array.controller();
 			int cells = array.fuelCells();
+			ReactorArrays.ReactorStatus status = ReactorArrays.status(array, output);
 			for (MachineBlockEntity member : array.members()) {
 				member.setPowerKw(output);
 				member.setReactorArray(array.edge(), array.capacityKw(), controller.fuelBurnTicks(), controller.fuelBurnTotal(), cells);
+				member.setProcess(status.ordinal(), output > 0);
 			}
 		}
+		NuclearProcessing.step(arrays, satisfaction, dt);
 
 		ThermalGrid heat = thermalGrid(world);
 		boolean coolingFailure = FacilityManager.get(world).activeEvent().equals("cooling_failure");
@@ -276,6 +285,7 @@ public final class SimTicker {
 		loops.finish(world, dt);
 
 		updateLitStates(world, machines, satisfaction, sourceOutput, energized, networks, fanHeat);
+		updateFormedStates(world, arrays);
 		stepStorage(world, machines, heat, satisfaction, dt);
 		if (world.getTime() % 20 < Math.max(1, RackcraftConfig.values.sim.stepTicks)) ItemPipes.step(world, machines);
 		TrainingStations.step(world, machines, dt);
@@ -285,6 +295,7 @@ public final class SimTicker {
 			if (machine.blockId().equals("smog_scrubber")) scrubbers.put(machine, satisfaction.getOrDefault(machine, 0.0));
 		}
 		AirQuality.get(world).step(world, fanHeat, scrubbers, dt);
+		if (world.getTime() % 40 < Math.max(1, RackcraftConfig.values.sim.stepTicks)) Radiation.step(world);
 		applyMachineHeat(world, machines, heat, dt);
 		heat.step(dt, airMap(world));
 		pinCreativeCoolers(world, machines, heat);
@@ -293,6 +304,8 @@ public final class SimTicker {
 		List<MachineBlockEntity> racks = machines.stream().filter(machine -> machine.blockId().equals("server_rack")).toList();
 		Map<MachineBlockEntity, RackStatus> lent = ComputeScheduler.tick(world, racks, dt);
 		awardCredits(world, machines, rackSteps, networks, satisfaction, lent, dt);
+		updateRackHealth(world, racks);
+		FaultFinder.send(world, machines);
 		FacilityManager facility = FacilityManager.get(world);
 		long previousEventTick = facility.eventTicks();
 		facility.advanceEventClock(RackcraftConfig.values.sim.stepTicks);
@@ -354,6 +367,8 @@ public final class SimTicker {
 				case "solar_panel", "wind_turbine", "utility_intake", "diesel_generator",
 						"battery_bank", "creative_power" -> sourceOutput.getOrDefault(machine, 0.0) > 0;
 				case "modular_reactor" -> machine.powerKw() > 0;
+				case "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer" ->
+						machine.processStatus() == NuclearProcessing.Status.RUNNING.ordinal();
 				// Fans only spin while they have heat to move; cooling gear shows when it is actually working.
 				case "exhaust_fan" -> fanHeat.containsKey(machine);
 				case "cooling_tower", "dry_cooler", "chiller", "water_heat_exchanger", "rear_door_cooler", "crac_unit" ->
@@ -386,6 +401,28 @@ public final class SimTicker {
 		}
 	}
 
+	/** Multiblock cores switch to their array casing while they are part of a whole cube. */
+	private static void updateFormedStates(ServerWorld world, Map<MachineBlockEntity, ReactorArrays.Array> arrays) {
+		arrays.forEach((machine, array) -> {
+			BlockState state = machine.getCachedState();
+			boolean formed = array.edge() >= 2;
+			if (state.contains(ArrayMachineBlock.FORMED) && state.get(ArrayMachineBlock.FORMED) != formed) {
+				world.setBlockState(machine.getPos(), state.with(ArrayMachineBlock.FORMED, formed), net.minecraft.block.Block.NOTIFY_LISTENERS);
+			}
+		});
+	}
+
+	/** Racks show their health on their front: amber when slowed, red when stopped. */
+	private static void updateRackHealth(ServerWorld world, List<MachineBlockEntity> racks) {
+		for (MachineBlockEntity rack : racks) {
+			BlockState state = rack.getCachedState();
+			RackBlock.Health health = RackBlock.Health.of(rack.rackStatus());
+			if (state.contains(RackBlock.HEALTH) && state.get(RackBlock.HEALTH) != health) {
+				world.setBlockState(rack.getPos(), state.with(RackBlock.HEALTH, health), net.minecraft.block.Block.NOTIFY_LISTENERS);
+			}
+		}
+	}
+
 	private static double demandFor(MachineBlockEntity machine) {
 		return switch (machine.blockId()) {
 			case "server_rack" -> ServerModel.calculate(machine.modules(), machine.loadLimitPercent(), 1,
@@ -397,6 +434,7 @@ public final class SimTicker {
 			case "dry_cooler" -> 2;
 			case "chiller" -> CoolingLoops.CHILLER_BASE_KW + CoolingLoops.CHILLER_KW_PER_KW * machine.coolingKw();
 			case "water_heat_exchanger" -> 0.5;
+			case "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer" -> NuclearProcessing.demandKw(machine);
 			case "cdu" -> 0.5;
 			case "facility_controller" -> 0.5;
 			case "creative_rack" -> machine.creativeValue(CreativeSettings.DRAW_KW);

@@ -30,6 +30,7 @@ public final class RcItems {
 			if (SINGLE_STACK.contains(id)) settings.maxCount(1);
 			if (id.equals("repair_kit")) settings.maxCount(1).maxDamage(8);
 			if (id.equals("crayons")) settings.maxCount(1).maxDamage(64);
+			if (id.equals("spent_fuel")) settings.maxCount(16);
 			Item item = switch (id) {
 				case "field_manual" -> new FieldManualItem(settings);
 				case "multimeter" -> new MultimeterItem(settings.maxCount(1));

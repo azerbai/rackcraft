@@ -85,6 +85,11 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 	private int arrayFuelTicks;
 	private int arrayFuelTotal;
 	private int arrayFuelCells;
+	// Array machines: what the cube is doing (a ReactorArrays.ReactorStatus or NuclearProcessing.Status ordinal) and
+	// whether it was working last step (for its power draw); not saved. A spent cell waiting for waste room is.
+	private int processStatus;
+	private boolean processActive;
+	private int pendingWaste;
 
 	public MachineBlockEntity(BlockPos pos, BlockState state) {
 		super(RcBlocks.MACHINE_ENTITY, pos, state);
@@ -113,7 +118,7 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 			"freshwater_pump", "server_rack", "modular_reactor", "rear_door_cooler", "dry_cooler", "chiller", "water_heat_exchanger");
 	/** Machines an Item Pipe feeds from storage (and empties into it): storage itself, the training stations and generators. */
 	public static final java.util.Set<String> ITEM_MACHINES = java.util.Set.of("storage_array", "tape_library", "art_table",
-			"writing_desk", "diesel_generator", "modular_reactor");
+			"writing_desk", "diesel_generator", "modular_reactor", "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer");
 
 	public static java.util.Set<NetKind> networkKinds(String id) {
 		java.util.EnumSet<NetKind> kinds = java.util.EnumSet.noneOf(NetKind.class);
@@ -128,6 +133,7 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 				"monitoring_wall", "creative_router").contains(id)) kinds.add(NetKind.DATA);
 		if (List.of("creative_power", "creative_rack").contains(id)) kinds.add(NetKind.POWER);
 		if (List.of("storage_array", "tape_library", "wireless_transmitter").contains(id)) kinds.add(NetKind.POWER);
+		if (dev.rackcraft.world.NuclearProcessing.recipe(id) != null) kinds.add(NetKind.POWER);
 		if (List.of("storage_array", "tape_library", "storage_terminal", "wireless_transmitter").contains(id)) kinds.add(NetKind.DATA);
 		return kinds;
 	}
@@ -178,6 +184,8 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 	@Override
 	public boolean canExtract(int slot, ItemStack stack, net.minecraft.util.math.Direction side) {
 		String id = blockId();
+		if (id.equals("modular_reactor")) return slot == dev.rackcraft.world.ReactorArrays.WASTE_SLOT;
+		if (dev.rackcraft.world.NuclearProcessing.recipe(id) != null) return slot == 2 || slot == 3;
 		return !(id.equals("art_table") || id.equals("writing_desk")) || slot == 2;
 	}
 
@@ -196,6 +204,8 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 		}
 		if (blockId.equals("diesel_generator")) return slot == 0;
 		if (blockId.equals("modular_reactor")) return slot == 0 && stack.isOf(dev.rackcraft.RcItems.ITEMS.get("fuel_cell"));
+		dev.rackcraft.world.NuclearProcessing.Recipe recipe = dev.rackcraft.world.NuclearProcessing.recipe(blockId);
+		if (recipe != null) return slot == 0 ? stack.isOf(recipe.inputA()) : slot == 1 && recipe.inputB() != null && stack.isOf(recipe.inputB());
 		if (blockId.equals("storage_array")) {
 			return slot < 8 && stack.getItem() instanceof dev.rackcraft.storage.DriveItem drive && !drive.cold();
 		}
@@ -324,6 +334,14 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 		arrayFuelTotal = fuelTotal;
 		arrayFuelCells = fuelCells;
 	}
+	public int processStatus() { return processStatus; }
+	public boolean processActive() { return processActive; }
+	public void setProcess(int status, boolean active) {
+		processStatus = status;
+		processActive = active;
+	}
+	public int pendingWaste() { return pendingWaste; }
+	public void setPendingWaste(int value) { pendingWaste = Math.max(0, value); markDirty(); }
 	public java.util.UUID boundVillager() { return boundVillager; }
 	public void setBoundVillager(java.util.UUID villager) { boundVillager = villager; markDirty(); }
 
@@ -377,7 +395,9 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 		String id = blockId();
 		MachineScreenHandler.Mode mode = switch (id) {
 			case "server_rack" -> MachineScreenHandler.Mode.RACK;
-			case "diesel_generator", "modular_reactor", "fire_suppression_tank" -> MachineScreenHandler.Mode.SINGLE_SLOT;
+			case "diesel_generator", "fire_suppression_tank" -> MachineScreenHandler.Mode.SINGLE_SLOT;
+			case "modular_reactor" -> MachineScreenHandler.Mode.REACTOR;
+			case "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer" -> MachineScreenHandler.Mode.PROCESSOR;
 			case "crypto_exchange" -> MachineScreenHandler.Mode.EXCHANGE;
 			case "storage_array" -> MachineScreenHandler.Mode.STORAGE_ARRAY;
 			case "tape_library" -> MachineScreenHandler.Mode.TAPE_LIBRARY;
@@ -443,6 +463,7 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 		itemsMade = Math.max(0, nbt.getInt("ItemsMade"));
 		toolUses = Math.max(0, nbt.getInt("ToolUses"));
 		boundVillager = nbt.containsUuid("BoundVillager") ? nbt.getUuid("BoundVillager") : null;
+		pendingWaste = Math.max(0, nbt.getInt("PendingWaste"));
 		creativeValues.clear();
 		NbtCompound creative = nbt.getCompound("Creative");
 		for (String key : creative.getKeys()) creativeValues.put(key, creative.getDouble(key));
@@ -472,6 +493,7 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 		if (itemsMade > 0) nbt.putInt("ItemsMade", itemsMade);
 		if (toolUses > 0) nbt.putInt("ToolUses", toolUses);
 		if (boundVillager != null) nbt.putUuid("BoundVillager", boundVillager);
+		if (pendingWaste > 0) nbt.putInt("PendingWaste", pendingWaste);
 		if (!creativeValues.isEmpty()) {
 			NbtCompound creative = new NbtCompound();
 			creativeValues.forEach(creative::putDouble);
