@@ -108,6 +108,7 @@ public final class RackcraftSelfTest {
 		checkItemPipes(world, failures);
 		checkNuclear(world, failures);
 		checkBoot(world, failures);
+		checkSolar(world, failures);
 		checkPrices(failures);
 		checkStructures(world, failures);
 		check("S0.b", SimTicker.failedSteps() == 0, "simulation steps that threw=" + SimTicker.failedSteps(), failures);
@@ -682,6 +683,35 @@ public final class RackcraftSelfTest {
 						+ " rate=" + fullRate + "; unplugged: boot=" + cold, failures);
 		clearArea(world, origin, 6, 4, 4);
 		RackcraftConfig.values.sim.rackBootScale = 0;
+	}
+
+	/**
+	 * A solar panel under open sky at noon powers a load, and makes nothing at night. (Roofing it over can't be
+	 * checked here: sky light is recalculated off-thread, after this tick.)
+	 */
+	private static void checkSolar(ServerWorld world, int[] failures) {
+		long time = world.getTimeOfDay();
+		world.setTimeOfDay(6000);
+		world.setWeather(6000, 0, false, false);
+		world.calculateAmbientDarkness();
+		BlockPos origin = clearArea(world, new BlockPos(-640, 250, -300), 4, 4, 4);
+		MachineBlockEntity panel = place(world, origin, "solar_panel", Direction.NORTH);
+		MachineBlockEntity load = place(world, origin.east(), "creative_rack", Direction.NORTH);
+		load.setCreativeValue(CreativeSettings.DRAW_KW, 2);
+		load.setCreativeValue(CreativeSettings.MINING_RATE, 0);
+		for (int step = 0; step < 2; step++) SimTicker.stepNow(world);
+		double noon = panel.powerKw();
+		double supplied = load.powerSatisfaction();
+		boolean lit = world.getBlockState(origin).get(MachineBlock.LIT);
+		world.setTimeOfDay(18000);
+		world.calculateAmbientDarkness();
+		SimTicker.stepNow(world);
+		double night = panel.powerKw();
+		world.setTimeOfDay(time);
+		world.calculateAmbientDarkness();
+		check("P2.a", noon > 1.99 && lit && supplied > 0.99 && night == 0,
+				"noon=" + noon + " loadSupplied=" + supplied + " lit=" + lit + " night=" + night, failures);
+		clearArea(world, origin, 4, 4, 4);
 	}
 
 	/** Uranium is priced by the work behind it, materials pay double, and plain building blocks don't. */

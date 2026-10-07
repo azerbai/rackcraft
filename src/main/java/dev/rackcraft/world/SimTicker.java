@@ -319,9 +319,10 @@ public final class SimTicker {
 
 	private static PowerSolver.Source sourceFor(ServerWorld world, MachineBlockEntity machine) {
 		return switch (machine.blockId()) {
+			// Sky light is measured above the panel: the panel itself is a solid block, where light is always 0.
 			case "solar_panel" -> new PowerSolver.Source(id(machine), PowerSolver.SourceKind.SOLAR,
 					world.isDay() && world.isSkyVisible(machine.getPos().up())
-							? 4 * world.getLightLevel(LightType.SKY, machine.getPos()) / 15.0
+							? 4 * world.getLightLevel(LightType.SKY, machine.getPos().up()) / 15.0
 								* AirQuality.solarFactor(AirQuality.get(world).smogAt(machine.getPos())) : 0);
 			case "wind_turbine" -> new PowerSolver.Source(id(machine), PowerSolver.SourceKind.WIND,
 					8 * Math.max(0.25, Math.min(1, (machine.getPos().getY() - 50) / 80.0))
