@@ -11,7 +11,7 @@ RESOURCES = ROOT / "src/main/resources"
 CONTENT = json.loads((ROOT / "tools/content.json").read_text(encoding="utf-8"))
 MACHINE_IDS = {entry["id"] for entry in CONTENT["blocks"] if entry.get("machine")}
 AIRFLOW_BLOCKING = {entry["id"] for entry in CONTENT["blocks"] if entry.get("blocksAirflow")}
-CABLE_IDS = {"power_cable", "coolant_pipe", "fiber_cable"}
+CABLE_IDS = {"power_cable", "coolant_pipe", "fiber_cable", "item_pipe"}
 ANIMATION_FRAMETIME = 4
 
 
@@ -36,7 +36,7 @@ def write_json(path, value):
 
 
 # Must match CableBlock#halfWidth.
-CABLE_HALF_WIDTH = {"power_cable": 2, "coolant_pipe": 3, "fiber_cable": 1}
+CABLE_HALF_WIDTH = {"power_cable": 2, "coolant_pipe": 3, "fiber_cable": 1, "item_pipe": 2.5}
 ARM_ROTATIONS = {"north": {}, "east": {"y": 90}, "south": {"y": 180}, "west": {"y": 270}, "up": {"x": 270}, "down": {"x": 90}}
 
 
@@ -305,7 +305,7 @@ def data_center_worldgen():
         "placement": {"type": "minecraft:random_spread", "spacing": 26, "separation": 10, "salt": 20761123}})
     write_json(RESOURCES / "data/rackcraft/worldgen/structure_set/hyperscale_campus.json", {
         "structures": [{"structure": f"rackcraft:{CAMPUS[0]}", "weight": 1}],
-        "placement": {"type": "minecraft:random_spread", "spacing": 72, "separation": 28, "salt": 20761124}})
+        "placement": {"type": "minecraft:random_spread", "spacing": 128, "separation": 48, "salt": 20761124}})
     write_json(RESOURCES / "data/rackcraft/tags/worldgen/structure/data_centers.json",
                {"replace": False, "values": [f"rackcraft:{variant}" for variant, *_ in DATA_CENTERS] + [f"rackcraft:{CAMPUS[0]}"]})
     for name, table in data_center_loot_tables().items():
@@ -475,7 +475,7 @@ def main():
         "rack_status.rackcraft.mining": "Mining %s RC/s",
         "rack_status.rackcraft.mining.hint": "Everything is working. RackCoin goes to the shared balance; spend it at a Crypto Exchange.",
         "rack_status.rackcraft.throttled": "Mining %s RC/s (throttled)",
-        "rack_status.rackcraft.throttled.hint": "The intake is above 27 C, so the rack slows down. Improve cooling to mine at full speed.",
+        "rack_status.rackcraft.throttled.hint": "The intake is above 27 C, so the rack slows down. Check where its heat goes (To loop / To air): put a Rear-Door Cooler on its back, add sinks to its coolant loop, or pull hot air away with a CRAC unit or exhaust fan.",
         "rack_status.rackcraft.network_limited": "Mining %s RC/s (bandwidth-limited)",
         "rack_status.rackcraft.network_limited.hint": "The routers on this fiber network can't carry every rack. Add another Uplink Router or a Core Router.",
         "rack_status.rackcraft.empty": "Idle: no modules",
@@ -487,7 +487,7 @@ def main():
         "rack_status.rackcraft.needs_cdu": "Stopped: Quantum Core needs a CDU",
         "rack_status.rackcraft.needs_cdu.hint": "Place a Coolant Distribution Unit directly beside this rack.",
         "rack_status.rackcraft.overheated": "Stopped: overheated",
-        "rack_status.rackcraft.overheated.hint": "The intake air is 40 C or hotter. Separate the hot and cold aisles and add fans or a CRAC unit.",
+        "rack_status.rackcraft.overheated.hint": "The intake air is 40 C or hotter. Heat that doesn't go into a coolant loop goes into the room: catch it with a Rear-Door Cooler on the rack's back, take it out of the air with a CRAC unit or exhaust fan, and keep hot exhaust away from intakes. If To loop is less than the rack's heat, its loop is overloaded: add sinks.",
         "rack_status.rackcraft.no_network": "Not mining: offline",
         "rack_status.rackcraft.no_network.hint": "Run Fiber Cable from this rack to an Uplink Router so it can mine.",
         "generator.rackcraft.running": "Running: supplying the grid",
@@ -531,8 +531,8 @@ def main():
         "rack_status.rackcraft.generating.hint": "This rack is generating work for an AI contract, which pays better than mining. It goes back to mining when the item is finished.",
         "rack_status.rackcraft.training": "Busy: training a model",
         "rack_status.rackcraft.training.hint": "This rack is training an AI model on uploaded data. Set its cluster to Mining at an Operations Terminal to keep it mining instead.",
-        "rack_status.rackcraft.needs_water": "Stopped: needs freshwater cooling",
-        "rack_status.rackcraft.needs_water.hint": "ASIC Miners, GPU Blades, Tensor Accelerators and Quantum Cores are water-cooled. Connect this rack with Coolant Pipe to a Freshwater Pump beside a lake or river (not the ocean) with enough capacity.",
+        "rack_status.rackcraft.needs_water": "Stopped: needs liquid cooling",
+        "rack_status.rackcraft.needs_water.hint": "ASIC Miners, GPU Blades, Tensor Accelerators and Quantum Cores are liquid-cooled. Run Coolant Pipe from this rack to a heat sink: a Cooling Tower, Dry Cooler, Chiller or Water Heat Exchanger. The pipe carries 85% of their heat away.",
         "transmitter.rackcraft.level": "Level %s: %s",
         "transmitter.rackcraft.range_blocks": "%s block range",
         "transmitter.rackcraft.range_infinite": "unlimited range in this dimension",

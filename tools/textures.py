@@ -988,7 +988,7 @@ def cable_end(entry, cut=False):
     canvas = Canvas(darken(base, 0.4))
     canvas.disc(8, 8, 3.2, lighten(STEEL, 0.1))
     canvas.disc(8, 8, 2.2, darken(base, 0.1))
-    core = {"power_cable": COPPER, "coolant_pipe": (150, 225, 245), "fiber_cable": (255, 214, 250)}[entry["id"]]
+    core = {"power_cable": COPPER, "coolant_pipe": (150, 225, 245), "fiber_cable": (255, 214, 250), "item_pipe": (240, 214, 150)}[entry["id"]]
     canvas.disc(8, 8, 1.2, LED_RED if cut else core)
     canvas.frame(4, 4, 11, 11, darken(base, 0.55))
     return canvas

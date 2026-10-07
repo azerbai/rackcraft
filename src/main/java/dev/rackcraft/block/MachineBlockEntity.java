@@ -69,6 +69,22 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 	private java.util.UUID boundVillager;
 	// Smog scrubbers: smog removed per second in the last step; not saved.
 	private double scrubRate;
+	// Cooling, refreshed every step and not saved. coolingKw: heat this machine moved (a fan or CRAC out of the
+	// air, a rear-door cooler off its rack, a sink out of its loop). The loop figures are for its whole coolant
+	// network. Racks split their heat between the loop and the air. coolingDetail depends on the machine: water
+	// units for a cooling tower, the climate in percent for a dry cooler, water blocks for a heat exchanger.
+	private double coolingKw;
+	private double loopHeatKw;
+	private double loopCapacityKw;
+	private double heatToLoopKw;
+	private double heatToAirKw;
+	private int coolingDetail;
+	// Modular reactors: the array this one belongs to (1 on its own), refreshed every step and not saved.
+	private int reactorArraySize = 1;
+	private double reactorCapacityKw;
+	private int arrayFuelTicks;
+	private int arrayFuelTotal;
+	private int arrayFuelCells;
 
 	public MachineBlockEntity(BlockPos pos, BlockState state) {
 		super(RcBlocks.MACHINE_ENTITY, pos, state);
@@ -93,13 +109,21 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 		super.markRemoved();
 	}
 
+	public static final java.util.Set<String> COOLANT_MACHINES = java.util.Set.of("cooling_tower", "crac_unit", "cdu",
+			"freshwater_pump", "server_rack", "modular_reactor", "rear_door_cooler", "dry_cooler", "chiller", "water_heat_exchanger");
+	/** Machines an Item Pipe feeds from storage (and empties into it): storage itself, the training stations and generators. */
+	public static final java.util.Set<String> ITEM_MACHINES = java.util.Set.of("storage_array", "tape_library", "art_table",
+			"writing_desk", "diesel_generator", "modular_reactor");
+
 	public static java.util.Set<NetKind> networkKinds(String id) {
 		java.util.EnumSet<NetKind> kinds = java.util.EnumSet.noneOf(NetKind.class);
 		if (List.of("diesel_generator", "solar_panel", "wind_turbine", "pdu", "server_rack",
 				"exhaust_fan", "cooling_tower", "crac_unit", "battery_bank", "utility_intake",
-				"facility_controller", "cdu", "modular_reactor", "freshwater_pump", "smog_scrubber").contains(id)) kinds.add(NetKind.POWER);
-		// Racks join the coolant network for freshwater cooling from pumps.
-		if (List.of("cooling_tower", "crac_unit", "cdu", "freshwater_pump", "server_rack").contains(id)) kinds.add(NetKind.COOLANT);
+				"facility_controller", "cdu", "modular_reactor", "freshwater_pump", "smog_scrubber",
+				"rear_door_cooler", "dry_cooler", "chiller", "water_heat_exchanger").contains(id)) kinds.add(NetKind.POWER);
+		// The coolant loop: racks (liquid-cooled modules) and reactors put heat in; towers, coolers and chillers take it out.
+		if (COOLANT_MACHINES.contains(id)) kinds.add(NetKind.COOLANT);
+		if (ITEM_MACHINES.contains(id)) kinds.add(NetKind.ITEM);
 		if (List.of("server_rack", "uplink_router", "core_router", "facility_controller",
 				"monitoring_wall", "creative_router").contains(id)) kinds.add(NetKind.DATA);
 		if (List.of("creative_power", "creative_rack").contains(id)) kinds.add(NetKind.POWER);
@@ -170,7 +194,8 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 			// Eight bays, one module each: GPU Blades and Quantum Cores fill a bay like anything else.
 			return slot < ServerModel.BAYS && ServerModel.Module.byItemId(Registries.ITEM.getId(stack.getItem()).getPath()) != null;
 		}
-		if (blockId.equals("diesel_generator") || blockId.equals("modular_reactor")) return slot == 0;
+		if (blockId.equals("diesel_generator")) return slot == 0;
+		if (blockId.equals("modular_reactor")) return slot == 0 && stack.isOf(dev.rackcraft.RcItems.ITEMS.get("fuel_cell"));
 		if (blockId.equals("storage_array")) {
 			return slot < 8 && stack.getItem() instanceof dev.rackcraft.storage.DriveItem drive && !drive.cold();
 		}
@@ -269,6 +294,36 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 	public void setWorkers(int value) { workers = value; }
 	public double scrubRate() { return scrubRate; }
 	public void setScrubRate(double value) { scrubRate = Math.max(0, value); }
+	public double coolingKw() { return coolingKw; }
+	public double loopHeatKw() { return loopHeatKw; }
+	public double loopCapacityKw() { return loopCapacityKw; }
+	public double heatToLoopKw() { return heatToLoopKw; }
+	public double heatToAirKw() { return heatToAirKw; }
+	public int coolingDetail() { return coolingDetail; }
+	public void setCooling(double movedKw, int detail) {
+		coolingKw = Math.max(0, movedKw);
+		coolingDetail = detail;
+	}
+	public void setLoop(double heatKw, double capacityKw) {
+		loopHeatKw = Math.max(0, heatKw);
+		loopCapacityKw = Math.max(0, capacityKw);
+	}
+	public void setHeatSplit(double toLoopKw, double toAirKw) {
+		heatToLoopKw = Math.max(0, toLoopKw);
+		heatToAirKw = Math.max(0, toAirKw);
+	}
+	public int reactorArraySize() { return reactorArraySize; }
+	public double reactorCapacityKw() { return reactorCapacityKw; }
+	public int arrayFuelTicks() { return arrayFuelTicks; }
+	public int arrayFuelTotal() { return arrayFuelTotal; }
+	public int arrayFuelCells() { return arrayFuelCells; }
+	public void setReactorArray(int size, double capacityKw, int fuelTicks, int fuelTotal, int fuelCells) {
+		reactorArraySize = size;
+		reactorCapacityKw = capacityKw;
+		arrayFuelTicks = fuelTicks;
+		arrayFuelTotal = fuelTotal;
+		arrayFuelCells = fuelCells;
+	}
 	public java.util.UUID boundVillager() { return boundVillager; }
 	public void setBoundVillager(java.util.UUID villager) { boundVillager = villager; markDirty(); }
 

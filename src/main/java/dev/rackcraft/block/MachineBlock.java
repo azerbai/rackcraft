@@ -95,7 +95,7 @@ public class MachineBlock extends BlockWithEntity {
 							pos.getZ() + random.nextDouble(), 0, 0.02, 0);
 				}
 			}
-			case "cooling_tower" -> world.addParticle(ParticleTypes.CLOUD,
+			case "cooling_tower", "dry_cooler" -> world.addParticle(ParticleTypes.CLOUD,
 					x + (random.nextDouble() - 0.5) * 0.5, y, z + (random.nextDouble() - 0.5) * 0.5, 0, 0.06, 0);
 			default -> {}
 		}
@@ -113,7 +113,8 @@ public class MachineBlock extends BlockWithEntity {
 			if (machine.blockId().equals("server_rack")
 					&& player.getStackInHand(hand).isOf(dev.rackcraft.RcItems.ITEMS.get("thermal_scanner"))) {
 				player.sendMessage(net.minecraft.text.Text.literal(String.format(java.util.Locale.ROOT,
-						"Rack inlet %.1f C, exhaust %.1f C", machine.inletCelsius(), machine.exhaustCelsius())), false);
+						"Rack inlet %.1f C, exhaust %.1f C. Heat: %.1f kW to the coolant loop, %.1f kW to the air",
+						machine.inletCelsius(), machine.exhaustCelsius(), machine.heatToLoopKw(), machine.heatToAirKw())), false);
 				return ActionResult.SUCCESS;
 			}
 			player.openHandledScreen(machine);

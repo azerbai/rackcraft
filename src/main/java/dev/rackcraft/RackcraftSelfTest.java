@@ -32,7 +32,7 @@ public final class RackcraftSelfTest {
 
 	private static void run(MinecraftServer server) {
 		int[] failures = {0};
-		check("S0.a", RcBlocks.BLOCKS.size() == 39 && RcItems.ITEMS.size() == 42,
+		check("S0.a", RcBlocks.BLOCKS.size() == 44 && RcItems.ITEMS.size() == 42,
 				"blocks=" + RcBlocks.BLOCKS.size() + " items=" + RcItems.ITEMS.size(), failures);
 		ServerWorld world = server.getOverworld();
 		BlockPos generatorPos = new BlockPos(0, 80, 0);
@@ -101,7 +101,11 @@ public final class RackcraftSelfTest {
 		checkCreative(world, failures);
 		checkStorage(world, failures);
 		checkCompute(world, failures);
+		checkCooling(world, failures);
+		checkReactorArray(world, failures);
+		checkItemPipes(world, failures);
 		checkStructures(world, failures);
+		check("S0.b", SimTicker.failedSteps() == 0, "simulation steps that threw=" + SimTicker.failedSteps(), failures);
 		Rackcraft.LOGGER.info("RACKCRAFT_SELFTEST DONE failures={}", failures[0]);
 		server.stop(false);
 	}
@@ -311,28 +315,18 @@ public final class RackcraftSelfTest {
 		check("C1.a", plan.ok() && borrowed && planks == 8, "borrowed=" + borrowed + " planks=" + planks
 				+ " rack=" + rack.rackStatus(), failures);
 
-		// Water: a GPU blade stops without a pump; a pump beside a fresh pool runs it.
+		// Liquid cooling: a GPU blade stops until its rack is on a coolant loop with a heat sink.
 		rack.setStack(7, ItemStack.EMPTY);
 		rack.setStack(6, new ItemStack(RcItems.ITEMS.get("gpu_blade")));
 		for (int step = 0; step < 3; step++) SimTicker.stepNow(world);
 		boolean dry = rack.rackStatus() == RackStatus.NEEDS_WATER;
-		// The pump sits on the rack (sharing its power and coolant networks) at the edge of a 7x7 pool.
-		BlockPos pump = rackPos.up();
-		for (BlockPos pos : BlockPos.iterate(rackPos.add(1, 0, -4), rackPos.add(8, 1, 4))) {
-			if (!pos.equals(router)) world.setBlockState(pos, Blocks.STONE.getDefaultState());
-		}
-		for (BlockPos pos : BlockPos.iterate(rackPos.add(1, 1, -3), rackPos.add(7, 1, 3))) {
-			world.setBlockState(pos, Blocks.WATER.getDefaultState());
-		}
-		world.setBlockState(pump, RcBlocks.get("freshwater_pump").getDefaultState());
+		BlockPos cooler = rackPos.up();
+		world.setBlockState(cooler, RcBlocks.get("dry_cooler").getDefaultState());
 		for (int step = 0; step < 3; step++) SimTicker.stepNow(world);
-		MachineBlockEntity pumpEntity = machine(world, pump);
-		boolean salt = pumpEntity.pumpStatus() == dev.rackcraft.world.FreshwaterCooling.PumpStatus.SALT_WATER.ordinal();
-		boolean wet = rack.rackStatus() != RackStatus.NEEDS_WATER;
-		check("C2.a", dry && (salt || wet && pumpEntity.pumpUnits() > 0), "dry=" + dry + " pump=" + pumpEntity.pumpStatus()
-				+ " units=" + pumpEntity.pumpUnits() + " sources=" + pumpEntity.pumpSources() + " rackNow=" + rack.rackStatus()
-				+ (salt ? " (test site is salt water: the ban works)" : ""), failures);
-		world.setBlockState(pump, Blocks.AIR.getDefaultState());
+		boolean wet = rack.rackStatus() != RackStatus.NEEDS_WATER && rack.heatToLoopKw() > 0;
+		check("C2.a", dry && wet, "dry=" + dry + " rackNow=" + rack.rackStatus() + " toLoop=" + rack.heatToLoopKw()
+				+ " cooler=" + machine(world, cooler).coolingKw(), failures);
+		world.setBlockState(cooler, Blocks.AIR.getDefaultState());
 		rack.setStack(6, new ItemStack(RcItems.ITEMS.get("server_1u")));
 		checkFreshWater(world, failures);
 
@@ -443,15 +437,22 @@ public final class RackcraftSelfTest {
 		kid.discard();
 		librarian.discard();
 
-		// Exhaust fans pollute heavily.
+		// Exhaust fans idle (and stay clean) in cool air, and pollute heavily once they have heat to move.
 		var air = dev.rackcraft.world.AirQuality.get(world);
 		BlockPos fan = origin.add(20, 0, 0);
 		air.set(fan, 0);
 		world.setBlockState(fan, RcBlocks.get("exhaust_fan").getDefaultState());
 		world.setBlockState(fan.east(), RcBlocks.get("creative_power").getDefaultState());
 		for (int step = 0; step < 20; step++) SimTicker.stepNow(world);
+		float idleSmog = air.smogAt(fan);
+		boolean idleLit = world.getBlockState(fan).get(MachineBlock.LIT);
+		for (int step = 0; step < 20; step++) {
+			SimTicker.setHeat(world, fan.north(), 60);
+			SimTicker.stepNow(world);
+		}
 		float smog = air.smogAt(fan);
-		check("C6.a", smog > 5, "smog=" + smog, failures);
+		check("C6.a", idleSmog == 0 && !idleLit && smog > 2 && machine(world, fan).coolingKw() > 1,
+				"idleSmog=" + idleSmog + " idleLit=" + idleLit + " smog=" + smog + " moved=" + machine(world, fan).coolingKw(), failures);
 		air.set(fan, 0);
 		world.setBlockState(fan, Blocks.AIR.getDefaultState());
 
@@ -477,6 +478,132 @@ public final class RackcraftSelfTest {
 		world.setBlockState(scrubber.east(), Blocks.AIR.getDefaultState());
 	}
 
+	/** Clears a box of the test world and returns its corner; the dev world keeps earlier runs. */
+	private static BlockPos clearArea(ServerWorld world, BlockPos origin, int dx, int dy, int dz) {
+		world.getChunk(origin);
+		for (BlockPos pos : BlockPos.iterate(origin.add(-3, -2, -3), origin.add(dx, dy, dz))) {
+			if (!world.getBlockState(pos).isAir()) world.setBlockState(pos, Blocks.AIR.getDefaultState());
+		}
+		return origin;
+	}
+
+	private static MachineBlockEntity place(ServerWorld world, BlockPos pos, String id, Direction facing) {
+		world.setBlockState(pos, RcBlocks.get(id).getDefaultState().with(MachineBlock.FACING, facing));
+		return machine(world, pos);
+	}
+
+	private static MachineBlockEntity rack(ServerWorld world, BlockPos pos, String module) {
+		MachineBlockEntity rack = place(world, pos, "server_rack", Direction.NORTH);
+		for (int slot = 0; slot < 8; slot++) rack.setStack(slot, new ItemStack(RcItems.ITEMS.get(module)));
+		return rack;
+	}
+
+	/**
+	 * Heat: an unpowered rack makes none; a running rack's heat spreads through the air; a rack on a coolant loop
+	 * with a Rear-Door Cooler and a Chiller puts all of it into the loop; an overloaded loop spills into the air.
+	 */
+	private static void checkCooling(ServerWorld world, int[] failures) {
+		BlockPos origin = clearArea(world, new BlockPos(-768, 150, -768), 30, 8, 20);
+		double ambient = RackcraftConfig.values.thermal.ambientC;
+
+		MachineBlockEntity dark = rack(world, origin, "gpu_blade");
+		for (int step = 0; step < 20; step++) SimTicker.stepNow(world);
+		check("H1.a", dark.inletCelsius() < ambient + 0.5 && dark.exhaustCelsius() < ambient + 0.5 && dark.heatToAirKw() == 0,
+				"unpowered rack: inlet=" + dark.inletCelsius() + " exhaust=" + dark.exhaustCelsius() + " toAir=" + dark.heatToAirKw(), failures);
+
+		BlockPos airRackPos = origin.east(6);
+		world.setBlockState(airRackPos.west(), RcBlocks.get("creative_power").getDefaultState());
+		MachineBlockEntity airRack = rack(world, airRackPos, "server_1u");
+		for (int step = 0; step < 30; step++) SimTicker.stepNow(world);
+		double twoBack = SimTicker.temperatureAt(world, airRackPos.south(2));
+		check("H1.b", airRack.exhaustCelsius() > ambient + 0.5 && twoBack > ambient + 0.1 && airRack.inletCelsius() < 27
+						&& airRack.rackStatus() == RackStatus.NO_NETWORK,
+				"air-cooled rack: inlet=" + airRack.inletCelsius() + " exhaust=" + airRack.exhaustCelsius()
+						+ " twoBack=" + twoBack + " status=" + airRack.rackStatus(), failures);
+
+		BlockPos loopRackPos = origin.east(12);
+		world.setBlockState(loopRackPos.west(), RcBlocks.get("creative_power").getDefaultState());
+		MachineBlockEntity loopRack = rack(world, loopRackPos, "gpu_blade");
+		MachineBlockEntity door = place(world, loopRackPos.south(), "rear_door_cooler", Direction.NORTH);
+		MachineBlockEntity chiller = place(world, loopRackPos.up(), "chiller", Direction.NORTH);
+		for (int step = 0; step < 10; step++) SimTicker.stepNow(world);
+		check("H2.a", loopRack.heatToLoopKw() > 23 && loopRack.heatToAirKw() < 0.1 && door.coolingKw() > 3
+						&& chiller.coolingKw() > 23 && chiller.loopCapacityKw() >= 250,
+				"loop rack: toLoop=" + loopRack.heatToLoopKw() + " toAir=" + loopRack.heatToAirKw() + " door=" + door.coolingKw()
+						+ " chiller=" + chiller.coolingKw() + " loop=" + chiller.loopHeatKw() + "/" + chiller.loopCapacityKw(), failures);
+
+		// Four GPU racks on one Dry Cooler (40 kW, 60 at most): the loop is overloaded and the rest stays in the air.
+		world.setBlockState(loopRackPos.up(), Blocks.AIR.getDefaultState());
+		world.setBlockState(loopRackPos.south(), Blocks.AIR.getDefaultState());
+		MachineBlockEntity second = rack(world, loopRackPos.east(), "gpu_blade");
+		MachineBlockEntity third = rack(world, loopRackPos.east(2), "gpu_blade");
+		rack(world, loopRackPos.east(3), "gpu_blade");
+		MachineBlockEntity dryCooler = place(world, loopRackPos.east().up(), "dry_cooler", Direction.NORTH);
+		for (int step = 0; step < 6; step++) SimTicker.stepNow(world);
+		check("H2.b", dryCooler.loopHeatKw() > dryCooler.loopCapacityKw() && dryCooler.loopCapacityKw() >= 24
+						&& loopRack.heatToAirKw() > 5 && second.heatToLoopKw() < 20,
+				"overloaded: loop=" + dryCooler.loopHeatKw() + "/" + dryCooler.loopCapacityKw() + " rackToAir=" + loopRack.heatToAirKw()
+						+ " secondToLoop=" + second.heatToLoopKw() + " third=" + third.rackStatus(), failures);
+		clearArea(world, origin, 30, 8, 20);
+	}
+
+	/** Eight reactors in a 2x2x2 cube run as one array on one shared fuel supply; break the cube and they run alone. */
+	private static void checkReactorArray(ServerWorld world, int[] failures) {
+		BlockPos origin = clearArea(world, new BlockPos(-768, 150, -640), 10, 6, 10);
+		List<MachineBlockEntity> cores = new java.util.ArrayList<>();
+		for (BlockPos pos : BlockPos.iterate(origin, origin.add(1, 1, 1))) cores.add(place(world, pos.toImmutable(), "modular_reactor", Direction.NORTH));
+		cores.forEach(core -> core.setFuelBurnTicks(0));
+		cores.get(5).setStack(0, new ItemStack(RcItems.ITEMS.get("fuel_cell"), 3));
+		MachineBlockEntity load = place(world, origin.west(), "creative_rack", Direction.NORTH);
+		load.setCreativeValue(CreativeSettings.DRAW_KW, 3000);
+		load.setCreativeValue(CreativeSettings.MINING_RATE, 0);
+		for (int step = 0; step < 4; step++) SimTicker.stepNow(world);
+		boolean formed = cores.stream().allMatch(core -> core.reactorArraySize() == 2 && core.reactorCapacityKw() == 4000);
+		int cells = cores.get(5).getStack(0).getCount();
+		int ticks = cores.get(0).arrayFuelTicks();
+		check("R1.a", formed && load.powerSatisfaction() > 0.99 && cells == 2 && ticks > 0
+						&& ticks < dev.rackcraft.world.ReactorArrays.FUEL_CELL_TICKS && cores.get(3).powerKw() > 2999,
+				"formed=" + formed + " supplied=" + load.powerSatisfaction() + " cellsLeft=" + cells + " fuelTicks=" + ticks
+						+ " output=" + cores.get(3).powerKw() + " efficiency=" + dev.rackcraft.world.ReactorArrays.efficiency(2), failures);
+		world.setBlockState(origin.add(1, 1, 1), Blocks.AIR.getDefaultState());
+		SimTicker.stepNow(world);
+		check("R1.b", cores.get(0).reactorArraySize() == 1 && cores.get(0).reactorCapacityKw() == 500,
+				"after breaking the cube: size=" + cores.get(0).reactorArraySize() + " capacity=" + cores.get(0).reactorCapacityKw(), failures);
+		clearArea(world, origin, 10, 6, 10);
+	}
+
+	/** An Item Pipe from a Storage Array stocks an art table, a desk and a generator, and files the art aggregates. */
+	private static void checkItemPipes(ServerWorld world, int[] failures) {
+		BlockPos origin = clearArea(world, new BlockPos(-768, 150, -512), 12, 6, 6);
+		world.setBlockState(origin, RcBlocks.get("creative_power").getDefaultState());
+		MachineBlockEntity array = place(world, origin.east(), "storage_array", Direction.NORTH);
+		array.setStack(0, new ItemStack(RcItems.ITEMS.get("drive_4k")));
+		CableBlock pipe = (CableBlock) RcBlocks.get("item_pipe");
+		for (int dx = 2; dx <= 6; dx++) {
+			BlockPos pos = origin.east(dx);
+			world.setBlockState(pos, pipe.withConnections(pipe.getDefaultState(), world, pos));
+		}
+		MachineBlockEntity table = place(world, origin.add(3, 1, 0), "art_table", Direction.SOUTH);
+		MachineBlockEntity desk = place(world, origin.add(4, 1, 0), "writing_desk", Direction.SOUTH);
+		MachineBlockEntity generator = place(world, origin.add(6, 1, 0), "diesel_generator", Direction.SOUTH);
+		table.setStack(2, new ItemStack(RcItems.ITEMS.get("art_aggregate"), 3));
+		SimTicker.stepNow(world);
+		var storage = dev.rackcraft.storage.StorageService.networkAt(world, array.getPos());
+		storage.insert(dev.rackcraft.storage.ItemKey.of(Items.PAPER), 100, false);
+		storage.insert(dev.rackcraft.storage.ItemKey.of(Items.INK_SAC), 10, false);
+		storage.insert(dev.rackcraft.storage.ItemKey.of(RcItems.ITEMS.get("crayons")), 2, false);
+		storage.insert(dev.rackcraft.storage.ItemKey.of(Items.COAL), 40, false);
+		dev.rackcraft.world.ItemPipes.step(world, SimTicker.machines(world));
+		long aggregates = storage.count(dev.rackcraft.storage.ItemKey.of(RcItems.ITEMS.get("art_aggregate")), true);
+		check("P1.a", table.getStack(0).getCount() == 32 && table.getStack(1).isOf(RcItems.ITEMS.get("crayons"))
+						&& desk.getStack(0).getCount() == 32 && desk.getStack(1).getCount() == 8 && table.getStack(2).isEmpty()
+						&& aggregates == 3 && generator.getStack(0).isOf(Items.COAL) && generator.getStack(0).getCount() == 32,
+				"tablePaper=" + table.getStack(0) + " crayons=" + table.getStack(1) + " deskPaper=" + desk.getStack(0)
+						+ " ink=" + desk.getStack(1) + " aggregatesStored=" + aggregates + " fuel=" + generator.getStack(0), failures);
+		array.setStack(0, ItemStack.EMPTY);
+		clearArea(world, origin, 12, 6, 6);
+	}
+
 	/** A pump on fresh water runs a GPU rack and drains the pool from its edge. Finds a non-ocean spot first. */
 	private static void checkFreshWater(ServerWorld world, int[] failures) {
 		BlockPos site = null;
@@ -498,16 +625,20 @@ public final class RackcraftSelfTest {
 		world.setBlockState(rackPos.west(), RcBlocks.get("creative_power").getDefaultState());
 		world.setBlockState(rackPos, RcBlocks.get("server_rack").getDefaultState());
 		MachineBlockEntity rack = machine(world, rackPos);
-		rack.setStack(0, new ItemStack(RcItems.ITEMS.get("gpu_blade")));
-		rack.setStack(1, new ItemStack(RcItems.ITEMS.get("gpu_blade")));
+		for (int slot = 0; slot < 8; slot++) rack.setStack(slot, new ItemStack(RcItems.ITEMS.get("gpu_blade")));
+		// The pump sits on the rack at the edge of a 7x7 pool, and a cooling tower sits on the pump: one loop.
 		BlockPos pump = rackPos.up();
+		BlockPos tower = pump.up();
 		for (BlockPos pos : BlockPos.iterate(rackPos.add(1, 0, -4), rackPos.add(8, 1, 4))) world.setBlockState(pos, Blocks.STONE.getDefaultState());
 		for (BlockPos pos : BlockPos.iterate(rackPos.add(1, 1, -3), rackPos.add(7, 1, 3))) world.setBlockState(pos, Blocks.WATER.getDefaultState());
 		world.setBlockState(pump, RcBlocks.get("freshwater_pump").getDefaultState());
+		world.setBlockState(tower, RcBlocks.get("cooling_tower").getDefaultState());
 		MachineBlockEntity pumpEntity = machine(world, pump);
+		MachineBlockEntity towerEntity = machine(world, tower);
 		pumpEntity.addWaterDrawn(-1e9);
-		for (int step = 0; step < 3; step++) SimTicker.stepNow(world);
-		boolean running = rack.rackStatus() != RackStatus.NEEDS_WATER && pumpEntity.pumpUnits() >= 4;
+		for (int step = 0; step < 4; step++) SimTicker.stepNow(world);
+		boolean running = rack.rackStatus() != RackStatus.NEEDS_WATER && pumpEntity.pumpUnits() >= 4
+				&& towerEntity.coolingDetail() == 4 && towerEntity.coolingKw() > 15;
 		int before = pumpEntity.pumpSources();
 		// Fast-forward the draw: the next step takes one source block off the shore.
 		pumpEntity.addWaterDrawn(dev.rackcraft.world.FreshwaterCooling.UNIT_SECONDS_PER_BLOCK);
@@ -515,6 +646,7 @@ public final class RackcraftSelfTest {
 		int after = pumpEntity.pumpSources();
 		check("C2.b", running && after < before, "biome=" + world.getBiome(site).getKey().map(key -> key.getValue().toString()).orElse("?")
 				+ " status=" + rack.rackStatus() + " pump=" + pumpEntity.pumpStatus() + " units=" + pumpEntity.pumpUnits()
+				+ " towerWater=" + towerEntity.coolingDetail() + " towerKw=" + towerEntity.coolingKw()
 				+ " sources " + before + " -> " + after, failures);
 		for (BlockPos pos : BlockPos.iterate(site.add(-2, -1, -5), site.add(10, 3, 5))) world.setBlockState(pos, Blocks.AIR.getDefaultState());
 	}
@@ -531,8 +663,10 @@ public final class RackcraftSelfTest {
 		check("D1.a", layouts.size() >= 12 && registered && tagged == layouts.size(),
 				"layouts=" + layouts.size() + " registered=" + registered + " tagged=" + tagged, failures);
 		int index = 0;
+		BlockPos campusOrigin = null;
 		for (var layout : layouts.values()) {
 			BlockPos origin = new BlockPos(4096 + index * 192, 120, 4096);
+			if (layout.id().equals("hyperscale_campus")) campusOrigin = origin;
 			index++;
 			var rotation = net.minecraft.util.BlockRotation.values()[index % 4];
 			String error = null;
@@ -560,16 +694,17 @@ public final class RackcraftSelfTest {
 			check("D2." + layout.id(), error == null && machines >= 2 && (racks > 0 || layout.id().equals("tape_archive")), details, failures);
 		}
 		var scribes = world.getEntitiesByClass(net.minecraft.entity.passive.VillagerEntity.class,
-				new net.minecraft.util.math.Box(new BlockPos(4096, 120, 4096)).expand(2400, 64, 200),
+				new net.minecraft.util.math.Box(new BlockPos(4096, 120, 4096)).expand(2700, 64, 240),
 				villager -> villager.getCommandTags().contains(dev.rackcraft.compute.TrainingStations.SHACKLED_TAG));
 		var kids = world.getEntitiesByClass(net.minecraft.entity.passive.VillagerEntity.class,
-				new net.minecraft.util.math.Box(new BlockPos(4096, 120, 4096)).expand(2400, 64, 200),
+				new net.minecraft.util.math.Box(new BlockPos(4096, 120, 4096)).expand(2700, 64, 240),
 				net.minecraft.entity.passive.VillagerEntity::isBaby);
 		check("D3.a", scribes.size() >= 11 && kids.size() >= 10, "shackled librarians in the AI lab, content mill and campus="
 				+ scribes.size() + ", kids=" + kids.size(), failures);
 		world.getEntitiesByClass(net.minecraft.entity.passive.VillagerEntity.class,
-				new net.minecraft.util.math.Box(new BlockPos(4096, 120, 4096)).expand(2400, 64, 200), entity -> true)
+				new net.minecraft.util.math.Box(new BlockPos(4096, 120, 4096)).expand(2700, 64, 240), entity -> true)
 				.forEach(net.minecraft.entity.Entity::discard);
+		if (campusOrigin != null) checkCampusRuns(world, campusOrigin, failures);
 		BlockPos found = world.locateStructure(Worldgen.DATA_CENTERS, BlockPos.ORIGIN, 100, false);
 		check("D4.a", found != null, "nearest data center to 0,0: " + found, failures);
 		if (found == null) return;
@@ -595,6 +730,42 @@ public final class RackcraftSelfTest {
 		}
 		check("D4.b", machines > 0, "generated " + chunks + " chunks around " + found + ": machines=" + machines
 				+ " starts=" + starts + " machines=" + ids, failures);
+	}
+
+	/**
+	 * The campus must work out of the box once its cut cables are spliced: exactly five cuts, and afterwards every
+	 * rack powered, networked at full bandwidth, cooled, and with a cool intake.
+	 */
+	private static void checkCampusRuns(ServerWorld world, BlockPos origin, int[] failures) {
+		int size = dev.rackcraft.world.structure.DataCenterLayouts.CAMPUS_SIZE;
+		List<BlockPos> cuts = new java.util.ArrayList<>();
+		for (BlockPos pos : BlockPos.iterate(origin, origin.add(size - 1, 23, size - 1))) {
+			var state = world.getBlockState(pos);
+			if (state.getBlock() instanceof CableBlock && state.get(CableBlock.CUT)) cuts.add(pos.toImmutable());
+		}
+		for (int step = 0; step < 3; step++) SimTicker.stepNow(world);
+		List<MachineBlockEntity> racks = SimTicker.machines(world).stream().filter(machine -> machine.blockId().equals("server_rack")
+				&& machine.getPos().getX() >= origin.getX() && machine.getPos().getX() < origin.getX() + size
+				&& machine.getPos().getZ() >= origin.getZ() && machine.getPos().getZ() < origin.getZ() + size).toList();
+		long darkBefore = racks.stream().filter(rack -> !rack.rackStatus().mining()).count();
+		for (BlockPos cut : cuts) CableBlock.setCut(world, cut, false);
+		for (int step = 0; step < 40; step++) SimTicker.stepNow(world);
+		java.util.Map<RackStatus, Long> statuses = new java.util.TreeMap<>();
+		for (MachineBlockEntity rack : racks) statuses.merge(rack.rackStatus(), 1L, Long::sum);
+		java.util.Set<RackStatus> fine = java.util.EnumSet.of(RackStatus.MINING, RackStatus.CRAFTING, RackStatus.GENERATING,
+				RackStatus.TRAINING);
+		long bad = racks.stream().filter(rack -> !fine.contains(rack.rackStatus())).count();
+		double hottest = racks.stream().mapToDouble(MachineBlockEntity::inletCelsius).max().orElse(0);
+		double toAir = racks.stream().mapToDouble(MachineBlockEntity::heatToAirKw).max().orElse(0);
+		MachineBlockEntity reactor = SimTicker.machines(world).stream().filter(machine -> machine.blockId().equals("modular_reactor")
+				&& machine.getPos().isWithinDistance(origin, size * 1.5)).findFirst().orElse(null);
+		String reactorInfo = reactor == null ? "none" : reactor.reactorArraySize() + "-cube, " + Math.round(reactor.powerKw()) + " / "
+				+ Math.round(reactor.reactorCapacityKw()) + " kW, loop " + Math.round(reactor.loopHeatKw()) + "/"
+				+ Math.round(reactor.loopCapacityKw());
+		check("D5.a", cuts.size() == 5 && racks.size() == 200 && darkBefore > 150 && bad == 0 && hottest < 27,
+				"cuts=" + cuts.size() + " racks=" + racks.size() + " darkBeforeRepair=" + darkBefore + " after=" + statuses
+						+ " hottestInlet=" + String.format(java.util.Locale.ROOT, "%.1f", hottest) + " maxToAir=" + toAir
+						+ " reactor=" + reactorInfo, failures);
 	}
 
 	private static ItemStack pattern(List<net.minecraft.item.Item> grid, ItemStack output) {

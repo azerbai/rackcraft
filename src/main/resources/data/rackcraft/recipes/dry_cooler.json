@@ -1,0 +1,29 @@
+{
+  "key": {
+    "C": {
+      "item": "minecraft:copper_ingot"
+    },
+    "F": {
+      "item": "rackcraft:exhaust_fan"
+    },
+    "I": {
+      "item": "minecraft:iron_bars"
+    },
+    "P": {
+      "item": "rackcraft:coolant_pipe"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    }
+  },
+  "pattern": [
+    "IFI",
+    "PCP",
+    "SSS"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:dry_cooler"
+  },
+  "type": "minecraft:crafting_shaped"
+}

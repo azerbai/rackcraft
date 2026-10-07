@@ -236,7 +236,7 @@ public final class OpsScreenHandler extends ScreenHandler {
 			Map.entry(RackStatus.NETWORK_LIMITED, "bandwidth-limited"), Map.entry(RackStatus.CRAFTING, "autocrafting"),
 			Map.entry(RackStatus.GENERATING, "generating"), Map.entry(RackStatus.TRAINING, "training"),
 			Map.entry(RackStatus.EMPTY, "empty"), Map.entry(RackStatus.TRIPPED, "tripped"), Map.entry(RackStatus.NO_POWER, "unpowered"),
-			Map.entry(RackStatus.NEEDS_CDU, "need a CDU"), Map.entry(RackStatus.NEEDS_WATER, "need water"),
+			Map.entry(RackStatus.NEEDS_CDU, "need a CDU"), Map.entry(RackStatus.NEEDS_WATER, "need liquid cooling"),
 			Map.entry(RackStatus.OVERHEATED, "overheated"), Map.entry(RackStatus.NO_NETWORK, "offline"));
 
 	private static boolean problem(RackStatus status) {
@@ -247,6 +247,8 @@ public final class OpsScreenHandler extends ScreenHandler {
 	}
 
 	private static void machineAlerts(ServerWorld world, List<MachineBlockEntity> machines, List<OpsSnapshot.Alert> alerts) {
+		// Machines on one loop, or cores of one reactor array, report the same figures: one alert each is enough.
+		java.util.Set<String> reported = new java.util.HashSet<>();
 		for (MachineBlockEntity machine : machines) {
 			String at = " at " + machine.getPos().toShortString();
 			switch (machine.blockId()) {
@@ -284,6 +286,19 @@ public final class OpsScreenHandler extends ScreenHandler {
 						case TOO_LITTLE_WATER -> "the lake has run dry (" + machine.pumpSources() + " source blocks left)";
 					};
 					if (why != null) alerts.add(new OpsSnapshot.Alert(2, "Freshwater Pump" + at + ": " + why));
+				}
+				case "cooling_tower", "dry_cooler", "chiller", "water_heat_exchanger", "crac_unit", "rear_door_cooler" -> {
+					if (machine.loopHeatKw() > machine.loopCapacityKw() + 0.5
+							&& reported.add("loop " + machine.loopHeatKw() + " " + machine.loopCapacityKw())) {
+						alerts.add(new OpsSnapshot.Alert(1, "Coolant loop" + at + " overloaded: " + Math.round(machine.loopHeatKw())
+								+ " kW in, sinks take " + Math.round(machine.loopCapacityKw()) + " kW"));
+					}
+				}
+				case "modular_reactor" -> {
+					if (machine.arrayFuelTicks() <= 0 && machine.arrayFuelCells() == 0
+							&& (machine.reactorArraySize() == 1 || reported.add("reactor " + machine.reactorCapacityKw() + " " + machine.reactorArraySize()))) {
+						alerts.add(new OpsSnapshot.Alert(1, "Modular Reactor" + at + ": out of Fuel Cells"));
+					}
 				}
 				case "diesel_generator" -> {
 					if (machine.fuelBurnTicks() <= 0 && machine.getStack(0).isEmpty()) {

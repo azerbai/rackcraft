@@ -1,0 +1,23 @@
+{
+  "key": {
+    "I": {
+      "item": "minecraft:iron_bars"
+    },
+    "P": {
+      "item": "rackcraft:coolant_pipe"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    }
+  },
+  "pattern": [
+    "SPS",
+    "PIP",
+    "SPS"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:rear_door_cooler"
+  },
+  "type": "minecraft:crafting_shaped"
+}

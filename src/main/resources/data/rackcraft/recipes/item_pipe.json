@@ -1,0 +1,23 @@
+{
+  "key": {
+    "A": {
+      "item": "rackcraft:aluminum_ingot"
+    },
+    "C": {
+      "item": "minecraft:copper_ingot"
+    },
+    "H": {
+      "item": "minecraft:hopper"
+    }
+  },
+  "pattern": [
+    "AAA",
+    "HCH",
+    "AAA"
+  ],
+  "result": {
+    "count": 8,
+    "item": "rackcraft:item_pipe"
+  },
+  "type": "minecraft:crafting_shaped"
+}

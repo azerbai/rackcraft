@@ -1,0 +1,79 @@
+{
+  "elements": [
+    {
+      "faces": {
+        "down": {
+          "texture": "#joint",
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ]
+        },
+        "east": {
+          "texture": "#joint",
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ]
+        },
+        "north": {
+          "texture": "#joint",
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ]
+        },
+        "south": {
+          "texture": "#joint",
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ]
+        },
+        "up": {
+          "texture": "#joint",
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ]
+        },
+        "west": {
+          "texture": "#joint",
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ]
+        }
+      },
+      "from": [
+        5.0,
+        5.0,
+        5.0
+      ],
+      "to": [
+        11.0,
+        11.0,
+        11.0
+      ]
+    }
+  ],
+  "parent": "minecraft:block/block",
+  "textures": {
+    "end": "rackcraft:block/item_pipe_end_cut",
+    "joint": "rackcraft:block/item_pipe_joint_cut",
+    "particle": "rackcraft:block/item_pipe_cut",
+    "side": "rackcraft:block/item_pipe_cut"
+  }
+}

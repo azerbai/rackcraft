@@ -20,7 +20,8 @@ import net.minecraft.world.PersistentState;
 
 /**
  * Smog. Exhaust fans dump a data center's waste heat straight outside, and they pollute heavily: each
- * running fan adds smog to its chunk (more the more heat it moves), smog drifts into neighbouring chunks
+ * fan that is actually moving heat adds smog to its chunk in proportion to the heat (a fan in cool air idles
+ * and stays clean), smog drifts into neighbouring chunks
  * and clears over a few minutes. Smog Scrubbers pull it back out. Levels run 0 to 100, and breathing it
  * gets worse in steps:
  *
@@ -43,8 +44,8 @@ public final class AirQuality extends PersistentState {
 	public static final float TOXIC = 88;
 	/** Smog a fully powered scrubber removes from its own chunk per second; half that from each neighbour. */
 	public static final double SCRUB_PER_SECOND = 1.5;
-	private static final double BASE_PER_FAN = 1.2;
-	private static final double PER_KW_REMOVED = 0.6;
+	private static final double BASE_PER_FAN = 0.3;
+	private static final double PER_KW_REMOVED = 0.3;
 	private static final double CLEAR_SECONDS = 240;
 	private static final double DRIFT_PER_SECOND = 0.035;
 
@@ -78,6 +79,7 @@ public final class AirQuality extends PersistentState {
 	public void step(ServerWorld world, Map<MachineBlockEntity, Double> fanHeatRemoved, Map<MachineBlockEntity, Double> scrubbers,
 			double dt) {
 		fanHeatRemoved.forEach((fan, removed) -> {
+			if (removed <= 0) return;
 			add(new ChunkPos(fan.getPos()).toLong(), (BASE_PER_FAN + PER_KW_REMOVED * removed) * dt);
 			// A thick column of smoke out of the back of every running fan.
 			Direction back = fan.getCachedState().get(MachineBlock.FACING).getOpposite();

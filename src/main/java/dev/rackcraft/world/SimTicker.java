@@ -43,6 +43,10 @@ public final class SimTicker {
 	private static final Map<ServerWorld, ThermalGrid> THERMAL_GRIDS = new WeakHashMap<>();
 	private static final Map<ServerWorld, Long> LAST_ERRORS = new WeakHashMap<>();
 	private static boolean registered;
+	private static int failedSteps;
+
+	/** Simulation steps that threw since startup; the log only shows one a minute, so the self-test checks this. */
+	public static int failedSteps() { return failedSteps; }
 
 	private SimTicker() {}
 
@@ -78,6 +82,7 @@ public final class SimTicker {
 		try {
 			step(world);
 		} catch (RuntimeException exception) {
+			failedSteps++;
 			long now = world.getTime();
 			if (now - LAST_ERRORS.getOrDefault(world, Long.MIN_VALUE / 2) >= 1200) {
 				LAST_ERRORS.put(world, now);
@@ -101,6 +106,7 @@ public final class SimTicker {
 			machine.setNetworkStats(0, 0);
 			if (!machine.blockId().equals("server_rack")) machine.setPowerKw(0);
 		}
+		Map<MachineBlockEntity, ReactorArrays.Array> reactors = ReactorArrays.scan(machines);
 
 		for (Set<BlockPos> component : networks.components(NetKind.POWER)) {
 			List<MachineBlockEntity> members = machines.stream()
@@ -109,7 +115,8 @@ public final class SimTicker {
 			List<PowerSolver.Sink> sinks = new ArrayList<>();
 			Map<String, MachineBlockEntity> sinkOwners = new HashMap<>();
 			for (MachineBlockEntity machine : members) {
-				PowerSolver.Source source = sourceFor(world, machine);
+				PowerSolver.Source source = machine.blockId().equals("modular_reactor")
+						? reactorSource(machine, reactors.get(machine)) : sourceFor(world, machine);
 				if (source != null) {
 					sources.add(source);
 					powerSources.put(machine, source);
@@ -162,33 +169,115 @@ public final class SimTicker {
 		for (Map.Entry<MachineBlockEntity, Double> entry : satisfaction.entrySet()) {
 			entry.getKey().setPowerSatisfaction(entry.getValue());
 		}
+		for (ReactorArrays.Array array : new HashSet<>(reactors.values())) {
+			double output = sourceOutput.getOrDefault(array.controller(), 0.0);
+			ReactorArrays.burn(array, output, RackcraftConfig.values.sim.stepTicks);
+			MachineBlockEntity controller = array.controller();
+			int cells = array.fuelCells();
+			for (MachineBlockEntity member : array.members()) {
+				member.setPowerKw(output);
+				member.setReactorArray(array.edge(), array.capacityKw(), controller.fuelBurnTicks(), controller.fuelBurnTotal(), cells);
+			}
+		}
 
 		ThermalGrid heat = thermalGrid(world);
-		Map<MachineBlockEntity, Double> fanHeat = applyCooling(world, machines, heat, networks, satisfaction, dt);
-		Set<MachineBlockEntity> watered = FreshwaterCooling.supply(world, machines, satisfaction, dt);
+		boolean coolingFailure = FacilityManager.get(world).activeEvent().equals("cooling_failure");
+		Map<BlockPos, MachineBlockEntity> byPos = new HashMap<>();
+		for (MachineBlockEntity machine : machines) byPos.put(machine.getPos(), machine);
+		Map<MachineBlockEntity, Double> fanHeat = runFans(world, machines, heat, satisfaction, coolingFailure, dt);
+		FreshwaterCooling.scanPumps(world, machines, satisfaction);
+		CoolingLoops loops = CoolingLoops.build(world, machines, satisfaction, coolingFailure);
 		pinCreativeCoolers(world, machines, heat);
 		Map<MachineBlockEntity, ServerModel.RackStep> rackSteps = new HashMap<>();
+		List<RackHeat> rackHeat = new ArrayList<>();
 		for (MachineBlockEntity rack : machines) {
 			if (!rack.blockId().equals("server_rack")) continue;
 			Direction facing = rack.getCachedState().get(MachineBlock.FACING);
+			BlockPos back = rack.getPos().offset(facing.getOpposite());
+			MachineBlockEntity door = byPos.get(back);
+			if (door != null && !door.blockId().equals("rear_door_cooler")) door = null;
 			List<BlockPos> intakeCells = airflowCells(world, rack.getPos().offset(facing), facing, heat);
-			List<BlockPos> exhaustCells = airflowCells(world, rack.getPos().offset(facing.getOpposite()), facing, heat);
-			double inlet = averageTemperature(heat, intakeCells, rack.inletCelsius() + 1);
+			// With a Rear-Door Cooler on the back, whatever it can't catch comes out of the far side of it.
+			List<BlockPos> exhaustCells = airflowCells(world, door == null ? back : back.offset(facing.getOpposite()), facing, heat);
+			double supplied = satisfaction.getOrDefault(rack, 0.0);
+			double inlet = intakeCells.isEmpty() ? chokedInlet(heat, rack) : averageTemperature(heat, intakeCells, heat.ambientCelsius());
 			boolean hasCdu = adjacentMachine(machines, rack.getPos(), "cdu");
 			ServerModel.RackStep result = ServerModel.calculate(rack.modules(), rack.loadLimitPercent(),
-					satisfaction.getOrDefault(rack, 0.0), inlet, hasCdu, watered.contains(rack));
-			if (satisfaction.getOrDefault(rack, 0.0) < 0.5) rack.setTripped(true);
+					supplied, inlet, hasCdu, loops.cooled(rack.getPos()));
+			if (supplied < 0.5) rack.setTripped(true);
 			if (rack.isTripped() && inlet < 32 && result.thermalFactor() > 0) rack.setTripped(false);
 			if (rack.isTripped()) result = new ServerModel.RackStep(result.usedBays(), result.demandKw(),
 					0, 0, result.thermalFactor(), result.quantumBlocked(), result.tripped(), result.waterBlocked());
 			rackSteps.put(rack, result);
-			depositAcross(heat, exhaustCells, result.demandKw(), dt);
-			rack.setRackStats(inlet, averageTemperature(heat, exhaustCells, inlet), result.demandKw(),
+			// Every kilowatt a rack actually draws comes back out as heat; an unpowered rack makes none.
+			double total = result.demandKw() * supplied;
+			double liquid = loops.cooled(rack.getPos())
+					? Math.min(total, ServerModel.liquidHeatKw(rack.modules(), result.load()) * supplied) : 0;
+			loops.request(rack.getPos(), liquid);
+			double doorKw = door != null && satisfaction.getOrDefault(door, 0.0) >= 0.5 && loops.cooled(door.getPos())
+					? Math.min(CoolingLoops.REAR_DOOR_KW, total - liquid) : 0;
+			if (door != null) loops.request(door.getPos(), doorKw);
+			rackHeat.add(new RackHeat(rack, result, inlet, total, liquid, door, doorKw, intakeCells, exhaustCells));
+		}
+		List<CracSide> cracSides = new ArrayList<>();
+		for (MachineBlockEntity crac : machines) {
+			if (!crac.blockId().equals("crac_unit")) continue;
+			crac.setCooling(0, 0);
+			double power = Math.min(1, satisfaction.getOrDefault(crac, 0.0));
+			if (power <= 0 || coolingFailure || !loops.cooled(crac.getPos())) continue;
+			Direction facing = crac.getCachedState().get(MachineBlock.FACING);
+			for (BlockPos side : List.of(crac.getPos().offset(facing), crac.getPos().offset(facing.getOpposite()))) {
+				if (!isAirCell(world, side)) continue;
+				double requested = Math.min(CoolingLoops.CRAC_KW_PER_SIDE, CoolingLoops.CRAC_FLOW_KW_PER_K
+						* Math.max(0, heat.temperatureCelsius(intake(side)) - heat.ambientCelsius())) * power;
+				if (requested <= 0) continue;
+				loops.request(crac.getPos(), requested);
+				cracSides.add(new CracSide(crac, side, requested));
+			}
+		}
+		Map<ReactorArrays.Array, Double> reactorAirHeat = new HashMap<>();
+		for (ReactorArrays.Array array : new HashSet<>(reactors.values())) {
+			double reactorHeat = array.controller().powerKw() * CoolingLoops.REACTOR_HEAT_SHARE;
+			if (reactorHeat <= 0) continue;
+			MachineBlockEntity piped = array.members().stream().filter(member -> loops.cooled(member.getPos())).findFirst().orElse(null);
+			if (piped == null) {
+				reactorAirHeat.put(array, reactorHeat);
+				continue;
+			}
+			loops.request(piped.getPos(), reactorHeat);
+			reactorAirHeat.put(array, -reactorHeat);
+		}
+		// Every request is in: each loop now knows what share it can take.
+		for (RackHeat entry : rackHeat) {
+			MachineBlockEntity rack = entry.rack();
+			double toLoop = entry.liquidKw() * loops.ratio(rack.getPos());
+			double caught = entry.door() == null ? 0 : entry.doorKw() * loops.ratio(entry.door().getPos());
+			if (entry.door() != null) entry.door().setCooling(caught, 0);
+			double toAir = Math.max(0, entry.totalKw() - toLoop - caught);
+			// Exhaust with nowhere to go blows back into the intake.
+			depositAcross(heat, entry.exhaustCells().isEmpty() ? entry.intakeCells() : entry.exhaustCells(), toAir, dt);
+			rack.setHeatSplit(toLoop + caught, toAir);
+			ServerModel.RackStep result = entry.step();
+			rack.setRackStats(entry.inlet(), averageTemperature(heat, entry.exhaustCells(), entry.inlet()), entry.totalKw(),
 					result.load(), result.thermalFactor());
 		}
+		for (CracSide side : cracSides) {
+			double removed = heat.removeKw(intake(side.cell()), side.requestedKw() * loops.ratio(side.crac().getPos()), dt);
+			side.crac().setCooling(side.crac().coolingKw() + removed, 0);
+		}
+		reactorAirHeat.forEach((array, reactorHeat) -> {
+			double toAir = reactorHeat;
+			if (reactorHeat < 0) {
+				MachineBlockEntity piped = array.members().stream().filter(member -> loops.cooled(member.getPos())).findFirst().orElseThrow();
+				toAir = -reactorHeat * (1 - loops.ratio(piped.getPos()));
+			}
+			depositAcross(heat, aroundArray(world, array, heat), toAir, dt);
+		});
+		loops.finish(world, dt);
 
-		updateLitStates(world, machines, satisfaction, sourceOutput, energized, networks);
+		updateLitStates(world, machines, satisfaction, sourceOutput, energized, networks, fanHeat);
 		stepStorage(world, machines, heat, satisfaction, dt);
+		if (world.getTime() % 20 < Math.max(1, RackcraftConfig.values.sim.stepTicks)) ItemPipes.step(world, machines);
 		TrainingStations.step(world, machines, dt);
 		if (world.getTime() % 10 < Math.max(1, RackcraftConfig.values.sim.stepTicks)) TrainingStations.syncShackles(world, machines);
 		Map<MachineBlockEntity, Double> scrubbers = new HashMap<>();
@@ -197,7 +286,7 @@ public final class SimTicker {
 		}
 		AirQuality.get(world).step(world, fanHeat, scrubbers, dt);
 		applyMachineHeat(world, machines, heat, dt);
-		heat.step(dt, false);
+		heat.step(dt, airMap(world));
 		pinCreativeCoolers(world, machines, heat);
 		RackcraftNetworking.sendHeatCells(world, heat);
 		if (world.getTime() % 20 < Math.max(1, RackcraftConfig.values.sim.stepTicks)) RackcraftNetworking.sendHud(world, machines);
@@ -226,7 +315,6 @@ public final class SimTicker {
 			case "diesel_generator" -> dieselSource(machine);
 			case "creative_power" -> new PowerSolver.Source(id(machine), PowerSolver.SourceKind.UTILITY,
 					machine.creativeValue(CreativeSettings.OUTPUT_KW));
-		case "modular_reactor" -> reactorSource(machine);
 		case "battery_bank" -> new PowerSolver.Source(id(machine), PowerSolver.SourceKind.BATTERY,
 				0, 3000, machine.chargeKws(), 15, 60);
 		default -> null;
@@ -236,8 +324,9 @@ public final class SimTicker {
 	private static PowerSolver.Source dieselSource(MachineBlockEntity machine) {
 		if (machine.fuelBurnTicks() <= 0) {
 			ItemStack fuel = machine.getStack(0);
-			int burnTicks = FuelRegistry.INSTANCE.get(fuel.getItem());
-			if (burnTicks <= 0) return null;
+			// FuelRegistry returns null for anything that isn't fuel, including an empty slot.
+			Integer burnTicks = fuel.isEmpty() ? null : FuelRegistry.INSTANCE.get(fuel.getItem());
+			if (burnTicks == null || burnTicks <= 0) return null;
 			machine.startFuel(burnTicks);
 			net.minecraft.item.Item remainder = fuel.getItem().getRecipeRemainder();
 			fuel.decrement(1);
@@ -248,20 +337,27 @@ public final class SimTicker {
 				0, 0, 0, 0, machine.dieselSpinupSteps());
 	}
 
-	private static PowerSolver.Source reactorSource(MachineBlockEntity machine) {
-		if (machine.getStack(0).isEmpty() || machine.isTripped()) return null;
-		return new PowerSolver.Source(id(machine), PowerSolver.SourceKind.REACTOR, 500);
+	/** A reactor array is one source, on its controller; the other cores in it supply nothing themselves. */
+	private static PowerSolver.Source reactorSource(MachineBlockEntity machine, ReactorArrays.Array array) {
+		if (array == null || array.controller() != machine) return null;
+		if (array.members().stream().anyMatch(MachineBlockEntity::isTripped) || !ReactorArrays.refuel(array)) return null;
+		return new PowerSolver.Source(id(machine), PowerSolver.SourceKind.REACTOR, array.capacityKw());
 	}
 
 	/** Drives the LIT block state so machine fronts show their powered texture. */
 	private static void updateLitStates(ServerWorld world, List<MachineBlockEntity> machines,
 			Map<MachineBlockEntity, Double> satisfaction, Map<MachineBlockEntity, Double> sourceOutput,
-			Set<MachineBlockEntity> energized, NetworkManager networks) {
+			Set<MachineBlockEntity> energized, NetworkManager networks, Map<MachineBlockEntity, Double> fanHeat) {
 		for (MachineBlockEntity machine : machines) {
 			boolean active = switch (machine.blockId()) {
 				case "server_rack" -> satisfaction.getOrDefault(machine, 0.0) > 0 && !machine.isTripped();
-				case "solar_panel", "wind_turbine", "utility_intake", "diesel_generator", "modular_reactor",
+				case "solar_panel", "wind_turbine", "utility_intake", "diesel_generator",
 						"battery_bank", "creative_power" -> sourceOutput.getOrDefault(machine, 0.0) > 0;
+				case "modular_reactor" -> machine.powerKw() > 0;
+				// Fans only spin while they have heat to move; cooling gear shows when it is actually working.
+				case "exhaust_fan" -> fanHeat.containsKey(machine);
+				case "cooling_tower", "dry_cooler", "chiller", "water_heat_exchanger", "rear_door_cooler", "crac_unit" ->
+						satisfaction.getOrDefault(machine, 0.0) > 0 && machine.coolingKw() > 0.05;
 				case "creative_rack" -> machine.creativeValue(CreativeSettings.MINING_RATE) > 0;
 				case "creative_cooler" -> true;
 				case "storage_array", "tape_library" -> machine.storageOnline();
@@ -296,7 +392,11 @@ public final class SimTicker {
 					machine.inletCelsius(), true).demandKw();
 			case "exhaust_fan" -> 0.2;
 			case "cooling_tower" -> 4;
-			case "crac_unit" -> 30 / 3.5;
+			case "crac_unit" -> 3;
+			case "rear_door_cooler" -> 0.3;
+			case "dry_cooler" -> 2;
+			case "chiller" -> CoolingLoops.CHILLER_BASE_KW + CoolingLoops.CHILLER_KW_PER_KW * machine.coolingKw();
+			case "water_heat_exchanger" -> 0.5;
 			case "cdu" -> 0.5;
 			case "facility_controller" -> 0.5;
 			case "creative_rack" -> machine.creativeValue(CreativeSettings.DRAW_KW);
@@ -317,35 +417,87 @@ public final class SimTicker {
 		return Long.toString(machine.getPos().asLong());
 	}
 
-	/** Runs fans and CRAC units. Returns each running exhaust fan and the heat it moved, for smog. */
-	private static Map<MachineBlockEntity, Double> applyCooling(ServerWorld world, List<MachineBlockEntity> machines,
-			ThermalGrid heat, NetworkManager networks, Map<MachineBlockEntity, Double> satisfaction, double dt) {
+	private record RackHeat(MachineBlockEntity rack, ServerModel.RackStep step, double inlet, double totalKw, double liquidKw,
+			MachineBlockEntity door, double doorKw, List<BlockPos> intakeCells, List<BlockPos> exhaustCells) {}
+
+	private record CracSide(MachineBlockEntity crac, BlockPos cell, double requestedKw) {}
+
+	/** An exhaust fan only spins when the air in front of it is warmer than ambient by this much. */
+	private static final double FAN_START_K = 1;
+	public static final double FAN_MAX_KW = 10;
+	private static final double FAN_FLOW_KW_PER_K = 1.5;
+
+	/**
+	 * Exhaust fans pull hot air from the cell in front of them and dump it outside. They only run when there is
+	 * heat to move: a fan in cool air idles and makes no smog. Returns each running fan and the heat it moved.
+	 */
+	private static Map<MachineBlockEntity, Double> runFans(ServerWorld world, List<MachineBlockEntity> machines, ThermalGrid heat,
+			Map<MachineBlockEntity, Double> satisfaction, boolean coolingFailure, double dt) {
 		Map<MachineBlockEntity, Double> fanHeat = new HashMap<>();
-		if (FacilityManager.get(world).activeEvent().equals("cooling_failure")) return fanHeat;
-		for (MachineBlockEntity unit : machines) {
-			if (satisfaction.getOrDefault(unit, 0.0) <= 0) continue;
-			Direction facing = unit.getCachedState().get(MachineBlock.FACING);
-			if (unit.blockId().equals("exhaust_fan")) {
-				BlockPos intake = unit.getPos().offset(facing);
-				double removed = isAirCell(world, intake) ? Math.min(3,
-						0.5 * Math.max(0, heat.temperatureCelsius(intake(intake)) - heat.ambientCelsius())) : 0;
-				if (removed > 0) heat.removeKw(intake(intake), removed, dt);
-				fanHeat.put(unit, removed);
-			} else if (unit.blockId().equals("crac_unit")) {
-				Set<BlockPos> coolant = networks.component(unit.getPos(), NetKind.COOLANT);
-				boolean supplied = coolant.stream().map(world::getBlockEntity).filter(MachineBlockEntity.class::isInstance)
-						.map(MachineBlockEntity.class::cast).anyMatch(tower -> tower.blockId().equals("cooling_tower")
-								&& satisfaction.getOrDefault(tower, 0.0) > 0);
-				if (!supplied) continue;
-				for (BlockPos side : List.of(unit.getPos().offset(facing), unit.getPos().offset(facing.getOpposite()))) {
-					if (!isAirCell(world, side)) continue;
-					double requested = Math.min(15, RackcraftConfig.values.thermal.cracFlowKwPerK
-							* Math.max(0, heat.temperatureCelsius(intake(side)) - 16));
-					heat.removeKw(intake(side), requested * satisfaction.getOrDefault(unit, 0.0), dt);
+		for (MachineBlockEntity fan : machines) {
+			if (!fan.blockId().equals("exhaust_fan")) continue;
+			fan.setCooling(0, 0);
+			double power = Math.min(1, satisfaction.getOrDefault(fan, 0.0));
+			if (power <= 0 || coolingFailure) continue;
+			BlockPos front = fan.getPos().offset(fan.getCachedState().get(MachineBlock.FACING));
+			if (!isAirCell(world, front)) continue;
+			double excess = heat.temperatureCelsius(intake(front)) - heat.ambientCelsius();
+			if (excess < FAN_START_K) continue;
+			double removed = heat.removeKw(intake(front), Math.min(FAN_MAX_KW, FAN_FLOW_KW_PER_K * excess) * power, dt);
+			if (removed <= 0) continue;
+			fan.setCooling(removed, 0);
+			fanHeat.put(fan, removed);
+		}
+		return fanHeat;
+	}
+
+	/** A rack with its intake blocked breathes its own heat: its inlet creeps toward what it puts out, and cools off when idle. */
+	private static double chokedInlet(ThermalGrid heat, MachineBlockEntity rack) {
+		double target = heat.ambientCelsius() + 1.5 * rack.powerKw();
+		return Math.min(60, rack.inletCelsius() + (target - rack.inletCelsius()) * 0.25);
+	}
+
+	/** The air around a reactor array (or behind a lone reactor), where its heat goes when it isn't piped to a loop. */
+	private static List<BlockPos> aroundArray(ServerWorld world, ReactorArrays.Array array, ThermalGrid heat) {
+		if (array.cores() == 1) {
+			MachineBlockEntity reactor = array.controller();
+			Direction facing = reactor.getCachedState().get(MachineBlock.FACING);
+			return airflowCells(world, reactor.getPos().offset(facing.getOpposite()), facing, heat);
+		}
+		Set<BlockPos> members = new HashSet<>();
+		for (MachineBlockEntity member : array.members()) members.add(member.getPos());
+		List<BlockPos> cells = new ArrayList<>();
+		for (BlockPos pos : members) {
+			for (Direction direction : Direction.values()) {
+				BlockPos side = pos.offset(direction);
+				if (!members.contains(side) && isAirCell(world, side) && !cells.contains(side)) {
+					track(world, heat, side);
+					cells.add(side);
 				}
 			}
 		}
-		return fanHeat;
+		return cells;
+	}
+
+	/** What the thermal grid sees: air it can spread into (in loaded chunks only), and which of it is outdoors. */
+	private static ThermalGrid.AirMap airMap(ServerWorld world) {
+		return new ThermalGrid.AirMap() {
+			@Override
+			public boolean passable(ThermalGrid.CellPos cell) {
+				BlockPos pos = new BlockPos(cell.x(), cell.y(), cell.z());
+				if (world.isOutOfHeightLimit(pos) || !world.getChunkManager().isChunkLoaded(pos.getX() >> 4, pos.getZ() >> 4)) return false;
+				return isAirCell(world, pos);
+			}
+
+			@Override
+			public boolean outdoors(ThermalGrid.CellPos cell) {
+				return world.isSkyVisible(new BlockPos(cell.x(), cell.y(), cell.z()));
+			}
+		};
+	}
+
+	private static void track(ServerWorld world, ThermalGrid heat, BlockPos pos) {
+		heat.ensureCell(intake(pos), world.isSkyVisible(pos));
 	}
 
 	/**
@@ -391,20 +543,22 @@ public final class SimTicker {
 			double target = cooler.creativeValue(CreativeSettings.TARGET_C);
 			for (BlockPos side : List.of(cooler.getPos().offset(facing), cooler.getPos().offset(facing.getOpposite()))) {
 				if (!isAirCell(world, side)) continue;
-				heat.ensureCell(intake(side));
+				track(world, heat, side);
 				heat.setTemperatureCelsius(intake(side), target);
 			}
 		}
 	}
 
+	/** Diesel generators vent 4 kW at full output out of their radiator at the back. */
 	private static void applyMachineHeat(ServerWorld world, List<MachineBlockEntity> machines,
 			ThermalGrid heat, double dt) {
 		for (MachineBlockEntity machine : machines) {
-			if (!machine.blockId().equals("diesel_generator") && !machine.blockId().equals("modular_reactor")) continue;
+			if (!machine.blockId().equals("diesel_generator") || machine.powerKw() <= 0) continue;
 			Direction facing = machine.getCachedState().get(MachineBlock.FACING);
 			BlockPos cell = machine.getPos().offset(facing.getOpposite());
 			if (!isAirCell(world, cell)) continue;
-			heat.depositKw(intake(cell), machine.blockId().equals("diesel_generator") ? 4 : 150, dt);
+			track(world, heat, cell);
+			heat.depositKw(intake(cell), 4 * Math.min(1, machine.powerKw() / 40), dt);
 		}
 	}
 
@@ -474,7 +628,7 @@ public final class SimTicker {
 
 	private static List<BlockPos> airflowCells(ServerWorld world, BlockPos target, Direction facing, ThermalGrid heat) {
 		if (isAirCell(world, target)) {
-			heat.ensureCell(intake(target));
+			track(world, heat, target);
 			return List.of(target);
 		}
 		List<BlockPos> fallback = new ArrayList<>();
@@ -482,7 +636,7 @@ public final class SimTicker {
 			if (direction == facing || direction == facing.getOpposite()) continue;
 			BlockPos candidate = target.offset(direction);
 			if (isAirCell(world, candidate)) {
-				heat.ensureCell(intake(candidate));
+				track(world, heat, candidate);
 				fallback.add(candidate);
 			}
 		}
@@ -513,7 +667,7 @@ public final class SimTicker {
 		return THERMAL_GRIDS.computeIfAbsent(world, ignored -> {
 			RackcraftConfig.Thermal config = RackcraftConfig.values.thermal;
 			return new ThermalGrid(config.ambientC, config.cellCapacityKjPerK,
-					config.faceConductanceKwPerK, config.upwardMultiplier, config.leakKwPerK,
+					config.faceConductanceKwPerK, config.upwardMultiplier, config.leakKwPerK, config.outdoorLeakKwPerK,
 					config.settleEpsilonK, config.maxActiveCells);
 		});
 	}

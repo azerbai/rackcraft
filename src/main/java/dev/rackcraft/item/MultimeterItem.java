@@ -66,7 +66,23 @@ public final class MultimeterItem extends Item {
 				lines.add(row("Intake / exhaust", Text.literal(format(machine.inletCelsius()) + " C / "
 						+ format(machine.exhaustCelsius()) + " C"), machine.inletCelsius() > 27 ? Formatting.GOLD : Formatting.WHITE));
 				lines.add(row("Draw", Text.literal(format(machine.powerKw()) + " kW"), Formatting.WHITE));
+				lines.add(row("Heat", Text.literal(format(machine.heatToLoopKw()) + " kW to the loop, "
+						+ format(machine.heatToAirKw()) + " kW to the air"), machine.heatToAirKw() > 5 ? Formatting.GOLD : Formatting.WHITE));
 			}
+			case "modular_reactor" -> {
+				int edge = machine.reactorArraySize();
+				lines.add(row("Array", Text.literal(edge > 1 ? edge + "x" + edge + "x" + edge + " (" + edge * edge * edge + " cores, "
+						+ Math.round(dev.rackcraft.world.ReactorArrays.efficiency(edge) * 100) + "% fuel per core)"
+						: "single core"), edge > 1 ? Formatting.GREEN : Formatting.WHITE));
+				lines.add(row("Output", Text.literal(format(machine.powerKw()) + " / " + format(machine.reactorCapacityKw()) + " kW"),
+						Formatting.WHITE));
+				lines.add(row("Fuel", Text.literal(machine.arrayFuelTicks() / 20 + " s on this cell at full output, "
+						+ machine.arrayFuelCells() + " spare"), machine.arrayFuelTicks() > 0 || machine.arrayFuelCells() > 0
+						? Formatting.WHITE : Formatting.RED));
+			}
+			case "exhaust_fan", "crac_unit", "rear_door_cooler", "cooling_tower", "dry_cooler", "chiller", "water_heat_exchanger" ->
+					lines.add(row("Moving", Text.literal(format(machine.coolingKw()) + " kW of heat"),
+							machine.coolingKw() > 0 ? Formatting.GREEN : Formatting.GRAY));
 			case "diesel_generator" -> {
 				lines.add(row("Output", Text.literal(format(machine.powerKw()) + " / 40 kW"), Formatting.WHITE));
 				lines.add(row("Fuel left", Text.literal(machine.fuelBurnTicks() / 20 + " s"),
@@ -81,7 +97,7 @@ public final class MultimeterItem extends Item {
 			}
 			case "creative_cooler" -> lines.add(row("Holding air at",
 					Text.literal(format(machine.creativeValue(dev.rackcraft.CreativeSettings.TARGET_C)) + " C"), Formatting.AQUA));
-			case "solar_panel", "wind_turbine", "utility_intake", "modular_reactor", "creative_power" ->
+			case "solar_panel", "wind_turbine", "utility_intake", "creative_power" ->
 					lines.add(row("Output", Text.literal(format(machine.powerKw()) + " kW"), Formatting.WHITE));
 			default -> {
 				if (MachineBlockEntity.networkKinds(machine.blockId()).contains(NetKind.POWER)) {
@@ -91,6 +107,7 @@ public final class MultimeterItem extends Item {
 			}
 		}
 		Set<NetKind> kinds = MachineBlockEntity.networkKinds(machine.blockId());
+		if (kinds.contains(NetKind.COOLANT)) lines.add(loopLine(machine));
 		if (kinds.contains(NetKind.POWER)) lines.add(powerLine(machine));
 		if (kinds.contains(NetKind.DATA)) lines.add(dataLine(world, machine.getPos()));
 		return lines;
@@ -111,12 +128,29 @@ public final class MultimeterItem extends Item {
 					.map(MachineBlockEntity.class::cast).findFirst().ifPresent(machine -> lines.add(powerLine(machine)));
 			case DATA -> lines.add(dataLine(world, pos));
 			case COOLANT -> {
-				boolean tower = component.stream().anyMatch(member -> world.getBlockEntity(member) instanceof MachineBlockEntity entity
-						&& entity.blockId().equals("cooling_tower"));
-				lines.add(row("Cooling tower", Text.literal(tower ? "connected" : "missing"), tower ? Formatting.GREEN : Formatting.RED));
+				MachineBlockEntity first = component.stream().map(world::getBlockEntity).filter(MachineBlockEntity.class::isInstance)
+						.map(MachineBlockEntity.class::cast).findFirst().orElse(null);
+				long sinks = component.stream().filter(member -> world.getBlockEntity(member) instanceof MachineBlockEntity entity
+						&& dev.rackcraft.world.CoolingLoops.isSink(entity.blockId())).count();
+				lines.add(row("Heat sinks", Text.literal(sinks == 0 ? "none: add a Cooling Tower, Dry Cooler, Chiller or Water Heat Exchanger"
+						: Long.toString(sinks)), sinks == 0 ? Formatting.RED : Formatting.GREEN));
+				if (first != null) lines.add(loopLine(first));
+			}
+			case ITEM -> {
+				long storage = component.stream().filter(member -> world.getBlockEntity(member) instanceof MachineBlockEntity entity
+						&& (entity.blockId().equals("storage_array") || entity.blockId().equals("tape_library")) && entity.storageOnline()).count();
+				lines.add(row("Storage", Text.literal(storage == 0 ? "none online: connect a powered Storage Array" : storage + " online"),
+						storage == 0 ? Formatting.RED : Formatting.GREEN));
 			}
 		}
 		return lines;
+	}
+
+	private static Text loopLine(MachineBlockEntity machine) {
+		double heat = machine.loopHeatKw();
+		double capacity = machine.loopCapacityKw();
+		return row("Coolant loop", Text.literal(format(heat) + " kW of heat in, sinks can take " + format(capacity) + " kW"),
+				heat > capacity + 0.05 ? Formatting.RED : capacity <= 0 ? Formatting.GRAY : Formatting.GREEN);
 	}
 
 	private static Text powerLine(MachineBlockEntity machine) {

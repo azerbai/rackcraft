@@ -1,0 +1,29 @@
+{
+  "key": {
+    "B": {
+      "item": "rackcraft:circuit_board"
+    },
+    "C": {
+      "item": "rackcraft:cryo_coil"
+    },
+    "F": {
+      "item": "rackcraft:exhaust_fan"
+    },
+    "P": {
+      "item": "rackcraft:coolant_pipe"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    }
+  },
+  "pattern": [
+    "SCS",
+    "PBP",
+    "SFS"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:chiller"
+  },
+  "type": "minecraft:crafting_shaped"
+}

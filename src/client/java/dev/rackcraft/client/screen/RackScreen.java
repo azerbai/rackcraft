@@ -19,8 +19,8 @@ import net.minecraft.text.Text;
 public final class RackScreen extends RackcraftHandledScreen {
 	private static final int RIGHT = 60;
 	private static final int RIGHT_WIDTH = 188;
-	private static final int HINT_TOP = 92;
-	private static final int HINT_LINES = 5;
+	private static final int HINT_TOP = 103;
+	private static final int HINT_LINES = 4;
 	private static final int[] LIMITS = {25, 50, 75, 100};
 	private final List<ButtonWidget> limitButtons = new ArrayList<>();
 	private boolean hintCut;
@@ -89,7 +89,13 @@ public final class RackScreen extends RackcraftHandledScreen {
 				new Reading("Thermal", thermal + "%", thermal >= 100 ? GOOD : thermal > 0 ? WARN : BAD,
 						"Performance left after heat: 100% at 27 C or cooler, nothing at 40 C."),
 				new Reading("Supplied", supplied + "%", supplied >= 100 ? GOOD : supplied >= 50 ? WARN : BAD,
-						"Share of the rack's demand the power network delivers. Under 50% trips the breaker."));
+						"Share of the rack's demand the power network delivers. Under 50% trips the breaker."),
+				new Reading("To loop", kw(stat(Stat.HEAT_TO_LOOP)), stat(Stat.HEAT_TO_LOOP) > 0 ? GOOD : MUTED,
+						"Heat carried off by Coolant Pipe: 85% of what liquid-cooled modules make, plus what a Rear-Door Cooler"
+								+ " on the back catches. Sinks on the loop (towers, coolers, chillers) take it away."),
+				new Reading("To air", kw(stat(Stat.HEAT_TO_AIR)), stat(Stat.HEAT_TO_AIR) > 50 ? WARN : TEXT,
+						"Heat blown out of the back into the room. It spreads and slowly leaks away; if it reaches the intakes,"
+								+ " racks slow down. Catch it with a Rear-Door Cooler, CRAC unit or exhaust fan."));
 	}
 
 	@Override

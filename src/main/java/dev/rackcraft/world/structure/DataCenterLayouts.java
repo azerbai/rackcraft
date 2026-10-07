@@ -43,8 +43,8 @@ import net.minecraft.village.VillagerProfession;
  *       at art tables, and a middle manager.</li>
  *   <li>{@code solar_farm}: rows of panels and a control hut.</li>
  *   <li>{@code tape_archive}: a cobwebbed vault of tape libraries.</li>
- *   <li>{@code hyperscale_campus}: 112 x 112 blocks: four data halls, an operations centre, a reservoir,
- *       cooling towers, a substation, a generator yard and a car park.</li>
+ *   <li>{@code hyperscale_campus}: 176 x 176 blocks and very rare: a fully working campus of four data halls,
+ *       a quantum vault, a 3x3x3 reactor array, an operations centre and a reservoir. Five cut cables keep it dark.</li>
  * </ul>
  */
 public final class DataCenterLayouts {
@@ -62,6 +62,9 @@ public final class DataCenterLayouts {
 	public static final Identifier OFFICE_LOOT = Rackcraft.id("chests/data_center/office");
 	public static final Identifier MILL_LOOT = Rackcraft.id("chests/data_center/content_mill");
 
+	/** Campus edge length. Centred on its start chunk, so it stays within the 8-chunk reach of structure references. */
+	public static final int CAMPUS_SIZE = 176;
+
 	private static final Map<String, Layout> LAYOUTS = new LinkedHashMap<>();
 
 	static {
@@ -77,7 +80,7 @@ public final class DataCenterLayouts {
 		add(new Layout("content_mill", 27, 9, 19, Placement.SURFACE, 0, 4, false, false, DataCenterLayouts::contentMill));
 		add(new Layout("solar_farm", 23, 5, 15, Placement.SURFACE, 0, 4, false, false, DataCenterLayouts::solarFarm));
 		add(new Layout("tape_archive", 13, 7, 11, Placement.SURFACE, 0, 4, false, false, DataCenterLayouts::tapeArchive));
-		add(new Layout("hyperscale_campus", 112, 24, 112, Placement.SURFACE, 0, 14, false, true, DataCenterLayouts::campus));
+		add(new Layout("hyperscale_campus", CAMPUS_SIZE, 24, CAMPUS_SIZE, Placement.SURFACE, 0, 16, false, true, DataCenterLayouts::campus));
 	}
 
 	private DataCenterLayouts() {}
@@ -594,86 +597,188 @@ public final class DataCenterLayouts {
 
 	// ---------------------------------------------------------------- the hyperscale campus
 
+	/**
+	 * The hyperscale campus is not a ruin: everything works, and the only thing keeping it dark is five cut
+	 * cables (the reactor's output, the feeders to hall B and the quantum vault, and fiber in halls A and D).
+	 * Repair kits wait in the guard hut by the gate. A 3x3x3 reactor array runs the lot; each hall's racks have
+	 * rear-door coolers and a chiller bank; the quantum vault's loop goes to cooling towers fed by the reservoir.
+	 */
 	private static void campus(Site s) {
-		int size = 112;
-		s.pad(0, 0, size - 1, size - 1, 23, 12, b(Blocks.DIRT));
-		s.fill(0, 0, 0, size - 1, 0, size - 1, (x, y, z) -> s.chance(x, y, z, 1, 11) ? b(Blocks.COARSE_DIRT) : b(Blocks.GRASS_BLOCK));
+		int size = CAMPUS_SIZE;
+		int last = size - 1;
+		s.pad(0, 0, last, last, 23, 12, b(Blocks.DIRT));
+		s.fill(0, 0, 0, last, 0, last, (x, y, z) -> s.chance(x, y, z, 1, 11) ? b(Blocks.COARSE_DIRT) : b(Blocks.GRASS_BLOCK));
 		// Perimeter fence with brick posts and a gate in the south side.
-		s.fill(1, 1, 1, 110, 2, 1, run(Blocks.IRON_BARS, true));
-		s.fill(1, 1, 110, 110, 2, 110, run(Blocks.IRON_BARS, true));
-		s.fill(1, 1, 2, 1, 2, 109, run(Blocks.IRON_BARS, false));
-		s.fill(110, 1, 2, 110, 2, 109, run(Blocks.IRON_BARS, false));
-		for (int i = 1; i <= 110; i += 8) {
+		s.fill(1, 1, 1, last - 1, 2, 1, run(Blocks.IRON_BARS, true));
+		s.fill(1, 1, last - 1, last - 1, 2, last - 1, run(Blocks.IRON_BARS, true));
+		s.fill(1, 1, 2, 1, 2, last - 2, run(Blocks.IRON_BARS, false));
+		s.fill(last - 1, 1, 2, last - 1, 2, last - 2, run(Blocks.IRON_BARS, false));
+		for (int i = 1; i <= last - 1; i += 8) {
 			s.fill(i, 1, 1, i, 3, 1, b(Blocks.STONE_BRICKS));
-			s.fill(i, 1, 110, i, 3, 110, b(Blocks.STONE_BRICKS));
+			s.fill(i, 1, last - 1, i, 3, last - 1, b(Blocks.STONE_BRICKS));
 			s.fill(1, 1, i, 1, 3, i, b(Blocks.STONE_BRICKS));
-			s.fill(110, 1, i, 110, 3, i, b(Blocks.STONE_BRICKS));
+			s.fill(last - 1, 1, i, last - 1, 3, i, b(Blocks.STONE_BRICKS));
 		}
-		s.fill(52, 1, 110, 59, 3, 110, AIR);
-		// Roads: a ring, a cross road and the drive in from the gate.
-		Site.Material asphalt = (x, y, z) -> s.chance(x, y, z, 6, 12) ? b(Blocks.GRAVEL)
-				: s.chance(x, y, z, 7, 8) ? b(Blocks.ANDESITE) : b(Blocks.GRAY_CONCRETE);
-		s.fill(4, 0, 4, 107, 0, 6, asphalt);
-		s.fill(4, 0, 105, 107, 0, 107, asphalt);
-		s.fill(4, 0, 4, 6, 0, 107, asphalt);
-		s.fill(105, 0, 4, 107, 0, 107, asphalt);
-		s.fill(4, 0, 64, 107, 0, 66, asphalt);
-		s.fill(54, 0, 66, 57, 0, 110, asphalt);
-		hall(s, 9, 9, "asic_miner:4,failed_module:2,empty:2");
-		hall(s, 67, 9, "gpu_blade:3,tensor_accelerator:1,failed_module:2,empty:2");
-		hall(s, 9, 38, "server_1u:4,pi_node:2,failed_module:2");
-		hall(s, 67, 38, "quantum_core:1,gpu_blade:2,failed_module:3,empty:3");
-		operationsCentre(s, 47, 9);
-		reservoir(s, 47, 38);
-		coolingYard(s, 9, 70);
-		substation(s, 67, 70);
-		generatorYard(s, 90, 70);
-		carPark(s, 47, 70);
-		// Nature takes the rest back.
-		s.fill(0, 1, 0, size - 1, 1, size - 1, (x, y, z) -> s.get(x, 0, z).isOf(Blocks.GRASS_BLOCK) && s.get(x, 1, z).isAir()
+		s.fill(84, 1, last - 1, 91, 3, last - 1, AIR);
+		// Roads: a ring, a cross road, a north-south avenue and the drive in from the gate.
+		Site.Material asphalt = (x, y, z) -> s.chance(x, y, z, 6, 40) ? b(Blocks.ANDESITE) : b(Blocks.GRAY_CONCRETE);
+		s.fill(3, 0, 3, last - 3, 0, 5, asphalt);
+		s.fill(3, 0, last - 5, last - 3, 0, last - 3, asphalt);
+		s.fill(3, 0, 3, 5, 0, last - 3, asphalt);
+		s.fill(last - 5, 0, 3, last - 3, 0, last - 3, asphalt);
+		s.fill(3, 0, 47, last - 3, 0, 50, asphalt);
+		s.fill(110, 0, 3, 113, 0, last - 3, asphalt);
+		s.fill(86, 0, last - 5, 89, 0, last, asphalt);
+
+		List<String> asic = java.util.Collections.nCopies(8, "asic_miner");
+		List<String> gpu = java.util.Collections.nCopies(8, "gpu_blade");
+		List<String> servers = java.util.Collections.nCopies(8, "server_1u");
+		List<String> ai = List.of("tensor_accelerator", "tensor_accelerator", "tensor_accelerator", "gpu_blade",
+				"tensor_accelerator", "tensor_accelerator", "tensor_accelerator", "gpu_blade");
+		campusHall(s, 10, 12, "A", asic, 3, 2, true);
+		campusHall(s, 62, 12, "B", gpu, 6, 5, false);
+		campusHall(s, 10, 58, "C", servers, 2, 1, false);
+		campusHall(s, 62, 58, "D", ai, 5, 2, true);
+		operationsCentre(s, 120, 12);
+		carPark(s, 141, 12);
+		reservoir(s, 120, 60);
+		quantumVault(s, 120, 90);
+		powerPlant(s, 10, 110);
+
+		// The power trunk: down the west side from the reactor, a spine between the hall rows, and feeders.
+		s.cableRun(8, 1, 15, 8, 1, 115, "power_cable");
+		s.cableRun(8, 1, 54, 118, 1, 54, "power_cable");
+		s.cableRun(60, 1, 15, 60, 1, 61, "power_cable");
+		s.cableRun(118, 1, 54, 118, 1, 96, "power_cable");
+		s.cable(60, 1, 30, "power_cable", true);
+		s.cable(118, 1, 75, "power_cable", true);
+		// Backup on the trunk: the substation's utility feeds, diesel generators with coke, and batteries.
+		for (int z = 70; z <= 73; z++) s.machine(7, 1, z, "utility_intake", E);
+		for (int z = 80; z <= 83; z++) s.machine(7, 1, z, "diesel_generator", E, new ItemStack(RcItems.ITEMS.get("coke"), 32));
+		for (int z = 90; z <= 95; z++) s.machine(7, 1, z, "battery_bank", E);
+
+		guardHut(s, 94, 160);
+		// Nature takes the rest back, a little.
+		s.fill(0, 1, 0, last, 1, last, (x, y, z) -> s.get(x, 0, z).isOf(Blocks.GRASS_BLOCK) && s.get(x, 1, z).isAir()
 				&& s.chance(x, y, z, 8, 7) ? (s.chance(x, y, z, 9, 5) ? b(Blocks.FERN) : b(Blocks.GRASS)) : null);
 	}
 
-	/** A 36 x 22 data hall: four rack rows in hot and cold aisles, CRAC units, exhaust fans and a collapsed corner. */
-	private static void hall(Site s, int x0, int z0, String mix) {
-		int x1 = x0 + 35;
-		int z1 = z0 + 21;
+	/**
+	 * A 40 x 30 data hall, in working order. Two pairs of rack rows, twelve racks each, back to back with a
+	 * double row of Rear-Door Coolers between them, so all of the heat goes into the coolant loop and none into
+	 * the room. Power comes in on the west column, the coolant column runs down the east end to a chiller bank
+	 * along the north wall, fiber runs over every row to the core routers.
+	 */
+	private static void campusHall(Site s, int x0, int z0, String name, List<String> bays, int chillers, int routers, boolean cutFiber) {
+		int x1 = x0 + 39;
+		int z1 = z0 + 29;
+		int xs = x0 + 10;
+		int xe = xs + 11;
 		s.fill(x0, 0, z0, x1, 0, z1, (x, y, z) -> x == x0 || x == x1 || z == z0 || z == z1
 				? b(Blocks.POLISHED_ANDESITE) : b(dev.rackcraft.RcBlocks.get("raised_floor_tile")));
-		s.walls(x0, 1, z0, x1, 7, z1, (x, y, z) -> y >= 3 && s.chance(x, y, z, 1, 25) ? AIR
-				: y == 7 ? b(Blocks.GRAY_CONCRETE) : b(Blocks.LIGHT_GRAY_CONCRETE));
-		s.fill(x0, 8, z0, x1, 8, z1, (x, y, z) -> {
-			boolean collapsed = x >= x0 + 20 && x <= x0 + 25 && z >= z0 + 8 && z <= z0 + 12;
-			return collapsed || s.chance(x, y, z, 2, 12) && x != x0 && x != x1 && z != z0 && z != z1 ? null : b(Blocks.GRAY_CONCRETE);
-		});
-		s.fill(x0 + 16, 1, z0, x0 + 19, 4, z0, AIR);
-		s.fill(x0 + 6, 1, z1, x0 + 6, 2, z1, AIR);
-		int[] rows = {z0 + 5, z0 + 8, z0 + 13, z0 + 16};
+		s.walls(x0, 1, z0, x1, 7, z1, (x, y, z) -> y == 7 ? b(Blocks.GRAY_CONCRETE) : b(Blocks.LIGHT_GRAY_CONCRETE));
+		s.fill(x0, 8, z0, x1, 8, z1, b(Blocks.GRAY_CONCRETE));
+		s.fill(x0 + 18, 1, z1, x0 + 21, 3, z1, AIR);
+		s.sign(x0 + 17, 3, z1 + 1, S, "DATA HALL " + name, bays.get(0).replace('_', ' ').toUpperCase(java.util.Locale.ROOT));
+		int[] rows = {z0 + 8, z0 + 11, z0 + 14, z0 + 17};
 		Direction[] faces = {N, S, N, S};
 		for (int row = 0; row < rows.length; row++) {
-			int z = rows[row];
-			s.machine(x0 + 7, 1, z, "pdu", faces[row]);
-			for (int x = x0 + 8; x <= x0 + 17; x++) {
-				if (!s.chance(x, 1, z, 3, 5)) s.rack(x, 1, z, faces[row], mix);
+			for (int x = xs; x <= xe; x++) {
+				s.fullRack(x, 1, rows[row], faces[row], bays);
+				// Rear-Door Coolers fill the hot aisle between each pair of rows.
+				s.machine(x, 1, rows[row] + (faces[row] == N ? 1 : -1), "rear_door_cooler", faces[row]);
 			}
-			s.machine(x0 + 18, 1, z, "uplink_router", faces[row]);
-			for (int x = x0 + 20; x <= x0 + 29; x++) {
-				if (!s.chance(x, 1, z, 4, 4)) s.rack(x, 1, z, faces[row], mix);
-			}
-			s.cableRun(x0 + 3, 1, z, x0 + 6, 1, z, "power_cable");
-			if (s.chance(x0, 1, z, 5, 2)) s.cable(x0 + 5, 1, z, "power_cable", true);
+			s.cableRun(xs, 2, rows[row], xe + 1, 2, rows[row], "fiber_cable");
 		}
-		for (int z : new int[] {z0 + 6, z0 + 15}) {
-			s.machine(x0 + 1, 1, z, "crac_unit", E);
-			s.machine(x1 - 1, 1, z, "crac_unit", W);
+		for (int i = 0; i < chillers; i++) s.machine(xe - i, 1, z0 + 4, "chiller", S);
+		s.cableRun(x0 - 2, 1, z0 + 3, xe, 1, z0 + 3, "power_cable");
+		s.cableRun(xs - 1, 1, z0 + 3, xs - 1, 1, rows[3], "power_cable");
+		s.cableRun(xe + 1, 1, z0 + 4, xe + 1, 1, rows[3], "coolant_pipe");
+		s.cableRun(xe + 1, 2, rows[0], xe + 1, 2, rows[3], "fiber_cable");
+		for (int i = 0; i < routers; i++) {
+			s.machine(xe + 2, 1, rows[0] + i, "core_router", W);
+			s.cable(xe + 2, 2, rows[0] + i, "fiber_cable", false);
 		}
-		for (int z : new int[] {z0 + 6, z0 + 7, z0 + 14, z0 + 15}) s.machine(x1, 5, z, "exhaust_fan", W);
+		if (cutFiber) s.cable(xe + 1, 2, rows[2] - 1, "fiber_cable", true);
 		for (int x = x0 + 4; x <= x1 - 4; x += 6) {
-			for (int z = z0 + 4; z <= z1 - 4; z += 6) if (s.get(x, 8, z).isOf(Blocks.GRAY_CONCRETE)) s.set(x, 7, z, hangingLantern());
+			for (int z = z0 + 4; z <= z1 - 4; z += 6) s.set(x, 7, z, hangingLantern());
 		}
-		s.fill(x0 + 19, 1, z0 + 7, x0 + 26, 2, z0 + 13, (x, y, z) -> s.get(x, y, z).isAir() && s.chance(x, y, z, 6, 3)
-				? (y == 1 ? b(Blocks.GRAY_CONCRETE) : b(Blocks.COBWEB)) : null);
+		// A desk by the door for whoever was on shift.
+		s.set(x0 + 30, 1, z1 - 3, b(Blocks.CRAFTING_TABLE));
+		s.machine(x0 + 31, 1, z1 - 3, "monitoring_wall", N);
+		s.set(x0 + 30, 1, z1 - 2, stairs(Blocks.OAK_STAIRS, N));
 		s.chest(x1 - 2, 1, z1 - 1, W, COMMON_LOOT);
+	}
+
+	/**
+	 * The quantum vault: one row of eight Quantum Core racks, each beside a CDU, with Rear-Door Coolers behind.
+	 * Its loop runs out to six cooling towers, and two pumps on the reservoir keep the towers in water.
+	 */
+	private static void quantumVault(Site s, int x0, int z0) {
+		int x1 = x0 + 21;
+		int z1 = z0 + 13;
+		s.fill(x0, 0, z0, x1, 0, z1, b(Blocks.POLISHED_DEEPSLATE));
+		s.walls(x0, 1, z0, x1, 6, z1, (x, y, z) -> y == 3 && (x + z) % 4 == 0 ? b(Blocks.TINTED_GLASS) : b(Blocks.DEEPSLATE_TILES));
+		s.fill(x0, 7, z0, x1, 7, z1, b(Blocks.DEEPSLATE_TILES));
+		s.fill(x0 + 10, 1, z0, x0 + 11, 2, z0, AIR);
+		s.sign(x0 + 9, 3, z0 - 1, N, "QUANTUM VAULT", "Do not observe", "the qubits");
+		int z = z0 + 6;
+		int xe = x0 + 15;
+		for (int i = 0; i < 12; i++) {
+			int x = x0 + 4 + i;
+			if (i % 3 == 1) {
+				s.machine(x, 1, z, "cdu", N);
+				continue;
+			}
+			s.fullRack(x, 1, z, N, java.util.Collections.nCopies(8, "quantum_core"));
+			s.machine(x, 1, z + 1, "rear_door_cooler", N);
+		}
+		s.cableRun(x0 - 2, 1, z, x0 + 3, 1, z, "power_cable");
+		s.cableRun(x0 + 4, 2, z, xe + 1, 2, z, "fiber_cable");
+		for (int i = 0; i < 4; i++) s.machine(xe + 2 + i, 2, z, "core_router", N);
+		// Coolant out through the east wall to the towers, power alongside.
+		s.cableRun(xe + 1, 1, z, x1 + 2, 1, z, "coolant_pipe");
+		s.cableRun(xe + 1, 1, z + 1, x1 + 8, 1, z + 1, "power_cable");
+		for (int i = 0; i < 6; i++) s.machine(x1 + 3 + i, 1, z, "cooling_tower", N);
+		for (int x = x0 + 3; x <= x1 - 3; x += 5) s.set(x, 6, z0 + 3, hangingLantern());
+		s.chest(x1 - 2, 1, z1 - 2, W, VAULT_LOOT);
+	}
+
+	/** A 3x3x3 Modular Reactor array with spare Fuel Cells, its own chiller bank, and its output cable cut. */
+	private static void powerPlant(Site s, int x0, int z0) {
+		s.fill(x0, 0, z0, x0 + 30, 0, z0 + 16, b(Blocks.SMOOTH_STONE));
+		s.walls(x0, 1, z0, x0 + 30, 2, z0 + 16, (x, y, z) -> run(Blocks.IRON_BARS, z == z0 || z == z0 + 16));
+		s.fill(x0 + 14, 1, z0 + 16, x0 + 16, 2, z0 + 16, AIR);
+		s.fill(x0 + 13, 1, z0 + 16, x0 + 13, 2, z0 + 16, b(Blocks.STONE_BRICKS));
+		s.sign(x0 + 13, 2, z0 + 17, S, "REACTOR ARRAY", "27 cores, 13.5 MW", "Output cable: CUT");
+		int rx = x0 + 2;
+		int rz = z0 + 4;
+		for (int dx = 0; dx < 3; dx++) {
+			for (int dy = 0; dy < 3; dy++) {
+				for (int dz = 0; dz < 3; dz++) {
+					s.machine(rx + dx, 1 + dy, rz + dz, "modular_reactor", S, new ItemStack(RcItems.ITEMS.get("fuel_cell"), 6));
+				}
+			}
+		}
+		// Output west to the trunk (cut), coolant east to the chillers, chiller power alongside.
+		s.cableRun(x0 - 2, 1, rz + 1, rx - 1, 1, rz + 1, "power_cable");
+		s.cable(x0, 1, rz + 1, "power_cable", true);
+		s.cable(rx + 3, 1, rz + 1, "coolant_pipe", false);
+		for (int i = 0; i < 7; i++) s.machine(rx + 4 + i, 1, rz + 1, "chiller", N);
+		s.cableRun(rx + 3, 1, rz + 2, rx + 10, 1, rz + 2, "power_cable");
+		s.chest(x0 + 28, 1, z0 + 2, W, COMMON_LOOT);
+	}
+
+	/** By the gate: two Repair Kits, a note, and a chair nobody has sat in for a while. */
+	private static void guardHut(Site s, int x0, int z0) {
+		s.fill(x0, 0, z0, x0 + 6, 0, z0 + 5, b(Blocks.SMOOTH_STONE));
+		s.walls(x0, 1, z0, x0 + 6, 3, z0 + 5, (x, y, z) -> y == 2 && (x == x0 + 3 || z == z0 + 2) ? b(Blocks.GLASS) : b(Blocks.WHITE_CONCRETE));
+		s.fill(x0, 4, z0, x0 + 6, 4, z0 + 5, b(Blocks.SMOOTH_STONE));
+		door(s, x0 + 3, 1, z0 + 5, Blocks.OAK_DOOR, N);
+		s.chestWith(x0 + 1, 1, z0 + 1, S, Site.item("repair_kit", 1), Site.item("repair_kit", 1), Site.item("multimeter", 1),
+				Site.item("fuel_cell", 16), new ItemStack(Items.BREAD, 6));
+		s.sign(x0 + 2, 2, z0 + 1, S, "SHIFT NOTE:", "5 cables cut in", "the storm. All else", "nominal. Kits here.");
+		s.set(x0 + 5, 1, z0 + 1, stairs(Blocks.OAK_STAIRS, W));
 	}
 
 	/** Two-storey operations centre: the NOC downstairs, the "AI wing" upstairs. */
@@ -704,8 +809,8 @@ public final class DataCenterLayouts {
 		s.set(x1 - 1, 5, z0 + 12, AIR);
 		for (int y = 1; y <= 5; y++) s.set(x1 - 1, y, z0 + 12, b(Blocks.LADDER).with(LadderBlock.FACING, W));
 		// Upstairs: the AI wing. Two art tables, two desks, two librarians who would rather be anywhere else.
-		s.machine(x0 + 3, 6, z0 + 4, "art_table", S, new ItemStack(Items.PAPER, 16), Site.item("crayons", 1));
-		s.machine(x0 + 6, 6, z0 + 4, "art_table", S, new ItemStack(Items.PAPER, 16));
+		s.machine(x0 + 3, 6, z0 + 4, "art_table", S, new ItemStack(Items.PAPER, 32), Site.item("crayons", 1));
+		s.machine(x0 + 6, 6, z0 + 4, "art_table", S, new ItemStack(Items.PAPER, 32), Site.item("crayons", 1));
 		for (int desk = 0; desk < 2; desk++) {
 			int x = x0 + 3 + desk * 5;
 			int z = z1 - 3;
@@ -718,70 +823,30 @@ public final class DataCenterLayouts {
 			MachineBlockEntity entity = s.machineAt(x, 6, z);
 			if (scribe != null && entity != null) entity.setBoundVillager(scribe.getUuid());
 		}
-		for (int x = x1 - 5; x <= x1 - 3; x++) s.rack(x, 6, z0 + 8, S, "tensor_accelerator:3,gpu_blade:1,failed_module:1");
-		s.machine(x1 - 2, 6, z0 + 8, "uplink_router", S);
 		s.chest(x1 - 2, 6, z1 - 2, W, AI_LAB_LOOT);
 		// On the roof: panels and an antenna.
 		for (int x = x0 + 2; x <= x1 - 2; x += 2) s.machine(x, 11, z0 + 2, "solar_panel", S);
 		s.machine(x0 + 9, 11, z0 + 12, "wireless_transmitter", S);
 	}
 
-	/** The reservoir the campus cooled itself from, with its pumps still on the edge. */
+	/** The reservoir, 22 x 24 and three deep. Two pumps on its east bank keep the quantum vault's cooling towers in water. */
 	private static void reservoir(Site s, int x0, int z0) {
-		int x1 = x0 + 17;
-		int z1 = z0 + 21;
+		int x1 = x0 + 21;
+		int z1 = z0 + 23;
 		s.fill(x0, -3, z0, x1, 0, z1, b(Blocks.STONE_BRICKS));
 		s.fill(x0 + 1, -2, z0 + 1, x1 - 1, 0, z1 - 1, b(Blocks.WATER));
-		s.machine(x0 + 1, 1, z0 + 6, "freshwater_pump", E);
-		s.machine(x0 + 1, 1, z0 + 14, "freshwater_pump", E);
-		s.machine(x1 - 1, 1, z0 + 10, "freshwater_pump", W);
-		s.cableRun(x0 - 2, 1, z0 + 6, x0, 1, z0 + 6, "coolant_pipe");
-		s.cableRun(x0 - 2, 1, z0 + 14, x0, 1, z0 + 14, "coolant_pipe");
-		s.cableRun(x1, 1, z0 + 10, x1 + 2, 1, z0 + 10, "coolant_pipe");
+		for (int z : new int[] {z0 + 10, z0 + 16}) {
+			s.machine(x1 - 1, 1, z, "freshwater_pump", E);
+			s.cableRun(x1, 1, z, x1 + 2, 1, z, "coolant_pipe");
+		}
+		// Down the east side to the vault's tower line.
+		s.cableRun(x1 + 2, 1, z0 + 10, x1 + 2, 1, z0 + 35, "coolant_pipe");
+		// Pump power: over the pumps, then down beside the pipe to the towers' supply.
+		s.cableRun(x1 - 1, 2, z0 + 10, x1 - 1, 2, z0 + 16, "power_cable");
+		s.cableRun(x1, 2, z0 + 10, x1 + 3, 2, z0 + 10, "power_cable");
+		s.cableRun(x1 + 3, 1, z0 + 10, x1 + 3, 1, z0 + 35, "power_cable");
 		s.fill(x0 + 1, 1, z0 + 1, x1 - 1, 1, z1 - 1, (x, y, z) -> s.get(x, 0, z).isOf(Blocks.WATER) && s.chance(x, y, z, 1, 14)
 				? b(Blocks.LILY_PAD) : null);
-	}
-
-	private static void coolingYard(Site s, int x0, int z0) {
-		s.fill(x0, 0, z0, x0 + 35, 0, z0 + 30, b(Blocks.LIGHT_GRAY_CONCRETE));
-		s.cableRun(x0 + 5, 1, z0 + 14, x0 + 35, 1, z0 + 14, "coolant_pipe");
-		for (int cx : new int[] {x0 + 5, x0 + 17, x0 + 29}) {
-			for (int cz : new int[] {z0 + 7, z0 + 22}) {
-				s.fill(cx - 2, 1, cz - 2, cx + 2, 8, cz + 2, (x, y, z) -> {
-					int dx = x - cx, dz = z - cz;
-					int r2 = dx * dx + dz * dz;
-					if (r2 > 5 || r2 < 3) return r2 < 3 ? AIR : null;
-					return s.chance(x, y, z, 2, 10) ? b(Blocks.CRACKED_STONE_BRICKS) : b(Blocks.SMOOTH_STONE);
-				});
-				s.machine(cx, 1, cz, "cooling_tower", N);
-				s.cableRun(cx, 1, Math.min(cz + 1, z0 + 14), cx, 1, Math.max(cz - 1, z0 + 14), "coolant_pipe");
-			}
-		}
-	}
-
-	private static void substation(Site s, int x0, int z0) {
-		s.fill(x0, 0, z0, x0 + 21, 0, z0 + 30, b(Blocks.GRAVEL));
-		s.walls(x0, 1, z0, x0 + 21, 2, z0 + 30, (x, y, z) -> run(Blocks.IRON_BARS, z == z0 || z == z0 + 30));
-		s.fill(x0 + 10, 1, z0, x0 + 11, 2, z0, AIR);
-		for (int i = 0; i < 4; i++) {
-			int z = z0 + 5 + i * 6;
-			s.machine(x0 + 3, 1, z, "utility_intake", E);
-			s.cableRun(x0 + 4, 1, z, x0 + 7, 1, z, "power_cable");
-			if (i == 2) s.cable(x0 + 6, 1, z, "power_cable", true);
-			s.fill(x0 + 8, 1, z - 1, x0 + 9, 3, z, b(Blocks.IRON_BLOCK));
-			s.set(x0 + 8, 4, z, b(Blocks.LIGHTNING_ROD));
-			s.set(x0 + 9, 4, z - 1, b(Blocks.LIGHTNING_ROD));
-		}
-	}
-
-	private static void generatorYard(Site s, int x0, int z0) {
-		s.fill(x0, 0, z0, x0 + 13, 0, z0 + 30, b(Blocks.SMOOTH_STONE));
-		for (int z = z0 + 3; z <= z0 + 27; z += 3) {
-			ItemStack fuel = s.chance(x0, 1, z, 1, 2) ? new ItemStack(RcItems.ITEMS.get("coke"), 4) : ItemStack.EMPTY;
-			s.machine(x0 + 3, 1, z, "diesel_generator", W, fuel);
-			s.fill(x0 + 7, 1, z, x0 + 8, 2, z, b(Blocks.WHITE_TERRACOTTA));
-		}
-		s.chest(x0 + 11, 1, z0 + 2, W, COMMON_LOOT);
 	}
 
 	/** Asphalt, faded lines, and a few cars nobody came back for. */

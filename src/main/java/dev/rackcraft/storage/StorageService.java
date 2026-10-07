@@ -76,8 +76,13 @@ public final class StorageService {
 
 	/** Every online drive and tape on the fiber network containing {@code pos}. */
 	public static StorageNetwork networkAt(ServerWorld world, BlockPos pos) {
+		return networkOf(world, NetworkManager.get(world).component(pos, NetKind.DATA));
+	}
+
+	/** Every online drive and tape among these positions, e.g. one Item Pipe network. */
+	public static StorageNetwork networkOf(ServerWorld world, java.util.Collection<BlockPos> positions) {
 		List<StorageNetwork.Member> members = new ArrayList<>();
-		for (BlockPos member : NetworkManager.get(world).component(pos, NetKind.DATA)) {
+		for (BlockPos member : positions) {
 			if (!(world.getBlockEntity(member) instanceof MachineBlockEntity machine) || !machine.storageOnline()) continue;
 			boolean array = machine.blockId().equals("storage_array");
 			if (!array && !machine.blockId().equals("tape_library")) continue;

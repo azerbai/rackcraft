@@ -154,12 +154,12 @@ public final class MachineScreenHandler extends ScreenHandler {
 			case Stat.BALANCE -> facility != null && facilityScreen ? (int) Math.min(Integer.MAX_VALUE, facility.credits()) : 0;
 			case Stat.AVAILABILITY -> facility != null && facilityScreen ? (int) Math.round(facility.availability().stream()
 					.mapToDouble(Double::doubleValue).average().orElse(1) * 100) : 0;
-			case Stat.FUEL -> machine.fuelBurnTicks();
+			case Stat.FUEL -> machine.blockId().equals("modular_reactor") ? machine.arrayFuelTicks() : machine.fuelBurnTicks();
 			case Stat.RACK_STATUS -> machine.rackStatus().ordinal();
 			case Stat.MINING_RATE -> (int) Math.round((facility != null && facilityScreen
 					? facility.miningRate() : machine.miningRate()) * 100);
 			case Stat.SPINUP -> machine.dieselSpinupSteps();
-			case Stat.FUEL_TOTAL -> machine.fuelBurnTotal();
+			case Stat.FUEL_TOTAL -> machine.blockId().equals("modular_reactor") ? machine.arrayFuelTotal() : machine.fuelBurnTotal();
 			case Stat.NETWORK_DELIVERED -> tenths(machine.networkSupplyKw());
 			case Stat.NETWORK_DEMAND -> tenths(machine.networkDemandKw());
 			case Stat.BATTERY_PERMILLE -> (int) Math.round(machine.chargeKws() / 3000 * 1000);
@@ -180,6 +180,15 @@ public final class MachineScreenHandler extends ScreenHandler {
 					? tenths(dev.rackcraft.world.AirQuality.get(world).smogAt(machine.getPos())) : 0;
 			case Stat.LOAD_LIMIT -> machine.loadLimitPercent();
 			case Stat.SCRUB_RATE -> (int) Math.round(machine.scrubRate() * 100);
+			case Stat.COOLING_KW -> tenths(machine.coolingKw());
+			case Stat.LOOP_HEAT -> tenths(machine.loopHeatKw());
+			case Stat.LOOP_CAPACITY -> tenths(machine.loopCapacityKw());
+			case Stat.COOLING_DETAIL -> machine.coolingDetail();
+			case Stat.HEAT_TO_LOOP -> tenths(machine.heatToLoopKw());
+			case Stat.HEAT_TO_AIR -> tenths(machine.heatToAirKw());
+			case Stat.ARRAY_EDGE -> machine.reactorArraySize();
+			case Stat.SOURCE_CAPACITY -> tenths(machine.reactorCapacityKw());
+			case Stat.FUEL_CELLS -> machine.arrayFuelCells();
 			default -> 0;
 		};
 	}
@@ -222,7 +231,16 @@ public final class MachineScreenHandler extends ScreenHandler {
 		public static final int SMOG = 29;              // tenths
 		public static final int LOAD_LIMIT = 30;        // percent
 		public static final int SCRUB_RATE = 31;        // hundredths of smog per second
-		static final int COUNT = 32;
+		public static final int COOLING_KW = 32;        // tenths of kW: heat this machine moved
+		public static final int LOOP_HEAT = 33;         // tenths of kW put into this machine's coolant loop
+		public static final int LOOP_CAPACITY = 34;     // tenths of kW the loop's sinks can take
+		public static final int COOLING_DETAIL = 35;    // tower water units, dry cooler climate %, exchanger water blocks
+		public static final int HEAT_TO_LOOP = 36;      // tenths of kW of a rack's heat carried off by its loop
+		public static final int HEAT_TO_AIR = 37;       // tenths of kW of a rack's heat left in the air
+		public static final int ARRAY_EDGE = 38;        // reactor array edge length, 1 for a lone reactor
+		public static final int SOURCE_CAPACITY = 39;   // tenths of kW a reactor (array) can supply
+		public static final int FUEL_CELLS = 40;        // Fuel Cells waiting in a reactor array's slots
+		static final int COUNT = 41;
 
 		private Stat() {}
 	}

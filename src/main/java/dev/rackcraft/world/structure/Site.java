@@ -230,6 +230,22 @@ public final class Site {
 		machine(x, y, z, "server_rack", facing, modules.toArray(ItemStack[]::new));
 	}
 
+	/** A rack with exactly these modules in its bays, in order: a working rack, not a ruin. */
+	public void fullRack(int x, int y, int z, Direction facing, List<String> bays) {
+		ItemStack[] modules = bays.stream().limit(8).map(id -> new ItemStack(RcItems.ITEMS.get(id))).toArray(ItemStack[]::new);
+		machine(x, y, z, "server_rack", facing, modules);
+	}
+
+	/** A chest holding exactly these items (no loot table). */
+	public void chestWith(int x, int y, int z, Direction facing, ItemStack... contents) {
+		BlockPos pos = pos(x, y, z);
+		if (!inside(pos)) return;
+		set(x, y, z, Blocks.CHEST.getDefaultState().with(ChestBlock.FACING, facing));
+		if (world.getBlockEntity(pos) instanceof net.minecraft.block.entity.ChestBlockEntity chest) {
+			for (int slot = 0; slot < contents.length && slot < chest.size(); slot++) chest.setStack(slot, contents[slot]);
+		}
+	}
+
 	public void cable(int x, int y, int z, String id, boolean cut) {
 		BlockPos pos = pos(x, y, z);
 		if (!inside(pos)) return;

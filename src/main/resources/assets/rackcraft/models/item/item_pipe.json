@@ -1,0 +1,95 @@
+{
+  "display": {
+    "gui": {
+      "rotation": [
+        30,
+        45,
+        0
+      ],
+      "scale": [
+        0.8,
+        0.8,
+        0.8
+      ]
+    }
+  },
+  "elements": [
+    {
+      "faces": {
+        "down": {
+          "rotation": 90,
+          "texture": "#side",
+          "uv": [
+            0,
+            5.5,
+            16,
+            10.5
+          ]
+        },
+        "east": {
+          "texture": "#side",
+          "uv": [
+            0,
+            5.5,
+            16,
+            10.5
+          ]
+        },
+        "north": {
+          "texture": "#end",
+          "uv": [
+            5.5,
+            5.5,
+            10.5,
+            10.5
+          ]
+        },
+        "south": {
+          "texture": "#end",
+          "uv": [
+            5.5,
+            5.5,
+            10.5,
+            10.5
+          ]
+        },
+        "up": {
+          "rotation": 90,
+          "texture": "#side",
+          "uv": [
+            0,
+            5.5,
+            16,
+            10.5
+          ]
+        },
+        "west": {
+          "texture": "#side",
+          "uv": [
+            0,
+            5.5,
+            16,
+            10.5
+          ]
+        }
+      },
+      "from": [
+        5.5,
+        5.5,
+        0
+      ],
+      "to": [
+        10.5,
+        10.5,
+        16
+      ]
+    }
+  ],
+  "parent": "minecraft:block/block",
+  "textures": {
+    "end": "rackcraft:block/item_pipe_end",
+    "joint": "rackcraft:block/item_pipe_joint",
+    "particle": "rackcraft:block/item_pipe",
+    "side": "rackcraft:block/item_pipe"
+  }
+}

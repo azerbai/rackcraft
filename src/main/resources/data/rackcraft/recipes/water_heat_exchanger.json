@@ -1,0 +1,26 @@
+{
+  "key": {
+    "B": {
+      "item": "minecraft:bucket"
+    },
+    "C": {
+      "item": "minecraft:copper_ingot"
+    },
+    "P": {
+      "item": "rackcraft:coolant_pipe"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    }
+  },
+  "pattern": [
+    "CPC",
+    "PBP",
+    "SSS"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:water_heat_exchanger"
+  },
+  "type": "minecraft:crafting_shaped"
+}

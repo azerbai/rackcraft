@@ -89,6 +89,32 @@ final class SimulationCoreTest {
 	}
 
 	@Test
+	void heatSpreadsThroughAirAndLeaksFasterOutdoors() {
+		ThermalGrid.CellPos source = new ThermalGrid.CellPos(0, 0, 0);
+		double[] peaks = new double[2];
+		for (int outdoors = 0; outdoors < 2; outdoors++) {
+			boolean open = outdoors == 1;
+			ThermalGrid grid = new ThermalGrid(24, 4, 2, 2, 0.005, 0.4, 0.03, 10000);
+			ThermalGrid.AirMap air = new ThermalGrid.AirMap() {
+				@Override public boolean passable(ThermalGrid.CellPos cell) { return Math.abs(cell.x()) < 6 && Math.abs(cell.y()) < 4 && Math.abs(cell.z()) < 6; }
+				@Override public boolean outdoors(ThermalGrid.CellPos cell) { return open; }
+			};
+			grid.ensureCell(source, open);
+			for (int step = 0; step < 600; step++) {
+				grid.depositKw(source, 10, 0.5);
+				grid.step(0.5, air);
+			}
+			// Indoors the whole closed room warms; outdoors the heat blows away within a few blocks.
+			assertTrue(grid.activeCells() > (open ? 6 : 300), "heat should spread: " + grid.activeCells() + " cells");
+			double near = grid.temperatureCelsius(new ThermalGrid.CellPos(open ? 1 : 4, 0, 0));
+			assertTrue(near > 24.05, (open ? "outdoors" : "indoors") + " near=" + near + " source=" + grid.temperatureCelsius(source)
+					+ " cells=" + grid.activeCells());
+			peaks[outdoors] = grid.temperatureCelsius(source);
+		}
+		assertTrue(peaks[1] < peaks[0], "outdoor air should run cooler: " + peaks[1] + " vs " + peaks[0]);
+	}
+
+	@Test
 	void coolingCannotRemoveMoreThanAvailableHeat() {
 		ThermalGrid grid = new ThermalGrid(24, 4, 0, 1, 0, 0, 10);
 		ThermalGrid.CellPos cell = new ThermalGrid.CellPos(0, 0, 0);

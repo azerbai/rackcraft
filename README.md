@@ -18,7 +18,7 @@ Install `build/libs/rackcraft-1.0.0.jar` with Fabric Loader for Minecraft 1.20.1
 
 ## Progression
 
-Mine bauxite ore and smelt it into aluminum. Blast iron into steel, then craft copper wire, silicon components, and server modules. Place a server rack, fill its eight bays (one module per bay, any size), and connect its power face through a PDU and power cable to a generator or solar source. Diesel generators accept vanilla furnace fuel and the Rackcraft fuels below. Cooling fans remove heat from their front cell; CRAC units require a powered coolant loop and a cooling tower.
+Mine bauxite ore and smelt it into aluminum. Blast iron into steel, then craft copper wire, silicon components, and server modules. Place a server rack, fill its eight bays (one module per bay, any size), and connect its power face through a PDU and power cable to a generator or solar source. Diesel generators accept vanilla furnace fuel and the Rackcraft fuels below. See *Cooling* for keeping racks below 27 C.
 
 The machine screens open by right-clicking. Rack bays accept `pi_node`, `server_1u`, `asic_miner`, `gpu_blade`, `tensor_accelerator` and `quantum_core`, one per bay; a quantum core only contributes load when a CDU is adjacent. Power, coolant, and fiber cables form independent networks.
 
@@ -44,9 +44,9 @@ Thirteen kinds of ruined data center generate as real structures (so `/locate st
 | `content_mill` | Temperate | A timber "data labelling" mill: six shackled librarians, a playroom of kids at three art tables, and a Middle Manager |
 | `solar_farm` | Deserts, savannas, plains | Rows of panels and a control hut |
 | `tape_archive` | Temperate | Tape libraries and storage arrays behind the cobwebs |
-| `hyperscale_campus` | Plains, savannas, deserts, snowy plains, meadows (rare) | **112 x 112 blocks**: four data halls (160 racks), an operations centre with an AI wing, a reservoir with pumps, cooling towers, a substation, a generator yard and a car park |
+| `hyperscale_campus` | Plains, savannas, deserts, snowy plains, meadows (**very rare**: at most one per 128 x 128 chunks) | **176 x 176 blocks, fully working**: four data halls (192 racks of ASICs, GPUs, 1U servers and Tensor Accelerators, all with Rear-Door Coolers and chiller banks), a quantum vault (8 Quantum Core racks cooled by towers on the reservoir), a 3x3x3 reactor array with spare Fuel Cells, an operations centre with an AI wing, and backup utility, diesel and batteries. Only five cut cables keep it dark; repair kits are in the guard hut by the gate |
 
-Operators can find one with `/rackcraft locate datacenter [variant] [radius]` (radius in chunks, default 100) and build one in front of them with `/rackcraft structure place <variant>` (`/rackcraft structure datacenter` still builds Site 7).
+Operators can find one with `/rackcraft locate datacenter [variant] [radius]` (radius in chunks, default 100, or 400 for the campus) and build one in front of them with `/rackcraft structure place <variant>` (`/rackcraft structure datacenter` still builds Site 7).
 
 ## Compute: Mining, Autocrafting and AI Work
 
@@ -56,16 +56,16 @@ Racks on one fiber network form a **cluster**. Each step the facility hands out 
 - **Cluster policy** (set at the Operations Terminal): *Auto* lends racks to any work; *Mining only* never lends.
 - Every module lends **general compute** to autocrafting and **AI compute** to contracts and training:
 
-| Module | Mines (RC/s) | General | AI | Freshwater cooling |
+| Module | Mines (RC/s) | General | AI | Cooling |
 | --- | --- | --- | --- | --- |
-| Pi Node | 0.5 | 1 | 0.4 | no |
-| 1U Server | 2 | 2 | 1.6 | no |
-| ASIC Miner | 5 | 0 | 0 | 1 unit |
-| GPU Blade | 12 | 6 | 10 | 2 units |
-| Tensor Accelerator | 0 | 3 | 12 | 2 units |
-| Quantum Core | 60 | 20 | 50 | 4 units |
+| Pi Node | 0.5 | 1 | 0.4 | air |
+| 1U Server | 2 | 2 | 1.6 | air |
+| ASIC Miner | 5 | 0 | 0 | liquid |
+| GPU Blade | 12 | 6 | 10 | liquid |
+| Tensor Accelerator | 0 | 3 | 12 | liquid |
+| Quantum Core | 60 | 20 | 50 | liquid |
 
-A rack has eight bays and every module takes one, so a rack holds eight GPU Blades (24 kW, 16 units of water) or eight Quantum Cores (72 kW, 32 units, and a CDU).
+A rack has eight bays and every module takes one, so a rack holds eight GPU Blades (24 kW) or eight Quantum Cores (72 kW, and a CDU beside it).
 
 Contracts pay 1.35 RC per AI-compute-second against a well-trained reference model, so AI work earns about 10% more than mining on GPUs and Quantum Cores, and about a third more with Tensor Accelerators (which can't mine). That holds even on free solar power.
 
@@ -108,9 +108,26 @@ One screen for the whole dimension, needing no power or cables. Its tabs:
 - **Models:** every model's cap and ceiling, speed, training queue, and its own upload and pause buttons.
 - **Alerts:** every rack that is unpowered, tripped, overheated, offline or needs water; offline storage and drives over 90% full; pumps that are dry or on salt water; cut cables; generators out of fuel; art tables and desks out of supplies; late contracts; smog.
 
-## Freshwater Cooling
+## Cooling
 
-Tier 3 and up hardware (ASIC Miners, GPU Blades, Tensor Accelerators and Quantum Cores) is water-cooled, and a rack holding any of it stops with *Needs freshwater cooling* until it is supplied. Storage, Pi Nodes and 1U Servers don't need water. Racks join the **coolant pipe** network: place a **Freshwater Pump** touching a lake or river (ocean and beach biomes are salt water and don't count) and pipe it to the racks. A pump draws 1.5 kW and supplies one unit per three water source blocks within six blocks, up to 16 units. It drinks the lake: every 120 unit-seconds of cooling drains one source block, from the shoreline first. A four-GPU rack empties a block about every 15 seconds, so big farms need big lakes, and eventually a new one.
+Every kilowatt a rack draws comes back out as heat, and a rack slows down once the air at its front passes 27 C and stops at 40 C. An unpowered rack makes no heat. Heat leaves a rack two ways, and the rack screen shows both (**To loop** and **To air**):
+
+- **Air.** Out of the back into the room. Air heat spreads block by block and leaks away: slowly through walls, quickly outdoors. Keep it off the intakes with hot and cold aisles, blanking panels and raised floor, or catch it:
+  - **Rear-Door Cooler**: placed against a rack's back face, it catches up to 40 kW of that rack's exhaust into its coolant loop.
+  - **CRAC unit**: pulls up to 40 kW per face out of the room air into its coolant loop (3 kW).
+  - **Exhaust Fan**: vents up to 10 kW from the block in front of it outside (0.2 kW). It only runs, and only makes smog, while that air is at least 1 C above ambient.
+- **Loop.** Each connected run of **Coolant Pipe** is one coolant loop. Liquid-cooled modules (ASIC and up) send 85% of their heat down the pipe, and a rack holding them stops with *Needs liquid cooling* until it is on a loop with at least one heat sink. Rear-Door Coolers, CRACs and Modular Reactors put heat into the same loops. The pipe can run anywhere, so the heat can be dumped far from the racks. **Heat sinks** take it out:
+
+| Sink | Takes out of the loop | Draws | Notes |
+| --- | --- | --- | --- |
+| Cooling Tower | 120 kW with water, 20 kW dry | 4 kW | Needs 4 units of fresh water from a Freshwater Pump on the same loop |
+| Dry Cooler | 40 kW (60 in snowy biomes, 24 in deserts, savannas and badlands) | 2 kW | No water |
+| Chiller | 250 kW anywhere | 5 kW + 20% of the heat it moves | No water |
+| Water Heat Exchanger | 3 kW per water block within 4 blocks, up to 120 kW | 0.5 kW | Must touch water; sea water works and is never used up |
+
+If more heat goes into a loop than its sinks can take, every machine feeding it gets the same share of what the loop can take and the rest stays in the air, so racks run hot. The Multimeter shows a loop's budget on any pipe or machine on it: heat in against what its sinks can take. The Operations Terminal flags overloaded loops.
+
+**Freshwater Pumps** supply the towers: touching a lake or river (ocean and beach biomes are salt water and don't count), one unit per three water source blocks within six blocks, up to 16 units, for 1.5 kW. Towers drink the lake: every 240 unit-seconds of water used drains a source block from the shoreline.
 
 ## Smog
 
@@ -134,7 +151,7 @@ A **Respirator** (helmet slot) keeps all of it out until its charcoal filter clo
 
 ## Cables
 
-Power cables, coolant pipes and fiber connect only toward cables of the same kind and toward machines on that network, forming straight runs, corners and junctions. Cables placed with older versions are upgraded when their chunk loads.
+Power cables, coolant pipes, fiber and item pipes connect only toward cables of the same kind and toward machines on that network, forming straight runs, corners and junctions. Cables placed with older versions are upgraded when their chunk loads.
 
 ## Storage and Autocrafting
 
@@ -144,7 +161,13 @@ Power cables, coolant pipes and fiber connect only toward cables of the same kin
 - **Autocrafting runs on your racks.** Encode a **Recipe Pattern** from a **Blank Pattern** and store it on the network; its output shows a `+`. Ctrl-click to request any amount, and the planner chains patterns for multi-step recipes. Racks lend general compute (see *Compute* below) at 0.25 crafts per second per point: first racks on the storage's fiber network, then any online cluster. **Racks lending compute stop mining** while the job runs. The terminal's job row shows the job's status and progress; hover it for details.
 - **Wireless Transmitter + Wireless Terminal:** sneak-right-click the transmitter with the terminal to link it. Range levels are 16, 32, 64, 128, 256 and 1,024 blocks, then unlimited in the dimension, then every dimension. Each level is bought with RackCoin or resources in the transmitter's screen, and doubles its power draw (0.5 kW up to 64 kW). While the transmitter's area is unloaded, wireless access uses the drives it last saw.
 
+- **Item Pipe:** connects Storage Arrays and Tape Libraries to the machines that use items. Once a second it tops up Kids' Art Tables (32 paper, a box of crayons) and Scriptorium Desks (32 paper, 8 ink sacs) and sends their Art Aggregates and Text Corpora back to storage; it fuels Diesel Generators (the best fuel on hand first, empty buckets go back) and keeps 4 Fuel Cells in each Modular Reactor. Hoppers still work for chest-fed setups.
+
 Drive contents are stored with the world, keyed to each drive, so drives keep their items when moved between arrays.
+
+## Modular Reactors
+
+A Modular Reactor makes 500 kW and burns one Fuel Cell per 30 minutes at full output, less at part load. Build reactors into a solid cube, 2x2x2 up to 5x5x5, and the cube runs as one **reactor array**: the output of every core (4 MW for a 2-cube, 62.5 MW for a 5-cube), one shared fuel supply from any core's slot, and less fuel per core the bigger it is: 95% for a 2-cube, 90%, 85%, and 80% for a 5-cube. Anything that isn't a whole cube runs as separate reactors. A reactor's heat, 30% of its output, goes into its coolant loop if it is piped to one, otherwise into the air around it. The reactor screen and the Multimeter show the array size, output and fuel.
 
 ## Creative Machines
 
@@ -178,7 +201,7 @@ All textures are generated by `tools/textures.py` from the `color`, `pattern`, `
 
 ## Configuration
 
-`config/rackcraft.json` is written on first launch. Main keys include `sim.stepTicks` (10), `thermal.ambientC` (24), `thermal.cellCapacityKjPerK` (4), `thermal.faceConductanceKwPerK` (0.25), `thermal.upwardMultiplier` (2), `thermal.leakKwPerK` (0.01), `thermal.rackFlowKwPerK` (0.5), `thermal.cracFlowKwPerK` (2), `thermal.maxActiveCells` (16384), `thermal.settleEpsilonK` (0.05), `events.enabled`, `events.perHour` (3), and `heatOverlay.maxCells` (2000).
+`config/rackcraft.json` is written on first launch. Main keys include `sim.stepTicks` (10), `thermal.ambientC` (24), `thermal.cellCapacityKjPerK` (4), `thermal.faceConductanceKwPerK` (2), `thermal.upwardMultiplier` (2), `thermal.leakKwPerK` (0.005, through walls), `thermal.outdoorLeakKwPerK` (0.4, under open sky), `thermal.maxActiveCells` (65536), `thermal.settleEpsilonK` (0.03), `events.enabled`, `events.perHour` (3), and `heatOverlay.maxCells` (2000). Config files from before the air model was rebuilt (no `version`, or below 2) get the new thermal defaults once.
 
 ## Commands
 
@@ -186,7 +209,7 @@ Operators (permission level 2) can use `/rackcraft credits add <n>`, `/rackcraft
 
 ## Heat Management
 
-Rack intake temperature controls thermal throttling: performance begins to fall above 27 C and trips at 40 C. Keep rack intakes in cold-air aisles, route exhaust into a separate hot aisle, and provide powered cooling. Empty server racks are valid and can be configured before modules are installed.
+Rack intake temperature controls thermal throttling: performance begins to fall above 27 C and trips at 40 C. See *Cooling* above. Empty server racks are valid and can be configured before modules are installed.
 
 ## License
 

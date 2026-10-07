@@ -13,7 +13,7 @@ import net.minecraft.world.gen.structure.StructureType;
 /**
  * An abandoned data center. One structure type with a {@code variant} picking the layout from
  * {@link DataCenterLayouts}; each variant is its own structure JSON with its own biomes. Surface sites
- * sit on the lowest point of their footprint (the campus levels to the average instead) and skip steep
+ * sit on the lowest point of their footprint (the campus, centred on its start chunk, levels to the average instead) and skip steep
  * or flooded ground; the bunker is dug in below the surface.
  */
 public final class DataCenterStructure extends Structure {
@@ -39,6 +39,11 @@ public final class DataCenterStructure extends Structure {
 		int spanZ = turned ? layout.width() : layout.depth();
 		int x0 = context.chunkPos().getStartX() + context.random().nextInt(16);
 		int z0 = context.chunkPos().getStartZ() + context.random().nextInt(16);
+		if (layout.levelToAverage()) {
+			// The campus spans eleven chunks: centre it on its start chunk, or chunks past the eighth wouldn't build.
+			x0 -= spanX / 2;
+			z0 -= spanZ / 2;
+		}
 		int lowest = Integer.MAX_VALUE;
 		int highest = Integer.MIN_VALUE;
 		long total = 0;

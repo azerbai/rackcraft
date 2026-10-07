@@ -1,15 +1,10 @@
 package dev.rackcraft.world;
 
 import dev.rackcraft.block.MachineBlockEntity;
-import dev.rackcraft.sim.NetKind;
-import dev.rackcraft.sim.ServerModel;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
 import net.minecraft.fluid.FluidState;
@@ -23,15 +18,16 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 
 /**
- * Freshwater cooling for tier 3+ rack modules. A Freshwater Pump beside a lake or river supplies water
- * to racks on its coolant network: one unit per three water source blocks around it, up to 16. Oceans
- * and beaches are salt water and don't count. Water isn't free: every {@link #UNIT_SECONDS_PER_BLOCK}
- * unit-seconds of cooling drains one source block, from the shoreline first, so lakes visibly shrink.
+ * Fresh water for Cooling Towers. A Freshwater Pump beside a lake or river supplies water to the towers on its
+ * coolant loop: one unit per three water source blocks around it, up to 16; a tower needs four to run at full
+ * strength. Oceans and beaches are salt water and don't count. Water isn't free: every
+ * {@link #UNIT_SECONDS_PER_BLOCK} unit-seconds the towers actually use drains one source block, from the
+ * shoreline first, so lakes visibly shrink.
  */
 public final class FreshwaterCooling {
 	public static final int MAX_UNITS = 16;
 	public static final int MIN_SOURCES = 12;
-	public static final double UNIT_SECONDS_PER_BLOCK = 120;
+	public static final double UNIT_SECONDS_PER_BLOCK = 240;
 	private static final int RADIUS = 6;
 	private static final int SCAN_STEPS = 20;
 
@@ -42,49 +38,26 @@ public final class FreshwaterCooling {
 
 	private FreshwaterCooling() {}
 
-	/** Allocates pump water to racks, coolant network by coolant network. Returns the racks that are supplied. */
-	public static Set<MachineBlockEntity> supply(ServerWorld world, List<MachineBlockEntity> machines,
-			Map<MachineBlockEntity, Double> satisfaction, double dt) {
-		NetworkManager networks = NetworkManager.get(world);
-		Set<MachineBlockEntity> supplied = new HashSet<>();
-		Map<Set<BlockPos>, List<MachineBlockEntity>> pumpsByNetwork = new HashMap<>();
+	/** Refreshes every pump's readings; run before the coolant loops are built. */
+	public static void scanPumps(ServerWorld world, List<MachineBlockEntity> machines, Map<MachineBlockEntity, Double> satisfaction) {
 		for (MachineBlockEntity pump : machines) {
 			if (!pump.blockId().equals("freshwater_pump")) continue;
 			scan(world, pump, satisfaction.getOrDefault(pump, 0.0));
 			pump.setPumpUsed(0);
-			pumpsByNetwork.computeIfAbsent(networks.component(pump.getPos(), NetKind.COOLANT), ignored -> new ArrayList<>()).add(pump);
 		}
-		Map<Set<BlockPos>, List<MachineBlockEntity>> racksByNetwork = new HashMap<>();
-		for (MachineBlockEntity rack : machines) {
-			if (!rack.blockId().equals("server_rack")) continue;
-			if (ServerModel.waterUnits(rack.modules()) == 0) {
-				supplied.add(rack);
-				continue;
-			}
-			Set<BlockPos> network = networks.component(rack.getPos(), NetKind.COOLANT);
-			racksByNetwork.computeIfAbsent(network, ignored -> new ArrayList<>()).add(rack);
+	}
+
+	/** The towers on a loop used this many units this step: share the draw across its pumps by capacity and drain the lake. */
+	static void draw(ServerWorld world, List<MachineBlockEntity> pumps, double units, double dt) {
+		double available = pumps.stream().filter(pump -> pump.pumpStatus() == PumpStatus.PUMPING.ordinal())
+				.mapToDouble(MachineBlockEntity::pumpUnits).sum();
+		if (available <= 0 || units <= 0) return;
+		for (MachineBlockEntity pump : pumps) {
+			if (pump.pumpStatus() != PumpStatus.PUMPING.ordinal()) continue;
+			double share = units * pump.pumpUnits() / available;
+			pump.setPumpUsed(share);
+			drain(world, pump, share * dt);
 		}
-		racksByNetwork.forEach((network, racks) -> {
-			List<MachineBlockEntity> pumps = pumpsByNetwork.getOrDefault(network, List.of());
-			double available = pumps.stream().filter(pump -> pump.pumpStatus() == PumpStatus.PUMPING.ordinal())
-					.mapToDouble(MachineBlockEntity::pumpUnits).sum();
-			double used = 0;
-			racks.sort(Comparator.comparingLong(rack -> rack.getPos().asLong()));
-			for (MachineBlockEntity rack : racks) {
-				int demand = ServerModel.waterUnits(rack.modules());
-				if (used + demand > available) continue;
-				used += demand;
-				supplied.add(rack);
-			}
-			// Share the draw across the network's pumps by their capacity.
-			for (MachineBlockEntity pump : pumps) {
-				if (pump.pumpStatus() != PumpStatus.PUMPING.ordinal() || available <= 0) continue;
-				double share = used * pump.pumpUnits() / available;
-				pump.setPumpUsed(share);
-				drain(world, pump, share * dt);
-			}
-		});
-		return supplied;
 	}
 
 	/** Re-reads the water around a pump every few seconds, or right away after it drained a block. */

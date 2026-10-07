@@ -21,11 +21,11 @@ public final class SingleSlotScreen extends RackcraftHandledScreen {
 			return;
 		}
 		boolean diesel = id.equals("diesel_generator");
-		int capacityTenths = diesel ? 400 : 5000;
+		int capacityTenths = diesel ? 400 : Math.max(5000, stat(Stat.SOURCE_CAPACITY));
 		int output = stat(Stat.POWER);
 		int fuel = stat(Stat.FUEL);
 		int spinup = stat(Stat.SPINUP);
-		boolean fuelled = diesel ? fuel > 0 || !handler.getSlot(0).getStack().isEmpty() : !handler.getSlot(0).getStack().isEmpty();
+		boolean fuelled = fuel > 0 || !handler.getSlot(0).getStack().isEmpty() || !diesel && stat(Stat.FUEL_CELLS) > 0;
 
 		Text state;
 		int color;
@@ -47,13 +47,18 @@ public final class SingleSlotScreen extends RackcraftHandledScreen {
 		line(context, "Output", 8, 44, MUTED);
 		bar(context, 8, 54, 64, output / (double) capacityTenths, GOOD);
 		line(context, kw(output), 8, 63, TEXT);
+		line(context, "Fuel", 104, 44, MUTED);
+		int total = Math.max(1, stat(Stat.FUEL_TOTAL));
+		bar(context, 104, 54, 64, fuel / (double) total, WARN);
+		line(context, diesel ? fuel / 20 + " s left" : stat(Stat.FUEL_CELLS) + " cells spare", 104, 63, TEXT);
 		if (diesel) {
-			line(context, "Fuel", 104, 44, MUTED);
-			int total = Math.max(1, stat(Stat.FUEL_TOTAL));
-			bar(context, 104, 54, 64, fuel / (double) total, WARN);
-			line(context, fuel / 20 + " s left", 104, 63, TEXT);
 			line(context, "Spin-up", 104, 76, MUTED);
 			bar(context, 104, 86, 64, spinup / 20.0, 0xFF5BA7E0);
+		} else {
+			// A lone reactor; a solid 2x2x2 to 5x5x5 cube of them runs as one array.
+			int edge = Math.max(1, stat(Stat.ARRAY_EDGE));
+			line(context, edge > 1 ? "Array " + edge + "x" + edge + "x" + edge : "Single core", 104, 76, edge > 1 ? GOOD : MUTED);
+			if (edge > 1) line(context, (100 - Math.round(5 * (edge - 1))) + "% fuel/core", 104, 87, MUTED);
 		}
 		int delivered = stat(Stat.NETWORK_DELIVERED);
 		int demand = stat(Stat.NETWORK_DEMAND);

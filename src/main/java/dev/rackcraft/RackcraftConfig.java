@@ -20,7 +20,14 @@ public final class RackcraftConfig {
 			if (Files.exists(path)) {
 				Values loaded = GSON.fromJson(Files.readString(path), Values.class);
 				if (loaded != null) values = loaded.withDefaults();
+				if (values.version < Values.CURRENT_VERSION) {
+					// Version 2 rebuilt the air model; the old thermal numbers would leave heat trapped.
+					values.thermal = new Thermal();
+					values.version = Values.CURRENT_VERSION;
+					Files.writeString(path, GSON.toJson(values));
+				}
 			} else {
+				values.version = Values.CURRENT_VERSION;
 				Files.writeString(path, GSON.toJson(values));
 			}
 		} catch (IOException exception) {
@@ -29,6 +36,9 @@ public final class RackcraftConfig {
 	}
 
 	public static final class Values {
+		static final int CURRENT_VERSION = 2;
+		/** 0 in files written before versions existed (Gson leaves a missing field at its default). */
+		public int version;
 		public Sim sim = new Sim();
 		public Thermal thermal = new Thermal();
 		public Events events = new Events();
@@ -51,16 +61,21 @@ public final class RackcraftConfig {
 	}
 
 	public static final class Sim { public int stepTicks = 10; }
+	/**
+	 * The air. Each block of air holds {@code cellCapacityKjPerK}; neighbours trade heat at
+	 * {@code faceConductanceKwPerK} per degree of difference (times {@code upwardMultiplier} for hot air rising),
+	 * and each cell loses {@code leakKwPerK} per degree above ambient through walls, or {@code outdoorLeakKwPerK}
+	 * where it can see the sky.
+	 */
 	public static final class Thermal {
 		public double ambientC = 24;
 		public double cellCapacityKjPerK = 4;
-		public double faceConductanceKwPerK = 0.25;
+		public double faceConductanceKwPerK = 2;
 		public double upwardMultiplier = 2;
-		public double leakKwPerK = 0.01;
-		public double rackFlowKwPerK = 0.5;
-		public double cracFlowKwPerK = 2;
-		public int maxActiveCells = 16384;
-		public double settleEpsilonK = 0.05;
+		public double leakKwPerK = 0.005;
+		public double outdoorLeakKwPerK = 0.4;
+		public int maxActiveCells = 65536;
+		public double settleEpsilonK = 0.03;
 	}
 	public static final class Events {
 		public boolean enabled = true;

@@ -43,6 +43,7 @@ public final class CableBlock extends Block implements BlockEntityProvider {
 			case POWER -> 2;
 			case COOLANT -> 3;
 			case DATA -> 1;
+			case ITEM -> 2.5;
 		};
 		BlockState state = getStateManager().getDefaultState().with(CUT, false);
 		for (BooleanProperty property : ConnectingBlock.FACING_PROPERTIES.values()) state = state.with(property, false);
