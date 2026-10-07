@@ -892,26 +892,188 @@ def machine_textures(entry):
     if entry.get("array"):
         faces["formed"] = formed_face(base, key, False)
         faces["formed_on"] = formed_face(base, key, True)
+        if key != "battery_bank":
+            faces["port"] = port_face(base, key, False)
+            faces["port_on"] = port_face(base, key, True)
     return faces
 
 
+YELLOW = (226, 184, 72)
+
+
+def _casing(base, key):
+    """The shared bones of a formed cube: a riveted, dark-framed panel. Each machine draws its own face on top."""
+    canvas = plate(darken(base, 0.15), key + ":formed", rivets=True)
+    canvas.frame(0, 0, 15, 15, darken(base, 0.55))
+    return canvas
+
+
+def _reactor_face(canvas, base, frame, on):
+    """A trefoil on yellow, over a window of Cherenkov blue."""
+    canvas.rect(2, 2, 13, 13, darken(base, 0.3))
+    canvas.disc(8, 8, 5.6, YELLOW)
+    canvas.disc(8, 8, 1.4, BLACK)
+    for angle in (90, 210, 330):
+        for r in (2.4, 3.2, 4.0, 4.8):
+            for spread in (-22, -11, 0, 11, 22):
+                a = math.radians(angle + spread)
+                canvas.set(int(8 + math.cos(a) * r), int(8 - math.sin(a) * r), BLACK)
+    if on:
+        glow = mix((60, 140, 255), (170, 220, 255), [0.0, 0.5, 1.0, 0.5][frame])
+        canvas.disc(8, 8, 1.4, glow)
+        for x in (2, 13):
+            canvas.vline(x, 3, 12, glow)
+
+
+def _battery_face(canvas, base, frame, on):
+    """Three cells with terminals and a charge gauge on each."""
+    for column, x in enumerate((2, 6, 10)):
+        canvas.inset(x, 3, x + 3, 13, GLASS_DARK, darken(base, 0.4), lighten(base, 0.2))
+        canvas.rect(x + 1, 2, x + 2, 2, (200, 200, 205))
+        level = 9 if not on else 3 + (frame + column * 2) % 7
+        for y in range(12, 12 - level // 1, -1):
+            if y > 3:
+                canvas.hline(x + 1, x + 2, y, (96, 220, 120) if on else darken(base, 0.1))
+    canvas.set(3, 1, (230, 80, 70))
+    canvas.set(12, 1, (90, 160, 240))
+
+
+def _mill_face(canvas, base, frame, on):
+    """A toothed grinding roller turning over a tray of yellowcake dust."""
+    canvas.disc(8, 7, 5.2, darken(base, 0.45))
+    canvas.disc(8, 7, 4.0, lighten(base, 0.15))
+    turn = frame * 15 if on else 0
+    for angle in range(0, 360, 45):
+        a = math.radians(angle + turn)
+        canvas.set(int(round(8 + math.cos(a) * 5)), int(round(7 + math.sin(a) * 5)), lighten(base, 0.4))
+    canvas.disc(8, 7, 1.5, darken(base, 0.6))
+    canvas.rect(2, 12, 13, 14, (200, 170, 40))
+    canvas.hline(3, 12, 12, (236, 210, 90))
+
+
+def _centrifuge_face(canvas, base, frame, on):
+    """Three tall rotors in a row, their bands sliding while they spin."""
+    for x in (2, 6, 10):
+        canvas.rect(x, 2, x + 3, 13, lighten(base, 0.25))
+        canvas.vline(x, 2, 13, darken(base, 0.3))
+        canvas.vline(x + 3, 2, 13, darken(base, 0.45))
+        shift = frame if on else 0
+        for y in range(2, 14):
+            if (y + shift) % 4 == 0:
+                canvas.hline(x + 1, x + 2, y, (120, 230, 200) if on else darken(base, 0.2))
+        canvas.hline(x, x + 3, 1, darken(base, 0.6))
+        canvas.hline(x, x + 3, 14, darken(base, 0.6))
+
+
+def _fabricator_face(canvas, base, frame, on):
+    """A rack of fuel rods, green-tipped, glowing faintly while it works."""
+    canvas.rect(2, 2, 13, 13, GLASS_DARK)
+    for column, x in enumerate(range(3, 13, 2)):
+        canvas.vline(x, 4, 12, (180, 186, 196))
+        tip = (110, 230, 120) if not on else mix((110, 230, 120), (210, 255, 210), ((frame + column) % 4) / 3)
+        canvas.set(x, 3, tip)
+        canvas.set(x, 4, tip)
+    canvas.hline(2, 13, 13, darken(base, 0.4))
+    canvas.hline(2, 13, 2, darken(base, 0.4))
+
+
+def _sealer_face(canvas, base, frame, on):
+    """A heavy round hatch with a valve wheel, inside a diagonal hazard border."""
+    for y in range(16):
+        for x in range(16):
+            if x in (1, 14) or y in (1, 14):
+                canvas.set(x, y, YELLOW if ((x + y) // 2) % 2 == 0 else BLACK)
+    canvas.disc(8, 8, 5.4, darken(base, 0.4))
+    canvas.disc(8, 8, 4.6, lighten(base, 0.2))
+    canvas.disc(8, 8, 3.4, darken(base, 0.35), inner=2.6)
+    turn = frame * 22 if on else 0
+    for angle in range(0, 180, 60):
+        a = math.radians(angle + turn)
+        canvas.line(int(8 - math.cos(a) * 3), int(8 - math.sin(a) * 3), int(8 + math.cos(a) * 3), int(8 + math.sin(a) * 3),
+                    darken(base, 0.35))
+    canvas.set(8, 8, (230, 90, 70) if on else BLACK)
+
+
+def _wafer_face(canvas, base, frame, on):
+    """A cleanroom window: a patterned wafer under purple UV light."""
+    light = mix((150, 90, 230), (210, 160, 255), [0.0, 0.5, 1.0, 0.5][frame]) if on else (70, 60, 90)
+    canvas.rect(2, 2, 13, 13, darken(light, 0.55))
+    canvas.disc(8, 8, 5.2, (176, 190, 206))
+    for line in (5, 8, 11):
+        for step in range(3, 14):
+            for (x, y) in ((line, step), (step, line)):
+                if math.hypot(x + 0.5 - 8, y + 0.5 - 8) <= 5.0:
+                    canvas.set(x, y, (110, 124, 150))
+    canvas.hline(2, 13, 2, light)
+    canvas.set(6, 6, (255, 255, 255))
+
+
+def _foundry_face(canvas, base, frame, on):
+    """A crucible of molten silicon behind a grate."""
+    canvas.rect(2, 4, 13, 13, darken(base, 0.5))
+    melt = mix((240, 120, 40), (255, 220, 120), [0.0, 0.5, 1.0, 0.5][frame]) if on else (110, 70, 50)
+    canvas.rect(3, 8, 12, 12, melt)
+    canvas.hline(4, 11, 7, darken(melt, 0.2))
+    for x in range(3, 13, 3):
+        canvas.vline(x, 4, 12, (60, 60, 66))
+    canvas.hline(2, 13, 4, (60, 60, 66))
+    canvas.rect(5, 1, 10, 2, darken(base, 0.6))
+
+
+def _recycler_face(canvas, base, frame, on):
+    """Shredder teeth over a green recycling mark."""
+    canvas.rect(2, 2, 13, 13, GLASS_DARK)
+    shift = frame % 2 if on else 0
+    for x in range(2, 14):
+        canvas.set(x, 4 + ((x + shift) % 2), (190, 194, 200))
+        canvas.set(x, 6 - ((x + shift) % 2), (150, 154, 160))
+    green = (90, 210, 110) if on else (60, 130, 72)
+    canvas.poly([(8, 7.5), (12.5, 13), (3.5, 13)], green)
+    canvas.poly([(8, 9.6), (10.6, 12.3), (5.4, 12.3)], GLASS_DARK)
+
+
+FORMED_FACES = {
+    "modular_reactor": _reactor_face,
+    "battery_bank": _battery_face,
+    "uranium_mill": _mill_face,
+    "gas_centrifuge": _centrifuge_face,
+    "fuel_fabricator": _fabricator_face,
+    "cask_sealer": _sealer_face,
+    "wafer_fab": _wafer_face,
+    "silicon_foundry": _foundry_face,
+    "ewaste_recycler": _recycler_face,
+}
+
+
 def formed_face(base, key, on):
-    """Casing for a formed multiblock: riveted panels with a hazard band and a window onto the core, so a whole cube
-    reads as one big machine. The core glows and pulses while it runs."""
+    """Casing for a formed multiblock: every machine has its own face (a reactor's trefoil, a centrifuge's rotors,
+    a fab's wafer), so cubes are easy to tell apart. It animates while the cube works."""
     frames = []
     for frame in range(4 if on else 1):
-        canvas = plate(darken(base, 0.15), key + ":formed", rivets=True)
-        canvas.frame(0, 0, 15, 15, darken(base, 0.55))
-        for x in range(1, 15):
-            canvas.set(x, 2, (226, 184, 72) if (x // 2) % 2 == 0 else BLACK)
-            canvas.set(x, 13, (226, 184, 72) if (x // 2) % 2 == 0 else BLACK)
-        canvas.inset(4, 5, 11, 10, GLASS_DARK, darken(base, 0.4), lighten(base, 0.2))
-        if on:
-            glow = mix((92, 236, 128), (190, 255, 210), [0.0, 0.4, 0.8, 0.4][frame])
-            canvas.rect(5, 6, 10, 9, darken(glow, 0.25))
-            canvas.rect(6, 7, 9, 8, glow)
-        else:
-            canvas.rect(6, 7, 9, 8, darken(base, 0.5))
+        canvas = _casing(base, key)
+        FORMED_FACES.get(key, _reactor_face)(canvas, base, frame, on)
+        frames.append(canvas)
+    return frames
+
+
+PORT = (64, 214, 224)
+
+
+def port_face(base, key, on):
+    """The port: the machine's own casing behind a bright cyan frame and an output hatch with an arrow, so the one
+    block you empty a cube from stands out from the rest of it."""
+    frames = []
+    for frame in range(4 if on else 1):
+        canvas = _casing(base, key)
+        FORMED_FACES.get(key, _reactor_face)(canvas, base, frame, on)
+        canvas.frame(0, 0, 15, 15, PORT)
+        canvas.frame(1, 1, 14, 14, darken(PORT, 0.45))
+        canvas.inset(4, 4, 11, 11, (12, 22, 26), darken(PORT, 0.7), darken(PORT, 0.3))
+        arrow = (210, 250, 255) if not on else mix((210, 250, 255), PORT, [0.0, 0.5, 1.0, 0.5][frame])
+        canvas.rect(7, 5, 8, 7, arrow)
+        canvas.hline(5, 10, 8, arrow)
+        canvas.hline(6, 9, 9, arrow)
+        canvas.hline(7, 8, 10, arrow)
         frames.append(canvas)
     return frames
 

@@ -237,7 +237,8 @@ public final class OpsScreenHandler extends ScreenHandler {
 
 		machineAlerts(world, machines, alerts);
 		if (!facility.activeEvent().equals("none")) {
-			alerts.add(0, new OpsSnapshot.Alert(2, "Event: " + facility.activeEvent().replace('_', ' ')));
+			alerts.add(0, new OpsSnapshot.Alert(2, "Event: " + (facility.eventDetail().isEmpty()
+					? facility.activeEvent().replace('_', ' ') : facility.eventDetail())));
 		}
 		alerts.sort((a, b) -> Integer.compare(b.severity(), a.severity()));
 		if (alerts.size() > MAX_ALERTS) {
@@ -249,7 +250,7 @@ public final class OpsScreenHandler extends ScreenHandler {
 		researchAlerts(lab, market, alerts, now);
 		alerts.sort((a, b) -> Integer.compare(b.severity(), a.severity()));
 		return new OpsSnapshot(facility.credits(), (float) facility.miningRate(), market.earnedSince(now - 20 * 60 * 60),
-				market.totalEarned(), facility.activeEvent(), AirQuality.get(world).smogAt(viewer), market.outbox().size(),
+				market.totalEarned(), facility.eventDetail().isEmpty() ? facility.activeEvent() : facility.eventDetail(), AirQuality.get(world).smogAt(viewer), market.outbox().size(),
 				clusters, contracts, models, alerts, research(lab, now), leases(market, now));
 	}
 
@@ -395,7 +396,7 @@ public final class OpsScreenHandler extends ScreenHandler {
 						alerts.add(new OpsSnapshot.Alert(1, "Modular Reactor" + at + ": out of Fuel Cells"));
 					}
 				}
-				case "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer", "wafer_fab" -> {
+				case "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer", "wafer_fab", "silicon_foundry", "ewaste_recycler" -> {
 					String name = Text.translatable("block.rackcraft." + machine.blockId()).getString();
 					int status = machine.processStatus();
 					// One alert per cube: its cores share the same work progress.
@@ -403,7 +404,12 @@ public final class OpsScreenHandler extends ScreenHandler {
 					if (status == dev.rackcraft.world.NuclearProcessing.Status.NO_POWER.ordinal() && reported.add(key)) {
 						alerts.add(new OpsSnapshot.Alert(2, name + at + ": no power"));
 					} else if (status == dev.rackcraft.world.NuclearProcessing.Status.OUTPUT_FULL.ordinal() && reported.add(key)) {
-						alerts.add(new OpsSnapshot.Alert(1, name + at + ": output full"));
+						alerts.add(new OpsSnapshot.Alert(1, name + at + ": output full (take it from the port, the marked corner)"));
+					} else if (status == dev.rackcraft.world.NuclearProcessing.Status.LOCKED.ordinal() && reported.add(key)) {
+						alerts.add(new OpsSnapshot.Alert(1, name + at + ": locked until Extreme UV Lithography is researched (R&D tab)"));
+					} else if (status == dev.rackcraft.world.NuclearProcessing.Status.LOW_POWER.ordinal() && reported.add(key)) {
+						alerts.add(new OpsSnapshot.Alert(1, String.format(Locale.ROOT, "%s%s: running at %d%% speed, the grid covers only part of its %,.0f kW",
+								name, at, Math.round(machine.powerSatisfaction() * 100), machine.cubeDemandKw())));
 					} else if (status == dev.rackcraft.world.NuclearProcessing.Status.NOT_FORMED.ordinal()) {
 						alerts.add(new OpsSnapshot.Alert(1, name + at + ": not part of a whole 2x2x2 to 5x5x5 cube"));
 					}

@@ -10,8 +10,10 @@ import net.minecraft.item.Item;
 import net.minecraft.item.Items;
 
 /**
- * The nuclear fuel cycle's processing machines. Each only works as a cube multiblock (see {@link ReactorArrays}):
- * every block in the cube is a core that finishes one batch per recipe time, so a 3x3x3 runs 27 batches at once.
+ * The processing cubes: the nuclear fuel cycle's machines, the Wafer Fab, the Silicon Foundry and the E-Waste
+ * Recycler. Each only works as a cube multiblock (see {@link ReactorArrays}): every block in the cube is a core that
+ * finishes one batch per recipe time, so a 3x3x3 runs 27 batches at once. Below full power a cube works at the share
+ * it gets, down to {@link #MIN_POWER}. Products and by-products gather in the cube's port.
  * Slots: 0 and 1 are inputs, 2 the product, 3 the by-product. Inputs are pooled evenly across the cube.
  *
  * <ul>
@@ -19,6 +21,8 @@ import net.minecraft.item.Items;
  *   <li>Gas Centrifuge: six Yellowcake to one Enriched Uranium and four Depleted Uranium (120 s, 60 kW).</li>
  *   <li>Fuel Fabricator: Enriched Uranium and two Steel Ingots to a Fuel Cell, the only way to make one (60 s, 30 kW).</li>
  *   <li>Cask Sealer: four Spent Fuel and four Depleted Uranium to a Sealed Waste Cask (60 s, 15 kW).</li>
+ *   <li>Silicon Foundry: two Nether Quartz and four Sand to eight Silicon (20 s, 40 kW).</li>
+ *   <li>E-Waste Recycler: a Failed Module to three Silicon and a Copper Wire (15 s, 10 kW).</li>
  *   <li>Wafer Fab: sixteen Silicon and four GPU Chips to a Wafer-Scale Engine (5 min, 400 kW). It only runs once
  *       Extreme UV Lithography is researched; until then it reports {@link Status#LOCKED}.</li>
  * </ul>
@@ -29,7 +33,11 @@ public final class NuclearProcessing {
 	/** Idle draw of a formed core that has nothing to do. */
 	private static final double IDLE_KW = 0.1;
 
-	public enum Status { RUNNING, NOT_FORMED, NO_INPUT, OUTPUT_FULL, NO_POWER, LOCKED }
+	/** LOW_POWER: running, but slower, because the grid covers only part of what the cube needs. */
+	public enum Status { RUNNING, NOT_FORMED, NO_INPUT, OUTPUT_FULL, NO_POWER, LOCKED, LOW_POWER }
+
+	/** Below this share of its power a cube stops; above it, it works at the share it gets. */
+	public static final double MIN_POWER = 0.1;
 
 	public record Recipe(Item inputA, int countA, Item inputB, int countB, Item output, int outputCount, Item byproduct,
 			int byproductCount, double seconds, double kwPerCore) {}
@@ -45,6 +53,8 @@ public final class NuclearProcessing {
 			case "cask_sealer" -> new Recipe(item("spent_fuel"), 4, item("depleted_uranium"), 4,
 					RcBlocks.get("waste_cask").asItem(), 1, null, 0, 60, 15);
 			case "wafer_fab" -> new Recipe(item("silicon"), 16, item("gpu_chip"), 4, item("wafer_scale_engine"), 1, null, 0, 300, 400);
+			case "silicon_foundry" -> new Recipe(Items.QUARTZ, 2, Items.SAND, 4, item("silicon"), 8, null, 0, 20, 40);
+			case "ewaste_recycler" -> new Recipe(item("failed_module"), 1, null, 0, item("silicon"), 3, item("copper_wire"), 1, 15, 10);
 			default -> null;
 		};
 	}
@@ -87,10 +97,10 @@ public final class NuclearProcessing {
 					active = false;
 				} else if (!ready) {
 					status = hasInputs(members, recipe) ? Status.OUTPUT_FULL : Status.NO_INPUT;
-				} else if (power < 0.5) {
+				} else if (power < MIN_POWER) {
 					status = Status.NO_POWER;
 				} else {
-					status = Status.RUNNING;
+					status = power < 0.995 ? Status.LOW_POWER : Status.RUNNING;
 					progress += dt * array.cores() / recipe.seconds() * Math.min(1, power);
 					while (progress >= 1 && ready(members, recipe)) {
 						progress -= 1;
@@ -104,8 +114,15 @@ public final class NuclearProcessing {
 				}
 				controller.setWorkProgress(progress);
 			}
+			// Products and by-products gather in the port, so the whole cube can be emptied from one block.
+			ReactorArrays.gather(array, OUTPUT_SLOT);
+			ReactorArrays.gather(array, BYPRODUCT_SLOT);
+			int output = ReactorArrays.count(members, OUTPUT_SLOT, recipe.output());
+			int byproduct = recipe.byproduct() == null ? 0 : ReactorArrays.count(members, BYPRODUCT_SLOT, recipe.byproduct());
+			double needed = recipe.kwPerCore() * ReactorArrays.efficiency(array.edge()) * array.cores();
 			double draw = 0;
 			for (MachineBlockEntity member : members) {
+				member.setCube(array.edge() >= 2 && member == controller, output, byproduct, needed);
 				member.setProcess(status.ordinal(), active);
 				member.setReactorArray(array.edge(), 0, 0, 0, 0);
 				member.setPowerKw(demandKw(member) * satisfaction.getOrDefault(member, 0.0));

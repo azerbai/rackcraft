@@ -1,59 +1,115 @@
 {
   "variants": {
-    "facing=east,lit=false,formed=false": {
+    "facing=east,lit=false,formed=false,port=false": {
       "model": "rackcraft:block/battery_bank",
       "y": 90
     },
-    "facing=east,lit=false,formed=true": {
+    "facing=east,lit=false,formed=false,port=true": {
+      "model": "rackcraft:block/battery_bank",
+      "y": 90
+    },
+    "facing=east,lit=false,formed=true,port=false": {
       "model": "rackcraft:block/battery_bank_formed"
     },
-    "facing=east,lit=true,formed=false": {
+    "facing=east,lit=false,formed=true,port=true": {
+      "model": "rackcraft:block/battery_bank_formed"
+    },
+    "facing=east,lit=true,formed=false,port=false": {
       "model": "rackcraft:block/battery_bank_on",
       "y": 90
     },
-    "facing=east,lit=true,formed=true": {
+    "facing=east,lit=true,formed=false,port=true": {
+      "model": "rackcraft:block/battery_bank_on",
+      "y": 90
+    },
+    "facing=east,lit=true,formed=true,port=false": {
       "model": "rackcraft:block/battery_bank_formed_on"
     },
-    "facing=north,lit=false,formed=false": {
+    "facing=east,lit=true,formed=true,port=true": {
+      "model": "rackcraft:block/battery_bank_formed_on"
+    },
+    "facing=north,lit=false,formed=false,port=false": {
       "model": "rackcraft:block/battery_bank",
       "y": 0
     },
-    "facing=north,lit=false,formed=true": {
+    "facing=north,lit=false,formed=false,port=true": {
+      "model": "rackcraft:block/battery_bank",
+      "y": 0
+    },
+    "facing=north,lit=false,formed=true,port=false": {
       "model": "rackcraft:block/battery_bank_formed"
     },
-    "facing=north,lit=true,formed=false": {
+    "facing=north,lit=false,formed=true,port=true": {
+      "model": "rackcraft:block/battery_bank_formed"
+    },
+    "facing=north,lit=true,formed=false,port=false": {
       "model": "rackcraft:block/battery_bank_on",
       "y": 0
     },
-    "facing=north,lit=true,formed=true": {
+    "facing=north,lit=true,formed=false,port=true": {
+      "model": "rackcraft:block/battery_bank_on",
+      "y": 0
+    },
+    "facing=north,lit=true,formed=true,port=false": {
       "model": "rackcraft:block/battery_bank_formed_on"
     },
-    "facing=south,lit=false,formed=false": {
+    "facing=north,lit=true,formed=true,port=true": {
+      "model": "rackcraft:block/battery_bank_formed_on"
+    },
+    "facing=south,lit=false,formed=false,port=false": {
       "model": "rackcraft:block/battery_bank",
       "y": 180
     },
-    "facing=south,lit=false,formed=true": {
+    "facing=south,lit=false,formed=false,port=true": {
+      "model": "rackcraft:block/battery_bank",
+      "y": 180
+    },
+    "facing=south,lit=false,formed=true,port=false": {
       "model": "rackcraft:block/battery_bank_formed"
     },
-    "facing=south,lit=true,formed=false": {
+    "facing=south,lit=false,formed=true,port=true": {
+      "model": "rackcraft:block/battery_bank_formed"
+    },
+    "facing=south,lit=true,formed=false,port=false": {
       "model": "rackcraft:block/battery_bank_on",
       "y": 180
     },
-    "facing=south,lit=true,formed=true": {
+    "facing=south,lit=true,formed=false,port=true": {
+      "model": "rackcraft:block/battery_bank_on",
+      "y": 180
+    },
+    "facing=south,lit=true,formed=true,port=false": {
       "model": "rackcraft:block/battery_bank_formed_on"
     },
-    "facing=west,lit=false,formed=false": {
+    "facing=south,lit=true,formed=true,port=true": {
+      "model": "rackcraft:block/battery_bank_formed_on"
+    },
+    "facing=west,lit=false,formed=false,port=false": {
       "model": "rackcraft:block/battery_bank",
       "y": 270
     },
-    "facing=west,lit=false,formed=true": {
+    "facing=west,lit=false,formed=false,port=true": {
+      "model": "rackcraft:block/battery_bank",
+      "y": 270
+    },
+    "facing=west,lit=false,formed=true,port=false": {
       "model": "rackcraft:block/battery_bank_formed"
     },
-    "facing=west,lit=true,formed=false": {
+    "facing=west,lit=false,formed=true,port=true": {
+      "model": "rackcraft:block/battery_bank_formed"
+    },
+    "facing=west,lit=true,formed=false,port=false": {
       "model": "rackcraft:block/battery_bank_on",
       "y": 270
     },
-    "facing=west,lit=true,formed=true": {
+    "facing=west,lit=true,formed=false,port=true": {
+      "model": "rackcraft:block/battery_bank_on",
+      "y": 270
+    },
+    "facing=west,lit=true,formed=true,port=false": {
+      "model": "rackcraft:block/battery_bank_formed_on"
+    },
+    "facing=west,lit=true,formed=true,port=true": {
       "model": "rackcraft:block/battery_bank_formed_on"
     }
   }

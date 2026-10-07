@@ -169,7 +169,7 @@ Events start about three times an hour once a facility has run for a while (`eve
 | Cooling failure | Every heat sink, CRAC and exhaust fan stops for 2 minutes |
 | Heat wave | For 5 minutes intakes breathe 4 C hotter air, and dry coolers and cooling towers lose 30% |
 | Hardware failure | One module per 64 racks (one to three) burns out into a Failed Module, and chat says where. Quantum Cores and Wafer-Scale Engines are spared, and Predictive Maintenance stops it entirely |
-| Cable cut | A random power or fiber cable is cut |
+| Cable cut | A random power or fiber cable on a network that feeds a server rack is cut, and the terminal shows where. With no such cable, nothing happens |
 | Surge | Every rack on a power network without a Battery Bank reboots from cold |
 
 ## Cooling
@@ -231,7 +231,7 @@ Drive contents are stored with the world, keyed to each drive, so drives keep th
 
 ## Nuclear
 
-Every nuclear machine is a **cube multiblock**: build a solid cube of the same machine, 2x2x2 up to 5x5x5, and it works as one (the casing changes to show it). Every block is a core, items put into any core are shared evenly across the cube, and bigger cubes are more economical: 5% less fuel or power per core for a 2-cube, up to 20% for a 5-cube. Anything that isn't a whole cube shows an amber "not formed" fault.
+Every nuclear machine is a **cube multiblock**: build a solid cube of the same machine, 2x2x2 up to 5x5x5, and it works as one. Its casing changes to show it, and every kind of cube has its own face: a reactor's trefoil, a centrifuge's rotors, a fab's wafer. Every cube that makes items has a **port**: its bottom north-west corner, framed in cyan with an output hatch. Products, by-products and a reactor's Spent Fuel gather there, and the port's screen has a **Collect all** button that hands you everything the whole cube holds. A processing cube short of power runs at the share it gets (a cube with a third of its power works at a third of the speed) and only stops below 10%; its screen shows what it needs and how much of that the grid covers. Every block is a core, items put into any core are shared evenly across the cube, and bigger cubes are more economical: 5% less fuel or power per core for a 2-cube, up to 20% for a 5-cube. Anything that isn't a whole cube shows an amber "not formed" fault.
 
 | Step | Machine | In | Out | Per batch, per core |
 | --- | --- | --- | --- | --- |
@@ -241,6 +241,8 @@ Every nuclear machine is a **cube multiblock**: build a solid cube of the same m
 | Fabricate | Fuel Fabricator | Enriched Uranium + 2 Steel Ingots | Fuel Cell | 60 s, 30 kW |
 | Burn | Modular Reactor | Fuel Cell | 500 kW for 30 min, then Spent Fuel | |
 | Seal | Cask Sealer | 4 Spent Fuel + 4 Depleted Uranium | Sealed Waste Cask | 60 s, 15 kW |
+
+Two more processing cubes work the same way: the **Silicon Foundry** (2 Nether Quartz + 4 Sand to 8 Silicon, 20 s, 40 kW per core; steel, blast furnaces, copper wire and a cauldron) and the **E-Waste Recycler** (a Failed Module to 3 Silicon and a Copper Wire, 15 s, 10 kW per core; steel, pistons, grindstones, a circuit board and a hopper). One feeds the Wafer Fab; the other turns hardware failures back into parts.
 
 Fuel Cells can't be crafted or bought: every one comes out of a Fuel Fabricator, twelve Raw Uranium each. The machines themselves are built from steel blocks, diamonds, GPU chips and cryo coils, and a working cube draws hundreds of kilowatts, so nuclear power takes real power to bootstrap.
 

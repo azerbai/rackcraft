@@ -89,6 +89,12 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 	// whether it was working last step (for its power draw); not saved. A spent cell waiting for waste room is.
 	private int processStatus;
 	private boolean processActive;
+	// Item-making cubes: whether this core is the cube's port (where products gather), what the whole cube holds
+	// in its product and by-product slots, and what it draws when working; not saved.
+	private boolean cubePort;
+	private int cubeOutput;
+	private int cubeByproduct;
+	private double cubeDemandKw;
 	private int pendingWaste;
 	// Routers: their fiber network's bandwidth, what its racks need, and how many racks; refreshed every step.
 	private double dataBandwidth;
@@ -124,7 +130,7 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 			"freshwater_pump", "server_rack", "modular_reactor", "rear_door_cooler", "dry_cooler", "chiller", "water_heat_exchanger");
 	/** Machines an Item Pipe feeds from storage (and empties into it): storage itself, the training stations and generators. */
 	public static final java.util.Set<String> ITEM_MACHINES = java.util.Set.of("storage_array", "tape_library", "art_table",
-			"writing_desk", "diesel_generator", "modular_reactor", "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer", "wafer_fab");
+			"writing_desk", "diesel_generator", "modular_reactor", "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer", "wafer_fab", "silicon_foundry", "ewaste_recycler");
 
 	public static java.util.Set<NetKind> networkKinds(String id) {
 		java.util.EnumSet<NetKind> kinds = java.util.EnumSet.noneOf(NetKind.class);
@@ -340,6 +346,16 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 		arrayFuelTotal = fuelTotal;
 		arrayFuelCells = fuelCells;
 	}
+	public boolean cubePort() { return cubePort; }
+	public int cubeOutput() { return cubeOutput; }
+	public int cubeByproduct() { return cubeByproduct; }
+	public double cubeDemandKw() { return cubeDemandKw; }
+	public void setCube(boolean port, int output, int byproduct, double demandKw) {
+		cubePort = port;
+		cubeOutput = output;
+		cubeByproduct = byproduct;
+		cubeDemandKw = demandKw;
+	}
 	public int processStatus() { return processStatus; }
 	public boolean processActive() { return processActive; }
 	public void setProcess(int status, boolean active) {
@@ -417,7 +433,7 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 			case "server_rack" -> MachineScreenHandler.Mode.RACK;
 			case "diesel_generator", "fire_suppression_tank" -> MachineScreenHandler.Mode.SINGLE_SLOT;
 			case "modular_reactor" -> MachineScreenHandler.Mode.REACTOR;
-			case "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer", "wafer_fab" -> MachineScreenHandler.Mode.PROCESSOR;
+			case "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer", "wafer_fab", "silicon_foundry", "ewaste_recycler" -> MachineScreenHandler.Mode.PROCESSOR;
 			case "crypto_exchange" -> MachineScreenHandler.Mode.EXCHANGE;
 			case "storage_array" -> MachineScreenHandler.Mode.STORAGE_ARRAY;
 			case "tape_library" -> MachineScreenHandler.Mode.TAPE_LIBRARY;

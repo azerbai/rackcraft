@@ -34,6 +34,8 @@
     "rackcraft:fuel_fabricator",
     "rackcraft:cask_sealer",
     "rackcraft:wafer_fab",
+    "rackcraft:silicon_foundry",
+    "rackcraft:ewaste_recycler",
     "rackcraft:waste_cask",
     "rackcraft:monitoring_wall",
     "rackcraft:fire_suppression_tank",

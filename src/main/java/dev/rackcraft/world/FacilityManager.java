@@ -15,6 +15,8 @@ public final class FacilityManager extends PersistentState {
 	private long randomSeed = 0x5241434B43524146L;
 	private long eventTicks;
 	private String activeEvent = "none";
+	/** What the active event did, for the terminal: "cable cut at 12 64 -30". */
+	private String eventDetail = "";
 	private long activeEventRemainingTicks;
 	private long lastEventTick;
 	private final Deque<Double> availability = new ArrayDeque<>();
@@ -43,6 +45,25 @@ public final class FacilityManager extends PersistentState {
 	public long randomSeed() { return randomSeed; }
 	public long eventTicks() { return eventTicks; }
 	public String activeEvent() { return activeEvent; }
+	public String eventDetail() { return activeEvent.equals("none") ? "" : eventDetail; }
+	public void setEventDetail(String detail) {
+		eventDetail = detail == null ? "" : detail;
+		markDirty();
+	}
+
+	/**
+	 * The longest each event can last. Saves from before one-off events were given 30 seconds kept them "active" for
+	 * 1,200,000 ticks (about 17 hours), which left a stale event on the terminal and blocked new ones; the clock
+	 * caps them.
+	 */
+	public static long maxDuration(String event) {
+		return switch (event) {
+			case "utility_outage" -> 3600;
+			case "cooling_failure" -> 2400;
+			case "heat_wave" -> 6000;
+			default -> 600;
+		};
+	}
 	public long activeEventRemainingTicks() { return activeEventRemainingTicks; }
 	public long lastEventTick() { return lastEventTick; }
 	public Deque<Double> availability() { return availability; }
@@ -73,7 +94,7 @@ public final class FacilityManager extends PersistentState {
 	public void advanceEventClock(long ticks) {
 		eventTicks += ticks;
 		if (!activeEvent.equals("none")) {
-			activeEventRemainingTicks = Math.max(0, activeEventRemainingTicks - ticks);
+			activeEventRemainingTicks = Math.max(0, Math.min(maxDuration(activeEvent), activeEventRemainingTicks) - ticks);
 			if (activeEventRemainingTicks == 0) activeEvent = "none";
 		}
 		markDirty();
@@ -101,6 +122,7 @@ public final class FacilityManager extends PersistentState {
 		nbt.putLong("RandomSeed", randomSeed);
 		nbt.putLong("EventTicks", eventTicks);
 		nbt.putString("ActiveEvent", activeEvent);
+		nbt.putString("EventDetail", eventDetail);
 		nbt.putLong("ActiveEventRemainingTicks", activeEventRemainingTicks);
 		nbt.putLong("LastEventTick", lastEventTick);
 		NbtList samples = new NbtList();
@@ -122,6 +144,7 @@ public final class FacilityManager extends PersistentState {
 		state.eventTicks = Math.max(0, nbt.getLong("EventTicks"));
 		state.activeEvent = nbt.getString("ActiveEvent");
 		if (state.activeEvent.isBlank()) state.activeEvent = "none";
+		state.eventDetail = nbt.getString("EventDetail");
 		state.activeEventRemainingTicks = Math.max(0, nbt.getLong("ActiveEventRemainingTicks"));
 		state.lastEventTick = Math.max(0, nbt.getLong("LastEventTick"));
 		NbtList samples = nbt.getList("Availability", 10);

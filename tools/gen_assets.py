@@ -376,7 +376,7 @@ def main():
                 for alert in ("warn", "fault"):
                     write_json(RESOURCES / f"assets/rackcraft/models/block/{identifier}_{alert}.json", machine_model(identifier, f"front_{alert}"))
             if block.get("array"):
-                for suffix in ("formed", "formed_on"):
+                for suffix in ("formed", "formed_on") + (("port", "port_on") if identifier != "battery_bank" else ()):
                     write_json(RESOURCES / f"assets/rackcraft/models/block/{identifier}_{suffix}.json", {
                         "parent": "minecraft:block/cube_all", "textures": {"all": f"rackcraft:block/{identifier}_{suffix}"}})
         else:
@@ -393,10 +393,15 @@ def main():
                 for lit in (False, True)
             }
             if block.get("array"):
-                # A formed cube shows its casing on every face; facing doesn't matter then.
-                variants = {f"{key},formed={str(formed).lower()}": (
-                    {"model": f"rackcraft:block/{identifier}_formed{'_on' if 'lit=true' in key else ''}"} if formed else value)
-                    for key, value in variants.items() for formed in (False, True)}
+                # A formed cube shows its casing on every face; facing doesn't matter then. Its port core (where the
+                # products gather) gets the port face; Grid-Scale Batteries make nothing, so they have no port.
+                def formed_model(key, port):
+                    lit = "_on" if "lit=true" in key else ""
+                    kind = "port" if port and identifier != "battery_bank" else "formed"
+                    return {"model": f"rackcraft:block/{identifier}_{kind}{lit}"}
+                variants = {f"{key},formed={str(formed).lower()},port={str(port).lower()}": (
+                    formed_model(key, port) if formed else value)
+                    for key, value in variants.items() for formed in (False, True) for port in (False, True)}
             if block.get("front") == "rack":
                 # Health: amber for a slowed rack, red for a stopped one, whether or not it is lit.
                 variants = {f"{key},health={health}": (value if health == "ok" else

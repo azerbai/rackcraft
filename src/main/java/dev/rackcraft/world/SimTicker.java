@@ -178,9 +178,9 @@ public final class SimTicker {
 			double output = sourceOutput.getOrDefault(array.controller(), 0.0);
 			// An uprated reactor makes more from the same fuel: it burns as if it made its old output.
 			ReactorArrays.burn(array, output / research.reactorOutput(), RackcraftConfig.values.sim.stepTicks);
-			// Fuel and waste are shared evenly across the cores, wherever they went in.
+			// Fuel is shared evenly across the cores, wherever it went in; Spent Fuel gathers in the port.
 			ReactorArrays.pool(array.members(), ReactorArrays.FUEL_SLOT);
-			ReactorArrays.pool(array.members(), ReactorArrays.WASTE_SLOT);
+			ReactorArrays.gather(array, ReactorArrays.WASTE_SLOT);
 			MachineBlockEntity controller = array.controller();
 			int cells = array.fuelCells();
 			ReactorArrays.ReactorStatus status = ReactorArrays.status(array, output);
@@ -189,6 +189,8 @@ public final class SimTicker {
 				member.setReactorArray(array.edge(), array.capacityKw() * research.reactorOutput(), controller.fuelBurnTicks(),
 						controller.fuelBurnTotal(), cells);
 				member.setProcess(status.ordinal(), output > 0);
+				member.setCube(array.edge() >= 2 && member == controller,
+						ReactorArrays.count(array.members(), ReactorArrays.WASTE_SLOT, ReactorArrays.spentFuel()), 0, 0);
 			}
 		}
 		NuclearProcessing.step(arrays, satisfaction, dt, research);
@@ -425,8 +427,9 @@ public final class SimTicker {
 						sourceOutput.getOrDefault(machine, 0.0) > 0;
 				case "battery_bank" -> machine.powerKw() < -0.01;
 				case "modular_reactor" -> machine.powerKw() > 0;
-				case "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer", "wafer_fab" ->
-						machine.processStatus() == NuclearProcessing.Status.RUNNING.ordinal();
+				case "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer", "wafer_fab", "silicon_foundry", "ewaste_recycler" ->
+						machine.processStatus() == NuclearProcessing.Status.RUNNING.ordinal()
+								|| machine.processStatus() == NuclearProcessing.Status.LOW_POWER.ordinal();
 				// Fans only spin while they have heat to move; cooling gear shows when it is actually working.
 				case "exhaust_fan" -> fanHeat.containsKey(machine);
 				case "cooling_tower", "dry_cooler", "chiller", "water_heat_exchanger", "rear_door_cooler", "crac_unit" ->
@@ -500,8 +503,11 @@ public final class SimTicker {
 		arrays.forEach((machine, array) -> {
 			BlockState state = machine.getCachedState();
 			boolean formed = array.edge() >= 2;
-			if (state.contains(ArrayMachineBlock.FORMED) && state.get(ArrayMachineBlock.FORMED) != formed) {
-				world.setBlockState(machine.getPos(), state.with(ArrayMachineBlock.FORMED, formed), net.minecraft.block.Block.NOTIFY_LISTENERS);
+			boolean port = formed && machine == array.controller() && ReactorArrays.hasPort(machine.blockId());
+			if (state.contains(ArrayMachineBlock.FORMED)
+					&& (state.get(ArrayMachineBlock.FORMED) != formed || state.get(ArrayMachineBlock.PORT) != port)) {
+				world.setBlockState(machine.getPos(), state.with(ArrayMachineBlock.FORMED, formed).with(ArrayMachineBlock.PORT, port),
+						net.minecraft.block.Block.NOTIFY_LISTENERS);
 			}
 		});
 	}
@@ -529,7 +535,7 @@ public final class SimTicker {
 			case "dry_cooler" -> 2;
 			case "chiller" -> CoolingLoops.CHILLER_BASE_KW + CoolingLoops.CHILLER_KW_PER_KW * machine.coolingKw();
 			case "water_heat_exchanger" -> 0.5;
-			case "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer", "wafer_fab" -> NuclearProcessing.demandKw(machine);
+			case "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer", "wafer_fab", "silicon_foundry", "ewaste_recycler" -> NuclearProcessing.demandKw(machine);
 			case "cdu" -> 0.5;
 			case "facility_controller" -> 0.5;
 			case "creative_rack" -> machine.creativeValue(CreativeSettings.DRAW_KW);
@@ -846,6 +852,7 @@ public final class SimTicker {
 			}
 		}
 		String alert = "Rackcraft event: " + startEvent(world, event);
+		if (facility.activeEvent().equals("none")) return;
 		for (ServerPlayerEntity player : world.getPlayers()) {
 			// Burned-out hardware is worth knowing about wherever you are: it says where.
 			if (event.equals("hardware_failure")) {
@@ -886,10 +893,15 @@ public final class SimTicker {
 		List<MachineBlockEntity> machines = machines(world);
 		List<MachineBlockEntity> racks = machines.stream()
 				.filter(machine -> machine.blockId().equals("server_rack") && !machine.modules().isEmpty()).toList();
-		return switch (event) {
+		String detail = switch (event) {
 			case "cable_cut" -> {
 				BlockPos cutAt = cutRandomCable(world, networksFor(world));
-				yield "cable cut" + (cutAt == null ? "" : " at " + cutAt.getX() + " " + cutAt.getY() + " " + cutAt.getZ());
+				if (cutAt == null) {
+					// Nothing worth cutting: no event at all, rather than one that says a cable was cut when none was.
+					facility.triggerEvent("none", 0);
+					yield "cable cut: no cable feeds a rack, so nothing happened";
+				}
+				yield "cable cut at " + cutAt.getX() + " " + cutAt.getY() + " " + cutAt.getZ();
 			}
 			case "hardware_failure" -> "hardware failure: " + failHardware(world, facility, racks);
 			case "surge" -> {
@@ -899,6 +911,8 @@ public final class SimTicker {
 			case "heat_wave" -> "heat wave: intakes 4 C hotter, dry coolers and towers lose 30%";
 			default -> event.replace('_', ' ');
 		};
+		facility.setEventDetail(detail);
+		return detail;
 	}
 
 	private static String failHardware(ServerWorld world, FacilityManager facility, List<MachineBlockEntity> racks) {
@@ -952,14 +966,24 @@ public final class SimTicker {
 		return NetworkManager.get(world);
 	}
 
+	/**
+	 * Cuts a random power or fiber cable on a network that carries a server rack, so the cut always hurts something
+	 * (not a forgotten line in a ruin). Returns where, or null if there is no such cable.
+	 */
 	private static BlockPos cutRandomCable(ServerWorld world, NetworkManager networks) {
 		List<BlockPos> cables = new ArrayList<>();
 		for (NetKind kind : List.of(NetKind.POWER, NetKind.DATA)) {
-			for (BlockPos pos : networks.endpoints(kind)) {
-				if (world.getBlockState(pos).getBlock() instanceof CableBlock
-						&& !world.getBlockState(pos).get(CableBlock.CUT)) cables.add(pos);
+			for (Set<BlockPos> network : networks.components(kind)) {
+				boolean feedsRack = network.stream().anyMatch(pos -> world.getBlockEntity(pos) instanceof MachineBlockEntity machine
+						&& machine.blockId().equals("server_rack"));
+				if (!feedsRack) continue;
+				for (BlockPos pos : network) {
+					BlockState state = world.getBlockState(pos);
+					if (state.getBlock() instanceof CableBlock && !state.get(CableBlock.CUT)) cables.add(pos);
+				}
 			}
 		}
+		cables.sort(java.util.Comparator.comparingLong(BlockPos::asLong));
 		if (cables.isEmpty()) return null;
 		BlockPos target = cables.get(FacilityManager.get(world).nextRandomInt(cables.size()));
 		CableBlock.setCut(world, target, true);

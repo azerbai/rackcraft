@@ -1,0 +1,26 @@
+{
+  "key": {
+    "C": {
+      "item": "rackcraft:copper_wire"
+    },
+    "F": {
+      "item": "minecraft:blast_furnace"
+    },
+    "H": {
+      "item": "minecraft:cauldron"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    }
+  },
+  "pattern": [
+    "SFS",
+    "CHC",
+    "SFS"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:silicon_foundry"
+  },
+  "type": "minecraft:crafting_shaped"
+}

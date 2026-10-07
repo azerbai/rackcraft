@@ -37,7 +37,7 @@ public final class RackcraftSelfTest {
 		// Random events would break modules and reboot racks mid-check; checkResearch fires them on purpose.
 		RackcraftConfig.values.events.enabled = false;
 		dev.rackcraft.compute.ResearchLab.get(server.getOverworld()).reset();
-		check("S0.a", RcBlocks.BLOCKS.size() == 52 && RcItems.ITEMS.size() == 51,
+		check("S0.a", RcBlocks.BLOCKS.size() == 54 && RcItems.ITEMS.size() == 51,
 				"blocks=" + RcBlocks.BLOCKS.size() + " items=" + RcItems.ITEMS.size(), failures);
 		ServerWorld world = server.getOverworld();
 		BlockPos generatorPos = new BlockPos(0, 80, 0);
@@ -619,7 +619,9 @@ public final class RackcraftSelfTest {
 				{"uranium_mill", "raw_uranium", "16", "", "0", "yellowcake"},
 				{"gas_centrifuge", "yellowcake", "16", "", "0", "enriched_uranium"},
 				{"fuel_fabricator", "enriched_uranium", "4", "steel_ingot", "4", "fuel_cell"},
-				{"cask_sealer", "spent_fuel", "8", "depleted_uranium", "8", "waste_cask"}};
+				{"cask_sealer", "spent_fuel", "8", "depleted_uranium", "8", "waste_cask"},
+				{"silicon_foundry", "quartz", "8", "sand", "16", "silicon"},
+				{"ewaste_recycler", "failed_module", "1", "", "0", "silicon"}};
 		for (int index = 0; index < runs.length; index++) {
 			String[] run = runs[index];
 			BlockPos origin = clearArea(world, new BlockPos(-768 + index * 12, 150, -384), 6, 6, 6);
@@ -635,6 +637,19 @@ public final class RackcraftSelfTest {
 			check("N1." + run[0], made > 0 && formed && cores.get(0).reactorArraySize() == 2,
 					"made " + made + " " + run[5] + ", status=" + cores.get(0).processStatus() + " formed=" + formed
 							+ " power=" + cores.get(0).powerSatisfaction() + " inputsLeft=" + cores.stream().map(core -> core.getStack(0).getCount()).toList(), failures);
+			// Everything the cube made gathers in its port, the bottom north-west corner, and one click empties the cube.
+			MachineBlockEntity port = machine(world, origin);
+			boolean marked = world.getBlockState(origin).get(dev.rackcraft.block.ArrayMachineBlock.PORT)
+					&& cores.stream().filter(core -> core != port).noneMatch(core -> world.getBlockState(core.getPos())
+							.get(dev.rackcraft.block.ArrayMachineBlock.PORT));
+			int inPort = port.getStack(2).getCount();
+			var collector = net.fabricmc.fabric.api.entity.FakePlayer.get(world);
+			collector.getInventory().clear();
+			int collected = dev.rackcraft.world.ReactorArrays.collect(dev.rackcraft.world.ReactorArrays.arrayOf(world, port), collector);
+			check("P3." + run[0], marked && inPort == made && port.cubePort() && collected >= made
+							&& collector.getInventory().count(product) >= made && dev.rackcraft.world.ReactorArrays.count(cores, 2, product) == 0,
+					"marked=" + marked + " inPort=" + inPort + " made=" + made + " collected=" + collected, failures);
+			collector.getInventory().clear();
 			clearArea(world, origin, 6, 6, 6);
 		}
 		BlockPos lone = clearArea(world, new BlockPos(-768, 150, -360), 4, 4, 4);
@@ -763,6 +778,18 @@ public final class RackcraftSelfTest {
 		int engines = dev.rackcraft.world.ReactorArrays.count(cores, 2, item("wafer_scale_engine"));
 		check("W1.a", waited && engines > 0, "waited=" + waited + " engines=" + engines + " status=" + cores.get(0).processStatus()
 				+ " power=" + cores.get(0).powerSatisfaction(), failures);
+		// On a third of the power it needs, a fab runs slowly instead of reporting no power.
+		machine(world, fab.west()).setCreativeValue(CreativeSettings.OUTPUT_KW, 1_000);
+		cores.get(0).setStack(0, new ItemStack(item("silicon"), 32));
+		cores.get(1).setStack(1, new ItemStack(item("gpu_chip"), 8));
+		for (int step = 0; step < 3; step++) SimTicker.stepNow(world);
+		double slowBefore = cores.get(0).workProgress();
+		SimTicker.stepNow(world);
+		double slowAfter = cores.get(0).workProgress();
+		check("W1.b", cores.get(0).processStatus() == dev.rackcraft.world.NuclearProcessing.Status.LOW_POWER.ordinal() && slowAfter > slowBefore
+						&& cores.get(0).cubeDemandKw() > 3_000,
+				"status=" + cores.get(0).processStatus() + " progress " + slowBefore + " -> " + slowAfter + " power=" + cores.get(0).powerSatisfaction()
+						+ " needs=" + cores.get(0).cubeDemandKw(), failures);
 
 		// Events: a hardware failure burns out a module (unless Predictive Maintenance catches it); a surge reboots
 		// racks unless a battery sits on their power network.
@@ -785,6 +812,36 @@ public final class RackcraftSelfTest {
 		SimTicker.startEvent(world, "surge");
 		check("EV1.b", booted && victim.bootProgress() == 0 && buffered.bootProgress() >= 1,
 				"booted=" + booted + " unprotected=" + victim.bootProgress() + " battery-backed=" + buffered.bootProgress(), failures);
+		facility.triggerEvent("none", 0);
+
+		// A cable cut cuts a cable that feeds a rack, and says where; a stale 17-hour event from an old save is capped.
+		BlockPos linePower = origin.south(18);
+		world.setBlockState(linePower, RcBlocks.get("creative_power").getDefaultState());
+		CableBlock line = (CableBlock) RcBlocks.get("power_cable");
+		for (int index = 1; index <= 3; index++) {
+			BlockPos pos = linePower.east(index);
+			world.setBlockState(pos, line.withConnections(line.getDefaultState(), world, pos));
+		}
+		MachineBlockEntity fed = rack(world, linePower.east(4), "server_1u");
+		SimTicker.stepNow(world);
+		boolean poweredBefore = fed.powerSatisfaction() > 0.99;
+		var networks = dev.rackcraft.world.NetworkManager.get(world);
+		int cutBefore = networks.cutCables(dev.rackcraft.sim.NetKind.POWER).size() + networks.cutCables(dev.rackcraft.sim.NetKind.DATA).size();
+		String cut = SimTicker.startEvent(world, "cable_cut");
+		int cutAfter = networks.cutCables(dev.rackcraft.sim.NetKind.POWER).size() + networks.cutCables(dev.rackcraft.sim.NetKind.DATA).size();
+		check("EV1.c", poweredBefore && cutAfter == cutBefore + 1 && cut.startsWith("cable cut at ")
+						&& facility.eventDetail().equals(cut) && facility.activeEvent().equals("cable_cut"),
+				"poweredBefore=" + poweredBefore + " cut " + cutBefore + " -> " + cutAfter + " detail=" + cut, failures);
+		for (dev.rackcraft.sim.NetKind kind : List.of(dev.rackcraft.sim.NetKind.POWER, dev.rackcraft.sim.NetKind.DATA)) {
+			for (BlockPos pos : List.copyOf(networks.cutCables(kind))) {
+				if (pos.getManhattanDistance(linePower) <= 4 || cut.endsWith(pos.getX() + " " + pos.getY() + " " + pos.getZ())) {
+					CableBlock.setCut(world, pos, false);
+				}
+			}
+		}
+		facility.triggerEvent("cable_cut", 1_200_000);
+		facility.advanceEventClock(10);
+		check("EV1.d", facility.activeEventRemainingTicks() <= 600, "remaining=" + facility.activeEventRemainingTicks(), failures);
 		facility.triggerEvent("none", 0);
 
 		// The last frontier run is an AGI, and it leaves its weights in the outbox.
@@ -1007,7 +1064,9 @@ public final class RackcraftSelfTest {
 
 	private static net.minecraft.item.Item item(String id) {
 		net.minecraft.item.Item item = RcItems.ITEMS.get(id);
-		return item != null ? item : RcBlocks.get(id).asItem();
+		if (item != null) return item;
+		if (RcBlocks.BLOCKS.containsKey(id)) return RcBlocks.get(id).asItem();
+		return Registries.ITEM.get(new net.minecraft.util.Identifier("minecraft", id));
 	}
 
 	/** An Item Pipe from a Storage Array stocks an art table, a desk and a generator, and files the art aggregates. */

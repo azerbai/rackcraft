@@ -193,6 +193,64 @@ public final class ReactorArrays {
 		return true;
 	}
 
+	/** Cubes that make items have a port; Grid-Scale Batteries don't. */
+	public static boolean hasPort(String id) {
+		return !id.equals("battery_bank");
+	}
+
+	/**
+	 * Moves whatever the other cores hold in this slot into the port (the controller), as far as its stack allows,
+	 * so the whole cube's products can be taken from one block.
+	 */
+	public static void gather(Array array, int slot) {
+		if (array.edge() < 2) return;
+		MachineBlockEntity port = array.controller();
+		for (MachineBlockEntity member : array.members()) {
+			if (member == port) continue;
+			ItemStack from = member.getStack(slot);
+			if (from.isEmpty()) continue;
+			ItemStack into = port.getStack(slot);
+			if (into.isEmpty()) {
+				port.setStack(slot, from.copy());
+				member.setStack(slot, ItemStack.EMPTY);
+				continue;
+			}
+			if (!ItemStack.canCombine(into, from)) continue;
+			int moved = Math.min(from.getCount(), into.getMaxCount() - into.getCount());
+			if (moved <= 0) return;
+			into.increment(moved);
+			from.decrement(moved);
+			port.markDirty();
+			member.markDirty();
+		}
+	}
+
+	/**
+	 * Hands a player everything the cube has made: the product and by-product slots of a processing cube, or a
+	 * reactor array's Spent Fuel. Returns how many items. What doesn't fit in the inventory drops at their feet.
+	 */
+	public static int collect(Array array, net.minecraft.entity.player.PlayerEntity player) {
+		List<Integer> slots = array.controller().blockId().equals("modular_reactor") ? List.of(WASTE_SLOT)
+				: List.of(NuclearProcessing.OUTPUT_SLOT, NuclearProcessing.BYPRODUCT_SLOT);
+		int collected = 0;
+		for (MachineBlockEntity member : array.members()) {
+			for (int slot : slots) {
+				ItemStack stack = member.getStack(slot);
+				if (stack.isEmpty()) continue;
+				collected += stack.getCount();
+				ItemStack given = stack.copy();
+				member.setStack(slot, ItemStack.EMPTY);
+				if (!player.getInventory().insertStack(given)) player.dropItem(given, false);
+			}
+		}
+		return collected;
+	}
+
+	/** The cube this machine belongs to, found fresh from the loaded machines. */
+	public static Array arrayOf(net.minecraft.server.world.ServerWorld world, MachineBlockEntity machine) {
+		return scan(dev.rackcraft.world.SimTicker.machines(world), machine.blockId()).get(machine);
+	}
+
 	/** How many of this item the array's cores hold in this slot. */
 	public static int count(List<MachineBlockEntity> members, int slot, net.minecraft.item.Item item) {
 		int total = 0;

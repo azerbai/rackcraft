@@ -95,13 +95,13 @@ public final class MachineScreenHandler extends ScreenHandler {
 		} else if (mode == Mode.REACTOR) {
 			addSlot(new MachineSlot(machineInventory, 0, 17, 56));
 			addSlot(new MachineSlot(machineInventory, 1, 45, 56));
-			addPlayerInventory(playerInventory, 8, 122);
+			addPlayerInventory(playerInventory, 8, 148);
 		} else if (mode == Mode.PROCESSOR) {
 			addSlot(new MachineSlot(machineInventory, 0, 17, 62));
 			addSlot(new MachineSlot(machineInventory, 1, 39, 62));
 			addSlot(new MachineSlot(machineInventory, 2, 117, 62));
 			addSlot(new MachineSlot(machineInventory, 3, 139, 62));
-			addPlayerInventory(playerInventory, 8, 122);
+			addPlayerInventory(playerInventory, 8, 148);
 		}
 		addProperties(properties);
 	}
@@ -147,6 +147,21 @@ public final class MachineScreenHandler extends ScreenHandler {
 	public boolean canUse(PlayerEntity player) { return machine == null || machine.canPlayerUse(player); }
 	public Mode mode() { return mode; }
 	public BlockPos pos() { return pos; }
+	/** Button 0 on a cube's port: hand the player every product the whole cube holds. */
+	public static final int COLLECT_BUTTON = 0;
+
+	@Override
+	public boolean onButtonClick(PlayerEntity player, int id) {
+		if (id != COLLECT_BUTTON || machine == null || !(machine.getWorld() instanceof ServerWorld world)
+				|| !(mode == Mode.REACTOR || mode == Mode.PROCESSOR)) return false;
+		var array = dev.rackcraft.world.ReactorArrays.arrayOf(world, machine);
+		if (array == null || array.edge() < 2 || array.controller() != machine) return false;
+		int collected = dev.rackcraft.world.ReactorArrays.collect(array, player);
+		player.sendMessage(net.minecraft.text.Text.literal(collected > 0 ? "Collected " + collected + " items from the whole cube"
+				: "Nothing to collect yet"), true);
+		return true;
+	}
+
 	public int stat(int stat) {
 		return (properties.get(stat * 2) & 0xFFFF) | (properties.get(stat * 2 + 1) << 16);
 	}
@@ -205,6 +220,10 @@ public final class MachineScreenHandler extends ScreenHandler {
 			case Stat.DATA_BANDWIDTH -> (int) Math.min(Integer.MAX_VALUE, Math.round(machine.dataBandwidth()));
 			case Stat.DATA_DEMAND -> tenths(machine.dataDemand());
 			case Stat.DATA_RACKS -> machine.dataRacks();
+			case Stat.CUBE_PORT -> machine.cubePort() ? 1 : 0;
+			case Stat.CUBE_OUTPUT -> machine.cubeOutput();
+			case Stat.CUBE_BYPRODUCT -> machine.cubeByproduct();
+			case Stat.CUBE_DEMAND -> tenths(machine.cubeDemandKw());
 			default -> 0;
 		};
 	}
@@ -261,7 +280,11 @@ public final class MachineScreenHandler extends ScreenHandler {
 		public static final int DATA_BANDWIDTH = 43;    // RC/s a router's fiber network can carry
 		public static final int DATA_DEMAND = 44;       // tenths of RC/s its racks would mine
 		public static final int DATA_RACKS = 45;        // racks on a router's fiber network
-		static final int COUNT = 46;
+		public static final int CUBE_PORT = 46;         // 1 if this core is its cube's port
+		public static final int CUBE_OUTPUT = 47;       // products (or a reactor's Spent Fuel) in the whole cube
+		public static final int CUBE_BYPRODUCT = 48;    // by-products in the whole cube
+		public static final int CUBE_DEMAND = 49;       // tenths of kW the whole cube draws while working
+		static final int COUNT = 50;
 
 		private Stat() {}
 	}

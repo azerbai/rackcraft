@@ -73,7 +73,7 @@ abstract class RackcraftHandledScreen extends HandledScreen<MachineScreenHandler
 		return String.format(java.util.Locale.ROOT, "%.1f", hundredthsPerSecond / 100.0);
 	}
 
-	protected int stat(int stat) { return handler.stat(stat); }
+	int stat(int stat) { return handler.stat(stat); }
 
 	/** The machine's block id, read from the client world, e.g. "diesel_generator". */
 	protected String blockId() {
@@ -101,7 +101,7 @@ abstract class RackcraftHandledScreen extends HandledScreen<MachineScreenHandler
 	 * Wrapped text cut to {@code maxLines}; a cut-off last line ends in "...". Returns whether anything was cut,
 	 * so the caller can offer the whole text as a tooltip.
 	 */
-	protected boolean wrappedClamped(DrawContext context, Text text, int x, int y, int width, int maxLines, int color) {
+	boolean wrappedClamped(DrawContext context, Text text, int x, int y, int width, int maxLines, int color) {
 		java.util.List<net.minecraft.text.OrderedText> rows = textRenderer.wrapLines(text, width);
 		boolean cut = rows.size() > maxLines;
 		if (cut) {
@@ -123,9 +123,9 @@ abstract class RackcraftHandledScreen extends HandledScreen<MachineScreenHandler
 		return cut;
 	}
 
-	protected static final int TEXT = 0xFFE5ECEB;
-	protected static final int GOOD = 0xFF62C5A0;
-	protected static final int WARN = 0xFFE7A45D;
-	protected static final int BAD = 0xFFE0645A;
-	protected static final int MUTED = 0xFFAAB9BA;
+	static final int TEXT = 0xFFE5ECEB;
+	static final int GOOD = 0xFF62C5A0;
+	static final int WARN = 0xFFE7A45D;
+	static final int BAD = 0xFFE0645A;
+	static final int MUTED = 0xFFAAB9BA;
 }

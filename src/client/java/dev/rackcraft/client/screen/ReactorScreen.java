@@ -13,7 +13,7 @@ public final class ReactorScreen extends RackcraftHandledScreen {
 			"Stopped: waste slots full, take out the Spent Fuel", "Standby: nothing is drawing power"};
 
 	public ReactorScreen(MachineScreenHandler handler, PlayerInventory inventory, Text title) {
-		super(handler, inventory, title, 176, 214);
+		super(handler, inventory, title, 176, 240);
 	}
 
 	@Override
@@ -36,5 +36,12 @@ public final class ReactorScreen extends RackcraftHandledScreen {
 		int edge = Math.max(1, stat(Stat.ARRAY_EDGE));
 		line(context, edge > 1 ? "Array " + edge + "x" + edge + "x" + edge : "Single core", 8, 80, edge > 1 ? GOOD : MUTED);
 		line(context, edge > 1 ? (100 - 5 * (edge - 1)) + "% fuel/core" : "Cube: 2 to 5", 8, 91, MUTED);
+		CubePort.draw(this, context, 8, 118);
+	}
+
+	@Override
+	public boolean mouseClicked(double mouseX, double mouseY, int button) {
+		if (CubePort.click(this, mouseX - x, mouseY - y)) return true;
+		return super.mouseClicked(mouseX, mouseY, button);
 	}
 }

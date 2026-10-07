@@ -94,11 +94,13 @@ public final class FaultFinder {
 						faults.add(new Fault(pos, 1, "Reactor: out of Fuel Cells"));
 					}
 				}
-				case "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer", "wafer_fab" -> {
+				case "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer", "wafer_fab", "silicon_foundry", "ewaste_recycler" -> {
 					int status = machine.processStatus();
 					if (status == NuclearProcessing.Status.NOT_FORMED.ordinal()) faults.add(new Fault(pos, 1, "Not a whole cube"));
 					else if (status == NuclearProcessing.Status.NO_POWER.ordinal()) faults.add(new Fault(pos, 2, "Multiblock: no power"));
 					else if (status == NuclearProcessing.Status.OUTPUT_FULL.ordinal()) faults.add(new Fault(pos, 1, "Multiblock: output full"));
+					else if (status == NuclearProcessing.Status.LOCKED.ordinal()) faults.add(new Fault(pos, 1, "Wafer Fab: needs EUV Lithography research"));
+					else if (status == NuclearProcessing.Status.LOW_POWER.ordinal()) faults.add(new Fault(pos, 1, "Multiblock: short of power, running slowly"));
 				}
 				default -> {}
 			}
