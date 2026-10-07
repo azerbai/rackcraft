@@ -93,6 +93,15 @@ public final class ClientNet {
 		ClientPlayNetworking.send(dev.rackcraft.compute.OpsScreenHandler.ACTION, buf);
 	}
 
+	public static void darknetAction(int syncId, dev.rackcraft.darknet.DarknetScreenHandler.Action action, int id, long amount) {
+		PacketByteBuf buf = PacketByteBufs.create();
+		buf.writeVarInt(syncId);
+		buf.writeVarInt(action.ordinal());
+		buf.writeVarInt(id);
+		buf.writeVarLong(amount);
+		ClientPlayNetworking.send(dev.rackcraft.darknet.DarknetScreenHandler.ACTION, buf);
+	}
+
 	public static void resetBreaker(BlockPos pos) {
 		PacketByteBuf buf = PacketByteBufs.create();
 		buf.writeBlockPos(pos);

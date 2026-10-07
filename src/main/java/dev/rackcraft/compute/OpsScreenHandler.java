@@ -44,8 +44,12 @@ public final class OpsScreenHandler extends ScreenHandler {
 	private static final int SYNC_INTERVAL = 10;
 	private static final int MAX_ALERTS = 60;
 
-	/** UPLOAD and TRAINING take a model index in {@code id}; MODEL cycles a contract's model choice. */
-	public enum Action { ACCEPT, DECLINE, ABANDON, GENERATE, STOP, DELIVER, PRINT, POLICY, UPLOAD, COLLECT, TRAINING, MODEL }
+	/**
+	 * UPLOAD and TRAINING take a model index in {@code id}; MODEL cycles a contract's model choice. RESEARCH and
+	 * RESEARCH_PAUSE take a {@link Research#PROJECTS} index; the LEASE actions a lease id.
+	 */
+	public enum Action { ACCEPT, DECLINE, ABANDON, GENERATE, STOP, DELIVER, PRINT, POLICY, UPLOAD, COLLECT, TRAINING, MODEL,
+		RESEARCH, RESEARCH_PAUSE, RESEARCH_SHARE, LEASE_ACCEPT, LEASE_DECLINE, LEASE_CANCEL }
 
 	private final BlockPos pos;
 	private final PlayerEntity player;
@@ -129,6 +133,21 @@ public final class OpsScreenHandler extends ScreenHandler {
 				if (model != null) market.toggleTraining(model.id());
 			}
 			case MODEL -> market.cycleModel(id);
+			case RESEARCH -> {
+				if (id < 0 || id >= Research.PROJECTS.size()) break;
+				String problem = ResearchLab.get(world).start(world, Research.PROJECTS.get(id).id());
+				if (problem != null) player.sendMessage(Text.literal(problem).formatted(Formatting.RED), true);
+			}
+			case RESEARCH_PAUSE -> {
+				if (id >= 0 && id < Research.PROJECTS.size()) ResearchLab.get(world).pause(Research.PROJECTS.get(id).id());
+			}
+			case RESEARCH_SHARE -> ResearchLab.get(world).cycleShare();
+			case LEASE_ACCEPT -> {
+				String problem = market.acceptLease(id, ResearchLab.effects(world).leaseSlots());
+				if (problem != null) player.sendMessage(Text.literal(problem).formatted(Formatting.RED), true);
+			}
+			case LEASE_DECLINE -> market.declineLease(id);
+			case LEASE_CANCEL -> market.cancelLease(id);
 		}
 		syncCountdown = 0;
 		sendContentUpdates();
@@ -226,9 +245,69 @@ public final class OpsScreenHandler extends ScreenHandler {
 			alerts = new ArrayList<>(alerts.subList(0, MAX_ALERTS));
 			alerts.add(new OpsSnapshot.Alert(0, "...and " + hidden + " more"));
 		}
+		ResearchLab lab = ResearchLab.get(world);
+		researchAlerts(lab, market, alerts, now);
+		alerts.sort((a, b) -> Integer.compare(b.severity(), a.severity()));
 		return new OpsSnapshot(facility.credits(), (float) facility.miningRate(), market.earnedSince(now - 20 * 60 * 60),
 				market.totalEarned(), facility.activeEvent(), AirQuality.get(world).smogAt(viewer), market.outbox().size(),
-				clusters, contracts, models, alerts);
+				clusters, contracts, models, alerts, research(lab, now), leases(market, now));
+	}
+
+	private static OpsSnapshot.ResearchView research(ResearchLab lab, long now) {
+		List<OpsSnapshot.ProjectView> projects = new ArrayList<>();
+		for (int index = 0; index < Research.PROJECTS.size(); index++) {
+			Research.Project project = Research.PROJECTS.get(index);
+			int level = lab.level(project.id());
+			double work = project.work(level);
+			double progress = lab.progress(project.id());
+			boolean running = project.frontier() ? lab.frontier().equals(project.id()) && lab.frontierRunning()
+					: lab.active().equals(project.id());
+			int state = lab.finished(project) ? 4 : !lab.unlocked(project) ? 0 : running ? 2
+					: progress > 0 || lab.paid(project.id()) ? 3 : 1;
+			String requires = String.join(", ", project.requires().stream().filter(need -> !lab.done(need))
+					.map(need -> Research.get(need).name()).toList());
+			float checkpoint = project.frontier() && lab.frontier().equals(project.id()) ? (float) (lab.checkpoint() / work) : 0;
+			projects.add(new OpsSnapshot.ProjectView(index, project.name(), project.type().ordinal(), project.kind().ordinal(), level,
+					state, project.credits(level), lab.paid(project.id()), work, (float) (progress / work), checkpoint,
+					(float) project.minCluster(), requires, project.effect(), project.blurb()));
+		}
+		long ago = (now - lab.lastRollback) / 20;
+		Research.Effects effects = lab.effects();
+		return new OpsSnapshot.ResearchView(lab.share(), (float) lab.bestClusterAi, lab.researchStatus, (float) lab.researchRate,
+				lab.frontierStatus, (float) lab.frontierRate, lab.rollbacks(), ago >= 0 && ago < 600 ? (int) ago : -1, lab.agi(),
+				effects.leaseSlots(), effects.leases(), projects);
+	}
+
+	private static List<OpsSnapshot.LeaseView> leases(ComputeMarket market, long now) {
+		List<OpsSnapshot.LeaseView> views = new ArrayList<>();
+		List<Lease> ordered = new ArrayList<>(market.runningLeases());
+		market.leases().stream().filter(lease -> lease.state == Lease.State.OFFERED).forEach(ordered::add);
+		market.leases().stream().filter(lease -> lease.state.ordinal() >= Lease.State.DONE.ordinal()).forEach(ordered::add);
+		for (Lease lease : ordered) {
+			long left = lease.state == Lease.State.OFFERED ? lease.offerExpires - now
+					: lease.state == Lease.State.RUNNING ? lease.durationTicks - lease.elapsed : 0;
+			views.add(new OpsSnapshot.LeaseView(lease.id, lease.state.ordinal(), lease.client, lease.purpose, (float) lease.compute,
+					lease.durationTicks, (float) lease.sla, lease.pay, left, (float) lease.uptime(), (float) lease.rate, lease.status,
+					lease.earned));
+		}
+		return views;
+	}
+
+	/** Leases slipping below their guarantee and frontier runs that stalled or rolled back. */
+	private static void researchAlerts(ResearchLab lab, ComputeMarket market, List<OpsSnapshot.Alert> alerts, long now) {
+		for (Lease lease : market.runningLeases()) {
+			if (lease.uptime() < lease.sla) {
+				alerts.add(new OpsSnapshot.Alert(2, String.format(Locale.ROOT, "Lease for %s at %.2f%% uptime, guarantee %.1f%%: %s",
+						lease.client, lease.uptime() * 100, lease.sla * 100, lease.status)));
+			} else if (lease.rate < lease.compute) {
+				alerts.add(new OpsSnapshot.Alert(1, "Lease for " + lease.client + ": " + lease.status));
+			}
+		}
+		if (lab.frontierRunning() && lab.frontierRate <= 0) alerts.add(new OpsSnapshot.Alert(2, "Frontier run " + lab.frontierStatus));
+		if (now - lab.lastRollback < 20 * 120) {
+			alerts.add(new OpsSnapshot.Alert(2, String.format(Locale.ROOT, "Frontier run rolled back to its checkpoint (%.1f%% lost)",
+					lab.lastLost * 100)));
+		}
 	}
 
 	private static final Map<RackStatus, String> STATUS_WORDS = Map.ofEntries(
@@ -238,7 +317,8 @@ public final class OpsScreenHandler extends ScreenHandler {
 			Map.entry(RackStatus.EMPTY, "empty"), Map.entry(RackStatus.TRIPPED, "tripped"), Map.entry(RackStatus.NO_POWER, "unpowered"),
 			Map.entry(RackStatus.NEEDS_CDU, "need a CDU"), Map.entry(RackStatus.NEEDS_WATER, "need liquid cooling"),
 			Map.entry(RackStatus.OVERHEATED, "overheated"), Map.entry(RackStatus.NO_NETWORK, "offline"),
-			Map.entry(RackStatus.BOOTING, "booting"));
+			Map.entry(RackStatus.BOOTING, "booting"), Map.entry(RackStatus.RESEARCHING, "on R&D"),
+			Map.entry(RackStatus.LEASED, "leased"));
 
 	private static boolean problem(RackStatus status) {
 		return switch (status) {
@@ -315,7 +395,7 @@ public final class OpsScreenHandler extends ScreenHandler {
 						alerts.add(new OpsSnapshot.Alert(1, "Modular Reactor" + at + ": out of Fuel Cells"));
 					}
 				}
-				case "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer" -> {
+				case "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer", "wafer_fab" -> {
 					String name = Text.translatable("block.rackcraft." + machine.blockId()).getString();
 					int status = machine.processStatus();
 					// One alert per cube: its cores share the same work progress.

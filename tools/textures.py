@@ -1437,7 +1437,44 @@ def item_wireless(base, key):
     return canvas
 
 
+def item_wafer(base, key):
+    """Wafer-Scale Engine: a whole silicon wafer, a grid of dies shimmering across it, with a flat edge."""
+    canvas = Canvas()
+    for y in range(SIZE):
+        for x in range(SIZE):
+            distance = math.hypot(x + 0.5 - 8, y + 0.5 - 8)
+            if distance <= 7.2 and y < 15:
+                shimmer = ((x + y) % 5) / 10
+                canvas.set(x, y, mix(lighten(base, 0.35 + shimmer * 0.4), darken(base, 0.25), distance / 7.2))
+    for line in range(3, 14, 3):
+        for step in range(SIZE):
+            for (x, y) in ((line, step), (step, line)):
+                if math.hypot(x + 0.5 - 8, y + 0.5 - 8) <= 6.6 and y < 15:
+                    canvas.set(x, y, darken(base, 0.4))
+    canvas.hline(4, 11, 14, darken(base, 0.5))
+    canvas.set(6, 5, (255, 255, 255))
+    canvas.set(10, 9, (230, 245, 255))
+    return canvas
+
+
+def item_weights(base, key):
+    """AGI Weights: a battered thumb drive with a single red light that is definitely looking at you."""
+    canvas = Canvas()
+    canvas.rect(5, 2, 10, 5, (190, 196, 204))
+    canvas.rect(6, 3, 6, 3, (60, 60, 70))
+    canvas.rect(9, 3, 9, 3, (60, 60, 70))
+    canvas.rect(4, 6, 11, 14, darken(base, 0.1))
+    canvas.bevel(4, 6, 11, 14, lighten(base, 0.3), darken(base, 0.5))
+    canvas.rect(6, 8, 9, 9, (240, 240, 240))
+    canvas.set(7, 8, (255, 40, 40))
+    canvas.set(8, 8, (255, 40, 40))
+    canvas.hline(5, 10, 12, lighten(base, 0.2))
+    return canvas
+
+
 ITEM_STYLES = {
+    "wafer": item_wafer,
+    "weights": item_weights,
     "drive": item_drive,
     "tape": item_tape,
     "pattern": lambda base, key: item_pattern(base, key),

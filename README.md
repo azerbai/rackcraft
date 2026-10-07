@@ -20,11 +20,21 @@ Install `build/libs/rackcraft-1.0.0.jar` with Fabric Loader for Minecraft 1.20.1
 
 Mine bauxite ore and smelt it into aluminum. Blast iron into steel, then craft copper wire, silicon components, and server modules. Place a server rack, fill its eight bays (one module per bay, any size), and connect its power face through a PDU and power cable to a generator or solar source. Diesel generators accept vanilla furnace fuel and the Rackcraft fuels below. See *Cooling* for keeping racks below 27 C.
 
-The machine screens open by right-clicking. Rack bays accept `pi_node`, `server_1u`, `asic_miner`, `gpu_blade`, `tensor_accelerator` and `quantum_core`, one per bay; a quantum core only contributes load when a CDU is adjacent. Power, coolant, and fiber cables form independent networks.
+The machine screens open by right-clicking. Rack bays accept `pi_node`, `server_1u`, `asic_miner`, `gpu_blade`, `tensor_accelerator`, `quantum_core`, the crafting modules and `wafer_scale_engine`, one per bay; a quantum core only contributes load when a CDU is adjacent. Power, coolant, and fiber cables form independent networks.
 
 ## Mining RackCoin and the Crypto Exchange
 
-Racks mine RackCoin (RC) into one balance shared by the whole world. A rack mines when it has modules, at least 50% power, a fiber link to a router, and an intake below 40 C. Racks **boot** once powered: 2 seconds per Pi Node, 4 per 1U Server, 5 per ASIC, 8 per GPU Blade or Tensor Accelerator and 15 per Quantum Core, so a full rack of Quantum Cores takes two minutes. Mining, power draw and heat ramp up as they boot, and a rack that loses power starts from cold again. `sim.rackBootScale` in the config scales boot times. Open a rack to see its live RC/s, or the reason it has stopped and how to fix it. Spend RackCoin at a **Crypto Exchange**: its recipe is glass panes, two CPU chips, a circuit board, steel and an emerald. Its curated tabs sell bundles of resources, rare items and Rackcraft parts (`ExchangeOffers.java`). The **All Items** tab sells almost every survival item, searchable, priced from base values plus recipe costs (`ExchangeCatalog.java`); creative-only items are excluded. Click buys one, Shift-click ten, Ctrl-click a stack. Prices work like an exchange of value for value: raw materials have a base price, everything made from them costs what went in plus 10%, and then **everything except plain building blocks costs double**. Materials, ores, storage blocks, tools, parts and machines are what RackCoin is for, while stone bricks and stairs stay cheap. Uranium is priced by the work behind it (2,000 RC for Raw Uranium, 50,000 for a Fuel Cell), and Spent Fuel and Waste Casks aren't for sale.
+Racks mine RackCoin (RC) into one balance shared by the whole world. A rack mines when it has modules, at least 50% power, a fiber link to a router, and an intake below 40 C. Racks **boot** once powered: 2 seconds per Pi Node, 4 per 1U Server, 5 per ASIC, 8 per GPU Blade or Tensor Accelerator and 15 per Quantum Core, so a full rack of Quantum Cores takes two minutes. Mining, power draw and heat ramp up as they boot, and a rack that loses power starts from cold again. `sim.rackBootScale` in the config scales boot times. Open a rack to see its live RC/s, or the reason it has stopped and how to fix it. Spend RackCoin at a **Crypto Exchange**: its recipe is glass panes, two CPU chips, a circuit board, steel and an emerald. Its curated tabs sell bundles of resources, rare items and Rackcraft parts (`ExchangeOffers.java`). The **All Items** tab sells almost every survival item, searchable, priced from base values plus recipe costs (`ExchangeCatalog.java`); creative-only items are excluded. Click buys one, Shift-click ten, Ctrl-click a stack. Prices work like an exchange of value for value: raw materials have a base price, everything made from them costs what went in plus 10%, and then **everything except plain building blocks costs double**. Materials, ores, storage blocks, tools, parts and machines are what RackCoin is for, while stone bricks and stairs stay cheap. Uranium is priced by the work behind it (2,000 RC for Raw Uranium, 50,000 for a Fuel Cell), and Spent Fuel, Waste Casks, Wafer-Scale Engines and the AGI's weights aren't for sale.
+
+## The Darknet Terminal
+
+For things the Exchange won't sell, there's the darknet: an auction house in a block (tinted glass, CPU chips, an eye of ender, a circuit board and steel; no power needed). It lists enchanted books (any enchantment, Mending included), spawn eggs, empty spawners (right-click one with a spawn egg to set its mob), rare loot such as elytras, totems, nether stars, beacons, trims and the occasional dragon egg, and now and then anything else the Exchange prices at 200 RC or more. It never lists the mod's own items or creative and operator items: command blocks, the debug stick, structure blocks, barriers, light blocks, bedrock and the like, and obsidian.
+
+- **Four auctions at a time.** More listing slots cost 2,500,000, 10,000,000, 40,000,000 and 150,000,000 RC, up to eight.
+- **Bidding:** each auction opens at 15% to 40% of the lot's value. The next bid must be at least 5% higher. A bid is paid from the RackCoin balance when you place it and refunded in full if you're outbid; raising your own bid costs only the difference.
+- **Rivals** (`xX_Herobrine_Xx`, `definitely_not_a_creeper` and friends) bid too. Each auction has a hidden ceiling, usually near the lot's value but sometimes well under (a bargain) or over (a bidding war). Below it they answer your bids within 3 to 12 seconds; before anyone bids they nudge the price up now and then.
+- **Closing:** an auction ends one minute after the first player bid, or after fifteen minutes if no player bids. The highest bidder wins.
+- **Delivery:** a won lot ships by Wandering Trader, llama, Allay or worse and arrives two to six minutes later in the terminal's **dead drop**. Chat tells you when it lands; collect it at any Darknet Terminal in that dimension.
 
 ## Abandoned Data Centers
 
@@ -66,6 +76,7 @@ Racks on one fiber network form a **cluster**. Each step the facility hands out 
 | Quantum Core | 60 | 20 | 50 | liquid |
 | Crafting Coprocessor | 0 | 8 | 0.5 | air |
 | Crafting Accelerator | 0 | 30 | 2 | liquid |
+| Wafer-Scale Engine | 0 | 40 | 150 | liquid (2 to 16 kW; only a Wafer Fab makes it) |
 
 A rack has eight bays and every module takes one, so a rack holds eight GPU Blades (24 kW) or eight Quantum Cores (72 kW, and a CDU beside it).
 
@@ -105,10 +116,61 @@ Speed is compute per item against the reference model the pay is set by: a Flash
 One screen for the whole dimension, needing no power or cables. Its tabs:
 
 - **Overview:** income, clusters, model caps, air quality and the top problems.
-- **Contracts:** offers, accepted work with progress bars and deadlines, and history.
+- **Contracts:** Compute Leases at the top, then offers, accepted work with progress bars and deadlines, and history.
 - **Clusters:** each cluster's racks, compute, online state, what its racks are doing, mining rate and policy.
 - **Models:** every model's cap and ceiling, speed, training queue, and its own upload and pause buttons.
+- **R&D:** research projects, repeatables and the frontier run (see *R&D and the Frontier*).
 - **Alerts:** every rack that is unpowered, tripped, overheated, offline or needs water; offline storage and drives over 90% full; pumps that are dry or on salt water; cut cables; generators out of fuel; art tables and desks out of supplies; late contracts; smog.
+
+## R&D and the Frontier
+
+The late game: once the cluster is big, the Operations Terminal's **R&D** tab turns its spare compute and RackCoin into permanent upgrades, and gives the facility something to grow toward.
+
+**Projects** cost RackCoin to start and then compute-seconds, which free racks on Auto clusters work through instead of mining (they show *Busy: R&D*). General projects use general compute, AI projects AI compute. The **Research share** button (25%, 50% or 100%) sets how much of the free compute research may take; the rest trains models and mines. Starting a project pays for it; pausing it, or starting another, keeps its progress.
+
+| Project | Needs | Cost | Effect |
+| --- | --- | --- | --- |
+| Custom Firmware | | 50,000 RC + 2M general | Racks boot twice as fast and mine 5% more |
+| 80 PLUS Titanium PSUs | | 100,000 RC + 3M general | Racks draw (and heat) 10% less |
+| Coolant Chemistry | | 100,000 RC + 3M general | Every heat sink takes 20% more |
+| Synthetic Data | | 150,000 RC + 4M AI | Training takes 40% less compute per item |
+| Enterprise Sales Team | | 250,000 RC + 2M AI | Unlocks Compute Leases |
+| ASHRAE A2 Envelope | Coolant Chemistry | 400,000 RC + 10M general | Racks throttle from 30 C and trip at 43 C |
+| Predictive Maintenance | Custom Firmware | 300,000 RC + 8M general | Hardware failures no longer destroy modules |
+| Distillation | Synthetic Data | 500,000 RC + 12M AI | Contract work takes 20% less compute |
+| Reactor Uprate | Titanium PSUs | 1,000,000 RC + 15M general | Modular Reactors make 20% more from the same fuel |
+| Extreme UV Lithography | Titanium PSUs, Coolant Chemistry | 2,000,000 RC + 25M general | Unlocks the Wafer Fab |
+
+**Repeatables** never end: Hash Kernel Tuning (+5% mining a level), Cooling Science (+5% sink capacity), Power Electronics (3% less rack power) and Inference Optimisation (+5% AI compute). Each level costs 2.5 times the RackCoin and twice the compute of the last.
+
+**Compute Leases** (after Enterprise Sales): clients such as Creeper Insurance Co. rent a block of AI compute (15% to 50% of your facility's, so offers grow with you) for 10 to 60 minutes, with a 99% or 99.9% uptime guarantee (the stricter one pays 30% more). They pay 1.15 RC per AI-compute-second, in full at the end if uptime met the guarantee, and 5% less for every 0.1% short, so 2% short pays nothing. A lease that can't reach a paying uptime any more is breached on the spot. Leases borrow racks from online Auto clusters ahead of contracts, and two run at once (three after Gemerald Ultra Max). Outages, trips and overheating cost uptime, so they reward redundant power and cooling.
+
+**The Wafer Fab** is a cube multiblock like the nuclear machines, built from steel blocks, cryo coils, GPU chips and netherite. It does nothing until Extreme UV Lithography is done; then each core etches 16 Silicon and 4 GPU Chips into a **Wafer-Scale Engine** every 5 minutes at 400 kW (a 3x3x3 draws over 10 MW, so plan on a reactor array). The engine is the endgame AI module: 150 AI and 40 general compute per bay, 16 kW of heat, 20 seconds to boot, no mining, and it can't be crafted or bought.
+
+**Frontier runs** train ever bigger models, one after another. A run trains on your single biggest Auto cluster, which must keep lending at least the run's minimum AI compute. It takes every AI rack there, ahead of everything else. If the cluster falls short mid-run (an outage, a trip, an overheated hall), the run **rolls back to its last checkpoint**, saved every 5%. Pausing a run first saves a checkpoint where it stands, so plan maintenance.
+
+| Run | Needs | Cost | Minimum cluster | Reward |
+| --- | --- | --- | --- | --- |
+| Gemerald Ultra | Distillation, Enterprise Sales | 1M RC + 25M AI | 1,000 AI | Contracts pay 25% more |
+| Gemerald Ultra Max | Ultra, Lithography | 5M RC + 100M AI | 4,000 AI | Three leases at once, paying 25% more |
+| Gemerald Ultra Max Pro | Ultra Max | 25M RC + 400M AI | 12,000 AI | Racks lend 20% more AI compute |
+| Gemerald Infinity (Preview) | Ultra Max Pro | 100M RC + 1.5B AI | 30,000 AI | +50% general compute, +25% mining |
+| HEROBRINE-1 | Infinity | 500M RC + 6B AI | 80,000 AI | AGI: +50% mining, +25% all compute, its weights in your outbox, and opinions |
+
+Once HEROBRINE-1 is online it comments on your facility in chat every eight to fifteen minutes. The repeatables keep going after it.
+
+## Events
+
+Events start about three times an hour once a facility has run for a while (`events.perHour`, `events.enabled`), and they all do something:
+
+| Event | What happens |
+| --- | --- |
+| Utility outage | Utility Intakes supply nothing for 1.5 to 3 minutes |
+| Cooling failure | Every heat sink, CRAC and exhaust fan stops for 2 minutes |
+| Heat wave | For 5 minutes intakes breathe 4 C hotter air, and dry coolers and cooling towers lose 30% |
+| Hardware failure | One module per 64 racks (one to three) burns out into a Failed Module, and chat says where. Quantum Cores and Wafer-Scale Engines are spared, and Predictive Maintenance stops it entirely |
+| Cable cut | A random power or fiber cable is cut |
+| Surge | Every rack on a power network without a Battery Bank reboots from cold |
 
 ## Cooling
 
@@ -236,7 +298,7 @@ All textures are generated by `tools/textures.py` from the `color`, `pattern`, `
 
 ## Commands
 
-Operators (permission level 2) can use `/rackcraft credits add <n>`, `/rackcraft event <id>`, `/rackcraft heat set <x> <y> <z> <celsius>`, `/rackcraft facility info`, `/rackcraft sim step <n>`, `/rackcraft locate datacenter [variant] [radius]`, `/rackcraft structure place <variant>` (or `structure datacenter` for Site 7), and `/rackcraft contracts offer` (post a contract offer now). Event IDs are `utility_outage`, `cooling_failure`, `hardware_failure`, `cable_cut`, `heat_wave`, and `surge`.
+Operators (permission level 2) can use `/rackcraft credits add <n>`, `/rackcraft event <id>`, `/rackcraft heat set <x> <y> <z> <celsius>`, `/rackcraft facility info`, `/rackcraft sim step <n>`, `/rackcraft locate datacenter [variant] [radius]`, `/rackcraft structure place <variant>` (or `structure datacenter` for Site 7), and `/rackcraft contracts offer` (post a contract offer now). Event IDs are `utility_outage`, `cooling_failure`, `hardware_failure`, `cable_cut`, `heat_wave`, and `surge` (see *Events*).
 
 ## Heat Management
 

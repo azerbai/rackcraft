@@ -1,0 +1,26 @@
+{
+  "key": {
+    "B": {
+      "item": "rackcraft:steel_block"
+    },
+    "C": {
+      "item": "rackcraft:cryo_coil"
+    },
+    "G": {
+      "item": "rackcraft:gpu_chip"
+    },
+    "N": {
+      "item": "minecraft:netherite_ingot"
+    }
+  },
+  "pattern": [
+    "BCB",
+    "GNG",
+    "BCB"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:wafer_fab"
+  },
+  "type": "minecraft:crafting_shaped"
+}

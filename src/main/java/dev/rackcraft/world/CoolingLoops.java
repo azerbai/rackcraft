@@ -41,6 +41,8 @@ public final class CoolingLoops {
 	public static final double EXCHANGER_KW_PER_BLOCK = 3;
 	public static final double EXCHANGER_MAX_KW = 120;
 	public static final double REAR_DOOR_KW = 40;
+	/** Share of a dry cooler's or tower's capacity a heat wave takes away. */
+	public static final double HEAT_WAVE_LOSS = 0.3;
 	public static final double CRAC_KW_PER_SIDE = 40;
 	public static final double CRAC_FLOW_KW_PER_K = 4;
 	public static final double REACTOR_HEAT_SHARE = 0.3;
@@ -83,6 +85,15 @@ public final class CoolingLoops {
 	 */
 	public static CoolingLoops build(ServerWorld world, List<MachineBlockEntity> machines,
 			Map<MachineBlockEntity, Double> satisfaction, boolean coolingFailure) {
+		return build(world, machines, satisfaction, coolingFailure, false, 1);
+	}
+
+	/**
+	 * {@code heatWave}: dry coolers and towers, which reject heat to the outside air, lose
+	 * {@link #HEAT_WAVE_LOSS}. {@code sinkScale}: research's multiplier on every sink.
+	 */
+	public static CoolingLoops build(ServerWorld world, List<MachineBlockEntity> machines,
+			Map<MachineBlockEntity, Double> satisfaction, boolean coolingFailure, boolean heatWave, double sinkScale) {
 		CoolingLoops result = new CoolingLoops();
 		NetworkManager networks = NetworkManager.get(world);
 		for (MachineBlockEntity machine : machines) {
@@ -128,7 +139,8 @@ public final class CoolingLoops {
 					}
 					default -> {}
 				}
-				capacity *= coolingFailure ? 0 : Math.min(1, power);
+				capacity *= coolingFailure ? 0 : Math.min(1, power) * sinkScale;
+				if (heatWave && (sink.blockId().equals("dry_cooler") || sink.blockId().equals("cooling_tower"))) capacity *= 1 - HEAT_WAVE_LOSS;
 				sink.setCooling(0, detail);
 				loop.sinkCapacity.put(sink, capacity);
 				loop.capacityKw += capacity;

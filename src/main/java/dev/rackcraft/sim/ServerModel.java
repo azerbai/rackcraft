@@ -22,7 +22,12 @@ public final class ServerModel {
 		TENSOR_ACCELERATOR("tensor_accelerator", 0.8, 2.6, 0, 3, 12, true),
 		/** Autocrafting specialists: lots of general compute, no mining, little AI. */
 		CRAFTING_COPROCESSOR("crafting_coprocessor", 0.15, 0.9, 0, 8, 0.5, false),
-		CRAFTING_ACCELERATOR("crafting_accelerator", 0.8, 3.5, 0, 30, 2, true);
+		CRAFTING_ACCELERATOR("crafting_accelerator", 0.8, 3.5, 0, 30, 2, true),
+		/**
+		 * The endgame AI module, only made by a Wafer Fab: a whole silicon wafer as one chip. Three Quantum Cores' AI
+		 * compute in one bay for less power each, but 16 kW of heat per bay. It can't mine.
+		 */
+		WAFER_SCALE_ENGINE("wafer_scale_engine", 2, 16, 0, 40, 150, true);
 
 		private final String itemId;
 		private final double idleKw;
@@ -75,6 +80,7 @@ public final class ServerModel {
 			case ASIC_MINER -> 5;
 			case GPU_BLADE, TENSOR_ACCELERATOR, CRAFTING_ACCELERATOR -> 8;
 			case QUANTUM_CORE -> 15;
+			case WAFER_SCALE_ENGINE -> 20;
 		}).sum();
 	}
 

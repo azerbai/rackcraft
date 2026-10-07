@@ -25,6 +25,9 @@ public final class RcScreenHandlers {
 	public static final ScreenHandlerType<dev.rackcraft.compute.OpsScreenHandler> OPERATIONS = Registry.register(
 			Registries.SCREEN_HANDLER, Rackcraft.id("operations"), new ExtendedScreenHandlerType<>((syncId, inventory, buf) ->
 					new dev.rackcraft.compute.OpsScreenHandler(syncId, inventory, buf.readBlockPos())));
+	public static final ScreenHandlerType<dev.rackcraft.darknet.DarknetScreenHandler> DARKNET = Registry.register(
+			Registries.SCREEN_HANDLER, Rackcraft.id("darknet"), new ExtendedScreenHandlerType<>((syncId, inventory, buf) ->
+					new dev.rackcraft.darknet.DarknetScreenHandler(syncId, inventory, buf.readBlockPos())));
 	public static final ScreenHandlerType<dev.rackcraft.storage.TerminalScreenHandler> TERMINAL = Registry.register(
 			Registries.SCREEN_HANDLER, Rackcraft.id("terminal"), new ExtendedScreenHandlerType<>((syncId, inventory, buf) ->
 					new dev.rackcraft.storage.TerminalScreenHandler(syncId, inventory, dev.rackcraft.storage.StorageService.Access.read(buf))));

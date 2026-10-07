@@ -147,14 +147,8 @@ public final class RackcraftCommands {
 				context.getSource().sendError(Text.literal("Unknown Rackcraft event: " + id));
 				return 0;
 			}
-			long duration = switch (id) {
-				case "utility_outage" -> 1800 + FacilityManager.get(context.getSource().getWorld()).nextRandomInt(1801);
-				case "cooling_failure" -> 2400;
-				case "heat_wave" -> 6000;
-				default -> 1_200_000;
-			};
-			FacilityManager.get(context.getSource().getWorld()).triggerEvent(id, duration);
-			context.getSource().sendFeedback(() -> Text.literal("Rackcraft event started: " + id), true);
+			String what = SimTicker.startEvent(context.getSource().getWorld(), id);
+			context.getSource().sendFeedback(() -> Text.literal("Rackcraft event started: " + what), true);
 			return 1;
 		}));
 	}

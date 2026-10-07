@@ -32,6 +32,9 @@ public final class ComputeMarket extends PersistentState {
 	private static final long HOUR_TICKS = 20 * 60 * 60;
 
 	private final List<Contract> contracts = new ArrayList<>();
+	private final List<Lease> leases = new ArrayList<>();
+	public static final int MAX_LEASE_OFFERS = 3;
+	private long nextLeaseTick;
 	private final List<String> history = new ArrayList<>();
 	private final Map<Long, Cluster.Policy> policies = new HashMap<>();
 	private final List<ItemStack> outbox = new ArrayList<>();
@@ -51,6 +54,7 @@ public final class ComputeMarket extends PersistentState {
 	}
 
 	public List<Contract> contracts() { return contracts; }
+	public List<Lease> leases() { return leases; }
 	public List<ItemStack> outbox() { return outbox; }
 	public long totalEarned() { return totalEarned; }
 
@@ -265,7 +269,8 @@ public final class ComputeMarket extends PersistentState {
 	private void pay(ServerWorld world, Contract contract, ItemStack stack, long now) {
 		int quality = stack.getNbt() == null ? contract.quality : stack.getNbt().getInt("Quality");
 		double bonus = Math.min(0.2, Math.max(0, quality - contract.quality) * 0.005);
-		long amount = Math.round(contract.payPerItem() * (1 + bonus) * (now > contract.deadline ? 0.5 : 1));
+		long amount = Math.round(contract.payPerItem() * (1 + bonus) * (now > contract.deadline ? 0.5 : 1)
+				* ResearchLab.effects(world).contractPay());
 		contract.delivered++;
 		contract.earned += amount;
 		FacilityManager.get(world).addCredits(amount);
@@ -332,6 +337,84 @@ public final class ComputeMarket extends PersistentState {
 		markDirty();
 	}
 
+	// ---------------------------------------------------------------- compute leases
+
+	/**
+	 * New lease offers every three to six minutes once Enterprise Sales is researched, sized to the facility's AI
+	 * compute; unaccepted ones lapse after ten minutes. Finished leases are kept for a short history.
+	 */
+	void refreshLeases(long now, double facilityAi, boolean enabled) {
+		boolean changed = leases.removeIf(lease -> lease.state == Lease.State.OFFERED && (lease.offerExpires <= now || !enabled));
+		long offered = leases.stream().filter(lease -> lease.state == Lease.State.OFFERED).count();
+		if (enabled && now >= nextLeaseTick && offered < MAX_LEASE_OFFERS && facilityAi >= Lease.MIN_FACILITY_AI) {
+			Random random = random();
+			leases.add(Lease.roll(nextId++, random, now, facilityAi));
+			nextLeaseTick = now + 20 * (180 + random.nextInt(181));
+			changed = true;
+		}
+		List<Lease> finished = leases.stream().filter(lease -> lease.state.ordinal() >= Lease.State.DONE.ordinal()).toList();
+		for (int index = 0; index < finished.size() - 4; index++) {
+			leases.remove(finished.get(index));
+			changed = true;
+		}
+		if (changed) markDirty();
+	}
+
+	/** Adds a lease offer immediately; used by the self-test and the /rackcraft contracts command. */
+	public Lease postLease(long now, double facilityAi) {
+		Lease lease = Lease.roll(nextId++, random(), now, Math.max(Lease.MIN_FACILITY_AI, facilityAi));
+		leases.add(lease);
+		markDirty();
+		return lease;
+	}
+
+	public Lease findLease(int id) {
+		for (Lease lease : leases) if (lease.id == id) return lease;
+		return null;
+	}
+
+	public List<Lease> runningLeases() {
+		return leases.stream().filter(lease -> lease.state == Lease.State.RUNNING).toList();
+	}
+
+	public String acceptLease(int id, int slots) {
+		Lease lease = findLease(id);
+		if (lease == null || lease.state != Lease.State.OFFERED) return "That lease offer is gone.";
+		if (runningLeases().size() >= slots) return "You can run " + slots + " leases at once. Research Gemerald Ultra Max for more.";
+		lease.state = Lease.State.RUNNING;
+		markDirty();
+		return null;
+	}
+
+	public void declineLease(int id) {
+		Lease lease = findLease(id);
+		if (lease != null && lease.state == Lease.State.OFFERED) leases.remove(lease);
+		markDirty();
+	}
+
+	/** Walks away from a running lease: it pays nothing. */
+	public void cancelLease(int id) {
+		Lease lease = findLease(id);
+		if (lease == null || lease.state != Lease.State.RUNNING) return;
+		lease.state = Lease.State.CANCELLED;
+		markDirty();
+	}
+
+	/** Settles a lease that has run its course, or can no longer pay: full pay at the guarantee, less below it. */
+	void settleLease(ServerWorld world, Lease lease, long now) {
+		double fraction = Lease.payFraction(lease.uptime(), lease.sla);
+		long amount = Math.round(lease.pay * fraction * ResearchLab.effects(world).leasePay());
+		lease.state = amount > 0 && lease.finished() ? Lease.State.DONE : Lease.State.BREACHED;
+		if (lease.state == Lease.State.BREACHED) amount = 0;
+		lease.earned = amount;
+		if (amount > 0) {
+			FacilityManager.get(world).addCredits(amount);
+			earnings.addLast(new long[] {now, amount});
+			totalEarned += amount;
+		}
+		markDirty();
+	}
+
 	// ---------------------------------------------------------------- saving
 
 	@Override
@@ -339,6 +422,10 @@ public final class ComputeMarket extends PersistentState {
 		NbtList list = new NbtList();
 		contracts.forEach(contract -> list.add(contract.toNbt()));
 		nbt.put("Contracts", list);
+		NbtList leaseList = new NbtList();
+		leases.forEach(lease -> leaseList.add(lease.toNbt()));
+		nbt.put("Leases", leaseList);
+		nbt.putLong("NextLease", nextLeaseTick);
 		NbtList prompts = new NbtList();
 		history.forEach(entry -> {
 			NbtCompound tag = new NbtCompound();
@@ -374,6 +461,9 @@ public final class ComputeMarket extends PersistentState {
 		ComputeMarket market = new ComputeMarket();
 		NbtList list = nbt.getList("Contracts", NbtElement.COMPOUND_TYPE);
 		for (int index = 0; index < list.size(); index++) market.contracts.add(Contract.fromNbt(list.getCompound(index)));
+		NbtList leaseList = nbt.getList("Leases", NbtElement.COMPOUND_TYPE);
+		for (int index = 0; index < leaseList.size(); index++) market.leases.add(Lease.fromNbt(leaseList.getCompound(index)));
+		market.nextLeaseTick = nbt.getLong("NextLease");
 		NbtList prompts = nbt.getList("History", NbtElement.COMPOUND_TYPE);
 		for (int index = 0; index < prompts.size(); index++) market.history.add(prompts.getCompound(index).getString("Key"));
 		NbtCompound policyTag = nbt.getCompound("Policies");

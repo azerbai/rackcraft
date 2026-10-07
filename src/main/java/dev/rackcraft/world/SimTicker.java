@@ -5,6 +5,8 @@ import dev.rackcraft.RackcraftNetworking;
 import dev.rackcraft.RackcraftConfig;
 import dev.rackcraft.CreativeSettings;
 import dev.rackcraft.compute.ComputeScheduler;
+import dev.rackcraft.compute.Research;
+import dev.rackcraft.compute.ResearchLab;
 import dev.rackcraft.compute.TrainingStations;
 import dev.rackcraft.storage.StorageService;
 import dev.rackcraft.storage.TransmitterUpgrades;
@@ -171,9 +173,11 @@ public final class SimTicker {
 		for (Map.Entry<MachineBlockEntity, Double> entry : satisfaction.entrySet()) {
 			entry.getKey().setPowerSatisfaction(entry.getValue());
 		}
+		Research.Effects research = ResearchLab.effects(world);
 		for (ReactorArrays.Array array : new HashSet<>(reactors.values())) {
 			double output = sourceOutput.getOrDefault(array.controller(), 0.0);
-			ReactorArrays.burn(array, output, RackcraftConfig.values.sim.stepTicks);
+			// An uprated reactor makes more from the same fuel: it burns as if it made its old output.
+			ReactorArrays.burn(array, output / research.reactorOutput(), RackcraftConfig.values.sim.stepTicks);
 			// Fuel and waste are shared evenly across the cores, wherever they went in.
 			ReactorArrays.pool(array.members(), ReactorArrays.FUEL_SLOT);
 			ReactorArrays.pool(array.members(), ReactorArrays.WASTE_SLOT);
@@ -182,19 +186,21 @@ public final class SimTicker {
 			ReactorArrays.ReactorStatus status = ReactorArrays.status(array, output);
 			for (MachineBlockEntity member : array.members()) {
 				member.setPowerKw(output);
-				member.setReactorArray(array.edge(), array.capacityKw(), controller.fuelBurnTicks(), controller.fuelBurnTotal(), cells);
+				member.setReactorArray(array.edge(), array.capacityKw() * research.reactorOutput(), controller.fuelBurnTicks(),
+						controller.fuelBurnTotal(), cells);
 				member.setProcess(status.ordinal(), output > 0);
 			}
 		}
-		NuclearProcessing.step(arrays, satisfaction, dt);
+		NuclearProcessing.step(arrays, satisfaction, dt, research);
 
 		ThermalGrid heat = thermalGrid(world);
 		boolean coolingFailure = FacilityManager.get(world).activeEvent().equals("cooling_failure");
+		boolean heatWave = FacilityManager.get(world).activeEvent().equals("heat_wave");
 		Map<BlockPos, MachineBlockEntity> byPos = new HashMap<>();
 		for (MachineBlockEntity machine : machines) byPos.put(machine.getPos(), machine);
 		Map<MachineBlockEntity, Double> fanHeat = runFans(world, machines, heat, satisfaction, coolingFailure, dt);
 		FreshwaterCooling.scanPumps(world, machines, satisfaction);
-		CoolingLoops loops = CoolingLoops.build(world, machines, satisfaction, coolingFailure);
+		CoolingLoops loops = CoolingLoops.build(world, machines, satisfaction, coolingFailure, heatWave, research.sinkCapacity());
 		pinCreativeCoolers(world, machines, heat);
 		Map<MachineBlockEntity, ServerModel.RackStep> rackSteps = new HashMap<>();
 		List<RackHeat> rackHeat = new ArrayList<>();
@@ -208,23 +214,26 @@ public final class SimTicker {
 			// With a Rear-Door Cooler on the back, whatever it can't catch comes out of the far side of it.
 			List<BlockPos> exhaustCells = airflowCells(world, door == null ? back : back.offset(facing.getOpposite()), facing, heat);
 			double supplied = satisfaction.getOrDefault(rack, 0.0);
-			double inlet = intakeCells.isEmpty() ? chokedInlet(heat, rack) : averageTemperature(heat, intakeCells, heat.ambientCelsius());
+			double inlet = (intakeCells.isEmpty() ? chokedInlet(heat, rack) : averageTemperature(heat, intakeCells, heat.ambientCelsius()))
+					+ (heatWave ? HEAT_WAVE_K : 0);
+			// Research can widen the envelope: the rack is rated for hotter air, so it throttles and trips later.
+			double rated = inlet - research.thermalOffset();
 			boolean hasCdu = adjacentMachine(machines, rack.getPos(), "cdu");
 			if (supplied < 0.5) rack.setTripped(true);
 			// Racks boot slowly once they have power, and go cold again when they lose it.
-			double bootSeconds = ServerModel.bootSeconds(rack.modules()) * RackcraftConfig.values.sim.rackBootScale;
+			double bootSeconds = ServerModel.bootSeconds(rack.modules()) * RackcraftConfig.values.sim.rackBootScale * research.bootScale();
 			if (supplied < 0.5 || rack.modules().isEmpty()) rack.setBootProgress(0);
 			else rack.setBootProgress(bootSeconds <= 0 ? 1 : rack.bootProgress() + dt / bootSeconds);
-			ServerModel.RackStep result = ServerModel.calculate(rack.modules(), rack.loadLimitPercent(),
-					supplied, inlet, hasCdu, loops.cooled(rack.getPos()), rack.bootProgress());
-			if (rack.isTripped() && inlet < 32 && result.thermalFactor() > 0) rack.setTripped(false);
+			ServerModel.RackStep result = scalePower(ServerModel.calculate(rack.modules(), rack.loadLimitPercent(),
+					supplied, rated, hasCdu, loops.cooled(rack.getPos()), rack.bootProgress()), research.rackPower());
+			if (rack.isTripped() && rated < 32 && result.thermalFactor() > 0) rack.setTripped(false);
 			if (rack.isTripped()) result = new ServerModel.RackStep(result.usedBays(), result.demandKw(),
 					0, 0, result.thermalFactor(), result.quantumBlocked(), result.tripped(), result.waterBlocked());
 			rackSteps.put(rack, result);
 			// Every kilowatt a rack actually draws comes back out as heat; an unpowered rack makes none.
 			double total = result.demandKw() * supplied;
 			double liquid = loops.cooled(rack.getPos())
-					? Math.min(total, ServerModel.liquidHeatKw(rack.modules(), result.load()) * supplied) : 0;
+					? Math.min(total, ServerModel.liquidHeatKw(rack.modules(), result.load()) * research.rackPower() * supplied) : 0;
 			loops.request(rack.getPos(), liquid);
 			double doorKw = door != null && satisfaction.getOrDefault(door, 0.0) >= 0.5 && loops.cooled(door.getPos())
 					? Math.min(CoolingLoops.REAR_DOOR_KW, total - liquid) : 0;
@@ -310,6 +319,10 @@ public final class SimTicker {
 		updateRackHealth(world, racks);
 		updateRouters(world, machines, networks);
 		FaultFinder.send(world, machines);
+		// The darknet runs wherever a terminal is loaded, or once it has been used: auctions and parcels keep their clocks.
+		dev.rackcraft.darknet.DarknetMarket darknet = machines.stream().anyMatch(machine -> machine.blockId().equals("darknet_terminal"))
+				? dev.rackcraft.darknet.DarknetMarket.get(world) : dev.rackcraft.darknet.DarknetMarket.existing(world);
+		if (darknet != null) darknet.tick(world, world.getTime());
 		FacilityManager facility = FacilityManager.get(world);
 		long previousEventTick = facility.eventTicks();
 		facility.advanceEventClock(RackcraftConfig.values.sim.stepTicks);
@@ -398,7 +411,7 @@ public final class SimTicker {
 	private static PowerSolver.Source reactorSource(MachineBlockEntity machine, ReactorArrays.Array array) {
 		if (array == null || array.controller() != machine) return null;
 		if (array.members().stream().anyMatch(MachineBlockEntity::isTripped) || !ReactorArrays.refuel(array)) return null;
-		return new PowerSolver.Source(id(machine), PowerSolver.SourceKind.REACTOR, array.capacityKw());
+		return new PowerSolver.Source(id(machine), PowerSolver.SourceKind.REACTOR, array.capacityKw() * effects(machine).reactorOutput());
 	}
 
 	/** Drives the LIT block state so machine fronts show their powered texture. */
@@ -412,7 +425,7 @@ public final class SimTicker {
 						sourceOutput.getOrDefault(machine, 0.0) > 0;
 				case "battery_bank" -> machine.powerKw() < -0.01;
 				case "modular_reactor" -> machine.powerKw() > 0;
-				case "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer" ->
+				case "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer", "wafer_fab" ->
 						machine.processStatus() == NuclearProcessing.Status.RUNNING.ordinal();
 				// Fans only spin while they have heat to move; cooling gear shows when it is actually working.
 				case "exhaust_fan" -> fanHeat.containsKey(machine);
@@ -434,7 +447,7 @@ public final class SimTicker {
 				case "crypto_exchange" -> FacilityManager.get(world).miningRacks() > 0;
 				case "freshwater_pump" -> machine.pumpStatus() == FreshwaterCooling.PumpStatus.PUMPING.ordinal();
 				case "art_table", "writing_desk" -> TrainingStations.active(machine);
-				case "operations_terminal" -> true;
+				case "operations_terminal", "darknet_terminal" -> true;
 				default -> satisfaction.getOrDefault(machine, 0.0) > 0;
 			};
 			BlockState state = machine.getCachedState();
@@ -477,7 +490,7 @@ public final class SimTicker {
 
 	/** How far a rack will have booted after this step if it gets its power, which is what it asks the grid for. */
 	private static double nextBoot(MachineBlockEntity rack) {
-		double seconds = ServerModel.bootSeconds(rack.modules()) * RackcraftConfig.values.sim.rackBootScale;
+		double seconds = ServerModel.bootSeconds(rack.modules()) * RackcraftConfig.values.sim.rackBootScale * effects(rack).bootScale();
 		double dt = Math.max(1, RackcraftConfig.values.sim.stepTicks) / 20.0;
 		return seconds <= 0 ? 1 : Math.min(1, rack.bootProgress() + dt / seconds);
 	}
@@ -507,7 +520,8 @@ public final class SimTicker {
 	private static double demandFor(MachineBlockEntity machine) {
 		return switch (machine.blockId()) {
 			case "server_rack" -> ServerModel.calculate(machine.modules(), machine.loadLimitPercent(), 1,
-					machine.inletCelsius(), true, true, nextBoot(machine)).demandKw();
+					machine.inletCelsius() - effects(machine).thermalOffset(), true, true, nextBoot(machine)).demandKw()
+					* effects(machine).rackPower();
 			case "exhaust_fan" -> 0.2;
 			case "cooling_tower" -> 4;
 			case "crac_unit" -> 3;
@@ -515,7 +529,7 @@ public final class SimTicker {
 			case "dry_cooler" -> 2;
 			case "chiller" -> CoolingLoops.CHILLER_BASE_KW + CoolingLoops.CHILLER_KW_PER_KW * machine.coolingKw();
 			case "water_heat_exchanger" -> 0.5;
-			case "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer" -> NuclearProcessing.demandKw(machine);
+			case "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer", "wafer_fab" -> NuclearProcessing.demandKw(machine);
 			case "cdu" -> 0.5;
 			case "facility_controller" -> 0.5;
 			case "creative_rack" -> machine.creativeValue(CreativeSettings.DRAW_KW);
@@ -527,6 +541,20 @@ public final class SimTicker {
 			default -> 0;
 		};
 	}
+
+	private static Research.Effects effects(MachineBlockEntity machine) {
+		return machine.getWorld() instanceof ServerWorld world ? ResearchLab.effects(world) : Research.Effects.NONE;
+	}
+
+	/** Research that cuts rack power cuts its heat too: every kilowatt drawn comes back out as heat. */
+	private static ServerModel.RackStep scalePower(ServerModel.RackStep step, double scale) {
+		if (scale == 1) return step;
+		return new ServerModel.RackStep(step.usedBays(), step.demandKw() * scale, step.creditsPerSecond(), step.load(),
+				step.thermalFactor(), step.quantumBlocked(), step.tripped(), step.waterBlocked());
+	}
+
+	/** A heat wave makes the air every rack breathes this much hotter. */
+	public static final double HEAT_WAVE_K = 4;
 
 	private static int priority(String blockId) {
 		return blockId.equals("server_rack") || blockId.equals("creative_rack") ? 1 : 0;
@@ -685,6 +713,7 @@ public final class SimTicker {
 			Map<MachineBlockEntity, ServerModel.RackStep> rackSteps, NetworkManager networks,
 			Map<MachineBlockEntity, Double> satisfaction, Map<MachineBlockEntity, RackStatus> lent, double dt) {
 		FacilityManager facility = FacilityManager.get(world);
+		double mining = ResearchLab.effects(world).mining();
 		double facilityRate = 0;
 		int miningRacks = 0;
 		for (Map.Entry<MachineBlockEntity, ServerModel.RackStep> entry : rackSteps.entrySet()) {
@@ -704,7 +733,7 @@ public final class SimTicker {
 				}
 			}
 			double rate = bandwidth > 0 && demand > 0
-					? result.creditsPerSecond() * Math.min(1, bandwidth / demand) : 0;
+					? result.creditsPerSecond() * Math.min(1, bandwidth / demand) * mining : 0;
 			RackStatus status;
 			RackStatus lentAs = lent.get(rack);
 			if (lentAs != null) {
@@ -816,21 +845,107 @@ public final class SimTicker {
 				break;
 			}
 		}
-		long duration = switch (event) {
-			case "utility_outage" -> 1800 + facility.nextRandomInt(1801);
-			case "cooling_failure" -> 2400;
-			case "heat_wave" -> 6000;
-			default -> 1_200_000;
-		};
-		facility.triggerEvent(event, duration);
-		BlockPos cutAt = event.equals("cable_cut") ? cutRandomCable(world, networksFor(world)) : null;
-		String alert = "Rackcraft event: " + event.replace('_', ' ')
-				+ (cutAt == null ? "" : " at " + cutAt.getX() + " " + cutAt.getY() + " " + cutAt.getZ());
+		String alert = "Rackcraft event: " + startEvent(world, event);
 		for (ServerPlayerEntity player : world.getPlayers()) {
+			// Burned-out hardware is worth knowing about wherever you are: it says where.
+			if (event.equals("hardware_failure")) {
+				player.sendMessage(Text.literal(alert).formatted(net.minecraft.util.Formatting.GOLD), false);
+				continue;
+			}
 			boolean nearby = machines.stream().filter(machine -> machine.blockId().equals("facility_controller"))
 					.anyMatch(controller -> controller.getPos().getSquaredDistance(player.getBlockPos()) <= 4096);
 			if (nearby) player.sendMessage(Text.literal(alert), true);
 		}
+	}
+
+	/** How long each event stays active. One-off events (cuts, failures, surges) show for 30 seconds. */
+	public static long eventDuration(FacilityManager facility, String event) {
+		return switch (event) {
+			case "utility_outage" -> 1800 + facility.nextRandomInt(1801);
+			case "cooling_failure" -> 2400;
+			case "heat_wave" -> 6000;
+			default -> 600;
+		};
+	}
+
+	/**
+	 * Starts an event and does what it does, returning a description for the alert.
+	 * <ul>
+	 *   <li>utility_outage: Utility Intakes supply nothing until it ends.</li>
+	 *   <li>cooling_failure: every heat sink, CRAC and fan stops until it ends.</li>
+	 *   <li>heat_wave: racks breathe 4 C hotter air, and dry coolers and towers lose 30% for five minutes.</li>
+	 *   <li>hardware_failure: one module per 64 racks (one to three) burns out into a Failed Module. Quantum Cores and
+	 *       Wafer-Scale Engines are spared. Predictive Maintenance research catches them in time.</li>
+	 *   <li>cable_cut: a random power or fiber cable is cut.</li>
+	 *   <li>surge: every rack on a power network without a battery reboots from cold.</li>
+	 * </ul>
+	 */
+	public static String startEvent(ServerWorld world, String event) {
+		FacilityManager facility = FacilityManager.get(world);
+		facility.triggerEvent(event, eventDuration(facility, event));
+		List<MachineBlockEntity> machines = machines(world);
+		List<MachineBlockEntity> racks = machines.stream()
+				.filter(machine -> machine.blockId().equals("server_rack") && !machine.modules().isEmpty()).toList();
+		return switch (event) {
+			case "cable_cut" -> {
+				BlockPos cutAt = cutRandomCable(world, networksFor(world));
+				yield "cable cut" + (cutAt == null ? "" : " at " + cutAt.getX() + " " + cutAt.getY() + " " + cutAt.getZ());
+			}
+			case "hardware_failure" -> "hardware failure: " + failHardware(world, facility, racks);
+			case "surge" -> {
+				int rebooted = surge(world, machines, racks);
+				yield "power surge: " + rebooted + (rebooted == 1 ? " rack" : " racks") + " rebooted (batteries on a power network protect it)";
+			}
+			case "heat_wave" -> "heat wave: intakes 4 C hotter, dry coolers and towers lose 30%";
+			default -> event.replace('_', ' ');
+		};
+	}
+
+	private static String failHardware(ServerWorld world, FacilityManager facility, List<MachineBlockEntity> racks) {
+		if (racks.isEmpty()) return "nothing to break";
+		int failures = Math.max(1, Math.min(3, racks.size() / 64));
+		boolean caught = ResearchLab.effects(world).safeHardware();
+		List<String> lost = new ArrayList<>();
+		for (int attempt = 0; attempt < failures * 16 && lost.size() < failures; attempt++) {
+			MachineBlockEntity rack = racks.get(facility.nextRandomInt(racks.size()));
+			List<Integer> slots = new ArrayList<>();
+			for (int slot = 0; slot < ServerModel.BAYS && slot < rack.size(); slot++) {
+				ServerModel.Module module = moduleIn(rack.getStack(slot));
+				if (module != null && module != ServerModel.Module.QUANTUM_CORE && module != ServerModel.Module.WAFER_SCALE_ENGINE) {
+					slots.add(slot);
+				}
+			}
+			if (slots.isEmpty()) continue;
+			int slot = slots.get(facility.nextRandomInt(slots.size()));
+			String name = rack.getStack(slot).getName().getString();
+			if (!caught) {
+				rack.setStack(slot, new ItemStack(dev.rackcraft.RcItems.ITEMS.get("failed_module")));
+				rack.markDirty();
+			}
+			lost.add(name + " at " + rack.getPos().toShortString());
+		}
+		if (lost.isEmpty()) return "nothing failed";
+		return (caught ? "Predictive Maintenance caught a failing " : "burned out: ") + String.join(", ", lost);
+	}
+
+	private static ServerModel.Module moduleIn(ItemStack stack) {
+		if (stack.isEmpty()) return null;
+		return ServerModel.Module.byItemId(net.minecraft.registry.Registries.ITEM.getId(stack.getItem()).getPath());
+	}
+
+	/** Reboots every rack whose power network has no battery to smooth the surge. Returns how many. */
+	private static int surge(ServerWorld world, List<MachineBlockEntity> machines, List<MachineBlockEntity> racks) {
+		NetworkManager networks = NetworkManager.get(world);
+		Set<BlockPos> batteries = new HashSet<>();
+		for (MachineBlockEntity machine : machines) if (machine.blockId().equals("battery_bank")) batteries.add(machine.getPos());
+		int rebooted = 0;
+		for (MachineBlockEntity rack : racks) {
+			Set<BlockPos> network = networks.component(rack.getPos(), NetKind.POWER);
+			if (network.stream().anyMatch(batteries::contains)) continue;
+			rack.setBootProgress(0);
+			rebooted++;
+		}
+		return rebooted;
 	}
 
 	private static NetworkManager networksFor(ServerWorld world) {

@@ -2,6 +2,8 @@ package dev.rackcraft.client.screen;
 
 import dev.rackcraft.client.ClientNet;
 import dev.rackcraft.compute.Contract;
+import dev.rackcraft.compute.Lease;
+import dev.rackcraft.compute.Research;
 import dev.rackcraft.compute.OpsScreenHandler;
 import dev.rackcraft.compute.OpsScreenHandler.Action;
 import dev.rackcraft.compute.OpsSnapshot;
@@ -19,8 +21,8 @@ import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
 
 /**
- * The Operations Terminal. Five tabs over one snapshot from the server: an overview, the contract board,
- * clusters, AI models and alerts. Buttons are drawn and hit-tested here rather than as widgets, because
+ * The Operations Terminal. Six tabs over one snapshot from the server: an overview, the contract board (with
+ * Compute Leases), clusters, AI models, R&D and alerts. Buttons are drawn and hit-tested here rather than as widgets, because
  * the rows they belong to come and go with every snapshot.
  */
 public final class OpsScreen extends HandledScreen<OpsScreenHandler> {
@@ -36,7 +38,7 @@ public final class OpsScreen extends HandledScreen<OpsScreenHandler> {
 	private static final int ACCENT = 0xFF5BA7E0;
 	private static Tab rememberedTab = Tab.OVERVIEW;
 
-	private enum Tab { OVERVIEW("Overview"), CONTRACTS("Contracts"), CLUSTERS("Clusters"), MODELS("Models"), ALERTS("Alerts");
+	private enum Tab { OVERVIEW("Overview"), CONTRACTS("Contracts"), CLUSTERS("Clusters"), MODELS("Models"), RND("R&D"), ALERTS("Alerts");
 		final String label;
 		Tab(String label) { this.label = label; }
 	}
@@ -79,16 +81,25 @@ public final class OpsScreen extends HandledScreen<OpsScreenHandler> {
 		super.render(context, mouseX, mouseY, delta);
 		hits.clear();
 		OpsSnapshot snapshot = handler.snapshot();
-		// Tabs size to their labels, so the counts fit.
-		int tabX = x + 6;
+		// Tabs size to their labels, so the counts fit; the padding shrinks when six labels and their counts get long.
+		List<String> labels = new ArrayList<>();
 		for (Tab option : Tab.values()) {
 			String label = option.label;
 			if (option == Tab.ALERTS && !snapshot.alerts().isEmpty()) label += " (" + snapshot.alerts().size() + ")";
 			if (option == Tab.CONTRACTS) {
-				long offers = snapshot.contracts().stream().filter(c -> c.state() == Contract.State.OFFERED.ordinal()).count();
+				long offers = snapshot.contracts().stream().filter(c -> c.state() == Contract.State.OFFERED.ordinal()).count()
+						+ snapshot.leases().stream().filter(lease -> lease.state() == Lease.State.OFFERED.ordinal()).count();
 				if (offers > 0) label += " (" + offers + ")";
 			}
-			int tabWidth = Math.min(textRenderer.getWidth(label) + 10, x + WIDTH - 6 - tabX);
+			labels.add(label);
+		}
+		int textWidth = labels.stream().mapToInt(textRenderer::getWidth).sum();
+		int available = WIDTH - 12 - 2 * (labels.size() - 1);
+		int padding = Math.max(4, Math.min(10, (available - textWidth) / labels.size()));
+		int tabX = x + 6;
+		for (Tab option : Tab.values()) {
+			String label = labels.get(option.ordinal());
+			int tabWidth = Math.min(textRenderer.getWidth(label) + padding, x + WIDTH - 6 - tabX);
 			boolean selected = option == tab;
 			button(context, tabX, y + 19, tabWidth, 13, label, true, selected ? ACCENT : 0xFF3A525C, mouseX, mouseY, () -> {
 				tab = option;
@@ -105,6 +116,7 @@ public final class OpsScreen extends HandledScreen<OpsScreenHandler> {
 			case CONTRACTS -> contracts(context, snapshot, top, mouseX, mouseY);
 			case CLUSTERS -> clusters(context, snapshot, top, mouseX, mouseY);
 			case MODELS -> models(context, snapshot, top, mouseX, mouseY);
+			case RND -> research(context, snapshot, top, mouseX, mouseY);
 			case ALERTS -> alerts(context, snapshot, top);
 		};
 		context.disableScissor();
@@ -160,6 +172,14 @@ public final class OpsScreen extends HandledScreen<OpsScreenHandler> {
 			text(context, textRenderer.trimToWidth(line, WIDTH - 20), left, row, kindColor(kind.ordinal()));
 			row += 11;
 		}
+		OpsSnapshot.ResearchView research = snapshot.research();
+		OpsSnapshot.ProjectView frontier = nextFrontier(research);
+		long done = research.projects().stream().filter(project -> project.state() == 4).count();
+		String rnd = research.agi() ? "R&D: HEROBRINE-1 is online, and has opinions"
+				: "R&D: " + done + " done" + (frontier == null ? "" : String.format(Locale.ROOT, ", next frontier run %s at %.0f%%",
+						frontier.name(), frontier.progress() * 100));
+		text(context, textRenderer.trimToWidth(rnd, WIDTH - 20), left, row, research.agi() ? 0xFFE0645A : 0xFFF0C674);
+		row += 11;
 		row += 4;
 		text(context, "Needs attention", left, row, MUTED);
 		row += 12;
@@ -179,7 +199,7 @@ public final class OpsScreen extends HandledScreen<OpsScreenHandler> {
 		int left = x + 10;
 		int right = x + WIDTH - 10;
 		int width = right - left;
-		int row = top + 2;
+		int row = leases(context, snapshot, top + 2, mouseX, mouseY);
 		if (snapshot.contracts().isEmpty()) {
 			text(context, "No offers yet. Clients post new work every minute or two.", left, row, MUTED);
 			return row + 12;
@@ -428,6 +448,274 @@ public final class OpsScreen extends HandledScreen<OpsScreenHandler> {
 				() -> send(Action.TRAINING, index, 0)));
 		flowButtons(context, buttons, left, right, row + 1, mouseX, mouseY);
 		return row + 15 + 6;
+	}
+
+	// ---------------------------------------------------------------- compute leases
+
+	private int leases(DrawContext context, OpsSnapshot snapshot, int row, int mouseX, int mouseY) {
+		int left = x + 10;
+		int right = x + WIDTH - 10;
+		int width = right - left;
+		OpsSnapshot.ResearchView research = snapshot.research();
+		if (!research.leasesUnlocked()) {
+			row = wrappedText(context, "Compute Leases unlock with the Enterprise Sales Team research (R&D tab).", left, row, width, MUTED);
+			return row + 4;
+		}
+		long running = snapshot.leases().stream().filter(lease -> lease.state() == Lease.State.RUNNING.ordinal()).count();
+		text(context, "Compute Leases: " + running + " of " + research.leaseSlots() + " running", left, row, 0xFFF0C674);
+		row += 12;
+		if (snapshot.leases().isEmpty()) {
+			row = wrappedText(context, "No lease offers yet. Clients ask every few minutes, sized to your AI compute.", left, row, width, MUTED);
+			return row + 4;
+		}
+		for (OpsSnapshot.LeaseView lease : snapshot.leases()) {
+			Lease.State state = Lease.State.values()[Math.max(0, Math.min(Lease.State.values().length - 1, lease.state()))];
+			boolean live = state == Lease.State.RUNNING;
+			String pay = state.ordinal() >= Lease.State.DONE.ordinal()
+					? (state == Lease.State.DONE ? String.format(Locale.ROOT, "paid %,d RC", lease.earned())
+							: state == Lease.State.BREACHED ? "breached" : "cancelled")
+					: String.format(Locale.ROOT, "%,d RC", lease.pay());
+			String title = String.format(Locale.ROOT, "%s: %s AI for %d min", lease.client(), compact(lease.compute()),
+					lease.duration() / 1200);
+			String when = switch (state) {
+				case OFFERED -> "offer lapses in " + time(lease.ticksLeft());
+				case RUNNING -> "ends in " + time(lease.ticksLeft());
+				default -> "";
+			};
+			String guarantee = String.format(Locale.ROOT, "Uptime guarantee %s%%  |  for %s", lease.sla() >= 0.999 ? "99.9" : "99",
+					lease.purpose());
+			List<OrderedText> guaranteeLines = textRenderer.wrapLines(Text.literal(guarantee), width);
+			List<Button> buttons = new ArrayList<>();
+			int id = lease.id();
+			if (state == Lease.State.OFFERED) {
+				buttons.add(new Button("Accept", GOOD, () -> send(Action.LEASE_ACCEPT, id, 0)));
+				buttons.add(new Button("Decline", BAD, () -> send(Action.LEASE_DECLINE, id, 0)));
+			} else if (live) {
+				buttons.add(new Button("Cancel (no pay)", BAD, () -> send(Action.LEASE_CANCEL, id, 0)));
+			}
+			int height = 10 + 11 + guaranteeLines.size() * 10 + (live ? 22 : 0) + (buttons.isEmpty() ? 0 : 15) + 2;
+			context.fill(left - 4, row - 2, right + 4, row + height, state == Lease.State.OFFERED ? 0xFF2A3446 : 0xFF1B272E);
+			int payWidth = textRenderer.getWidth(pay);
+			text(context, textRenderer.trimToWidth(title, width - payWidth - 6), left, row, 0xFFF0C674);
+			text(context, pay, right - payWidth, row, state == Lease.State.BREACHED || state == Lease.State.CANCELLED ? BAD : GOOD);
+			int line = row + 10;
+			text(context, when, right - textRenderer.getWidth(when), line + 1, MUTED);
+			line += 11;
+			for (OrderedText guaranteeLine : guaranteeLines) {
+				context.drawText(textRenderer, guaranteeLine, left, line, MUTED, false);
+				line += 10;
+			}
+			if (live) {
+				boolean ok = lease.uptime() >= lease.sla();
+				String uptime = String.format(Locale.ROOT, "uptime %.2f%%", lease.uptime() * 100);
+				int uptimeWidth = textRenderer.getWidth(uptime);
+				bar(context, left, line + 3, width - uptimeWidth - 6, 1 - lease.ticksLeft() / (double) Math.max(1, lease.duration()),
+						ok ? GOOD : BAD);
+				text(context, uptime, right - uptimeWidth, line + 1, ok ? GOOD : BAD);
+				line += 11;
+				text(context, textRenderer.trimToWidth(lease.status(), width), left, line + 1,
+						lease.status().equals("Serving") ? TEXT : WARN);
+				line += 11;
+			}
+			if (!buttons.isEmpty()) flowButtons(context, buttons, left, right, line + 2, mouseX, mouseY);
+			row += height + 6;
+		}
+		return row + 4;
+	}
+
+	// ---------------------------------------------------------------- R&D
+
+	private static OpsSnapshot.ProjectView nextFrontier(OpsSnapshot.ResearchView research) {
+		for (OpsSnapshot.ProjectView project : research.projects()) {
+			if (project.type() == Research.Type.FRONTIER.ordinal() && project.state() != 4) return project;
+		}
+		return null;
+	}
+
+	private int research(DrawContext context, OpsSnapshot snapshot, int top, int mouseX, int mouseY) {
+		int left = x + 10;
+		int right = x + WIDTH - 10;
+		int width = right - left;
+		int row = top + 2;
+		OpsSnapshot.ResearchView research = snapshot.research();
+		row = wrappedText(context, "Spend RackCoin and spare compute on permanent upgrades. Racks on Auto clusters do the work "
+				+ "instead of mining. Starting a project pays for it; pausing keeps its progress.", left, row, width, MUTED);
+		String share = "Research share: " + research.share() + "%";
+		int shareWidth = textRenderer.getWidth(share) + 10;
+		button(context, left, row, shareWidth, 12, share, true, ACCENT, mouseX, mouseY, () -> send(Action.RESEARCH_SHARE, 0, 0));
+		text(context, textRenderer.trimToWidth("of free compute goes to the project", width - shareWidth - 6), left + shareWidth + 6,
+				row + 2, MUTED);
+		row += 18;
+
+		OpsSnapshot.ProjectView frontier = nextFrontier(research);
+		if (frontier == null) {
+			context.fill(left - 4, row - 2, right + 4, row + 24, 0xFF3A1C1C);
+			text(context, "HEROBRINE-1 is online.", left, row, BAD);
+			text(context, textRenderer.trimToWidth("Every frontier run is done. The repeatables never are.", width), left, row + 11, TEXT);
+			row += 30;
+		} else {
+			row = frontierCard(context, research, frontier, left, right, row, mouseX, mouseY);
+		}
+		text(context, "Projects", left, row, MUTED);
+		row += 12;
+		for (OpsSnapshot.ProjectView project : research.projects()) {
+			if (project.type() == Research.Type.PROJECT.ordinal()) row = projectCard(context, research, project, left, right, row, mouseX, mouseY);
+		}
+		text(context, "Repeatables", left, row, MUTED);
+		row += 12;
+		for (OpsSnapshot.ProjectView project : research.projects()) {
+			if (project.type() == Research.Type.REPEATABLE.ordinal()) row = projectCard(context, research, project, left, right, row, mouseX, mouseY);
+		}
+		return row;
+	}
+
+	private int frontierCard(DrawContext context, OpsSnapshot.ResearchView research, OpsSnapshot.ProjectView run, int left, int right,
+			int row, int mouseX, int mouseY) {
+		int width = right - left;
+		int stage = 1;
+		for (OpsSnapshot.ProjectView project : research.projects()) {
+			if (project.type() == Research.Type.FRONTIER.ordinal() && project.index() < run.index()) stage++;
+		}
+		List<OrderedText> effect = textRenderer.wrapLines(Text.literal(run.effect()), width);
+		List<OrderedText> blurb = textRenderer.wrapLines(Text.literal(run.blurb()), width);
+		boolean big = research.bestClusterAi() >= run.minCluster();
+		String needs = String.format(Locale.ROOT, "Needs one Auto cluster lending %s AI. Your biggest lends %s.",
+				compact(run.minCluster()), compact(research.bestClusterAi()));
+		List<OrderedText> needLines = textRenderer.wrapLines(Text.literal(needs), width);
+		String status = run.state() == 0 ? "Needs " + run.requires()
+				: run.state() == 2 ? research.frontierStatus() : run.state() == 3 ? "Paused" : "Not started";
+		List<OrderedText> statusLines = textRenderer.wrapLines(Text.literal(status), width);
+		boolean rolledBack = research.rollbackAgo() >= 0;
+		int height = 10 + effect.size() * 10 + blurb.size() * 10 + needLines.size() * 10 + 11 + 11 + statusLines.size() * 10
+				+ (rolledBack ? 10 : 0) + 17;
+		context.fill(left - 4, row - 2, right + 4, row + height, 0xFF2E2A1E);
+		String tag = "Frontier run " + stage + " of 5";
+		text(context, textRenderer.trimToWidth(run.name(), width - textRenderer.getWidth(tag) - 6), left, row, 0xFFF0C674);
+		text(context, tag, right - textRenderer.getWidth(tag), row, MUTED);
+		int line = row + 10;
+		for (OrderedText text : effect) {
+			context.drawText(textRenderer, text, left, line, TEXT, false);
+			line += 10;
+		}
+		for (OrderedText text : blurb) {
+			context.drawText(textRenderer, text, left, line, MUTED, false);
+			line += 10;
+		}
+		for (OrderedText text : needLines) {
+			context.drawText(textRenderer, text, left, line, big ? GOOD : WARN, false);
+			line += 10;
+		}
+		String cost = String.format(Locale.ROOT, "%s RC + %s AI compute-s", run.paid() ? "paid" : String.format(Locale.ROOT, "%,d", run.credits()),
+				compact(run.work()));
+		text(context, textRenderer.trimToWidth(cost, width), left, line + 1, TEXT);
+		line += 11;
+		String progress = String.format(Locale.ROOT, "%.1f%%", run.progress() * 100);
+		if (run.state() == 2 && research.frontierRate() > 0) {
+			progress += String.format(Locale.ROOT, ", %s AI/s, %s left", compact(research.frontierRate()),
+					duration(run.work() * (1 - run.progress()) / research.frontierRate()));
+		}
+		int progressWidth = textRenderer.getWidth(progress);
+		int barWidth = width - progressWidth - 6;
+		bar(context, left, line + 3, barWidth, run.progress(), run.state() == 2 && research.frontierRate() > 0 ? GOOD : 0xFF3A525C);
+		if (run.checkpoint() > 0) {
+			int tick = left + (int) Math.round(barWidth * Math.min(1, run.checkpoint()));
+			context.fill(tick - 1, line + 1, tick + 1, line + 10, 0xFFE5ECEB);
+		}
+		text(context, progress, right - progressWidth, line + 1, TEXT);
+		line += 11;
+		for (OrderedText text : statusLines) {
+			context.drawText(textRenderer, text, left, line, run.state() == 2 && research.frontierRate() <= 0 ? BAD : MUTED, false);
+			line += 10;
+		}
+		if (rolledBack) {
+			text(context, textRenderer.trimToWidth("Rolled back to a checkpoint " + research.rollbackAgo() + " s ago ("
+					+ research.rollbacks() + " in all)", width), left, line, BAD);
+			line += 10;
+		}
+		List<Button> buttons = new ArrayList<>();
+		int index = run.index();
+		if (run.state() == 2) buttons.add(new Button("Pause (saves a checkpoint)", WARN, () -> send(Action.RESEARCH_PAUSE, index, 0)));
+		else if (run.state() == 1 || run.state() == 3) {
+			buttons.add(new Button(run.paid() ? "Resume" : String.format(Locale.ROOT, "Start: %,d RC", run.credits()), GOOD,
+					() -> send(Action.RESEARCH, index, 0)));
+		}
+		if (!buttons.isEmpty()) flowButtons(context, buttons, left, right, line + 2, mouseX, mouseY);
+		return row + height + 8;
+	}
+
+	private int projectCard(DrawContext context, OpsSnapshot.ResearchView research, OpsSnapshot.ProjectView project, int left, int right,
+			int row, int mouseX, int mouseY) {
+		int width = right - left;
+		boolean repeatable = project.type() == Research.Type.REPEATABLE.ordinal();
+		String name = repeatable ? project.name() + " " + (project.level() + 1) : project.name();
+		String kind = project.kind() == Research.Kind.AI.ordinal() ? "AI" : "General";
+		List<OrderedText> effect = textRenderer.wrapLines(Text.literal(project.effect()), width);
+		boolean showProgress = project.state() == 2 || project.state() == 3;
+		String need = project.state() == 0 ? "Needs " + project.requires() : null;
+		List<OrderedText> needLines = need == null ? List.of() : textRenderer.wrapLines(Text.literal(need), width);
+		boolean buttons = project.state() == 1 || project.state() == 2 || project.state() == 3;
+		int height = 10 + effect.size() * 10 + (project.state() == 4 ? 0 : 11) + needLines.size() * 10 + (showProgress ? 11 : 0)
+				+ (buttons ? 15 : 0) + 2;
+		int background = project.state() == 4 ? 0xFF1B2E26 : project.state() == 0 ? 0xFF1A2025 : 0xFF1B272E;
+		context.fill(left - 4, row - 2, right + 4, row + height, background);
+		String tag = project.state() == 4 ? "Done" : repeatable && project.level() > 0 ? "level " + project.level() + " done" : kind;
+		int tagWidth = textRenderer.getWidth(tag);
+		text(context, textRenderer.trimToWidth(name, width - tagWidth - 6), left, row, project.state() == 0 ? MUTED : TEXT);
+		text(context, tag, right - tagWidth, row, project.state() == 4 ? GOOD : MUTED);
+		int line = row + 10;
+		for (OrderedText text : effect) {
+			context.drawText(textRenderer, text, left, line, project.state() == 0 ? MUTED : TEXT, false);
+			line += 10;
+		}
+		if (project.state() != 4) {
+			String cost = String.format(Locale.ROOT, "%s RC + %s %s compute-s", project.paid() ? "paid" : String.format(Locale.ROOT, "%,d",
+					project.credits()), compact(project.work()), kind.toLowerCase(Locale.ROOT));
+			text(context, textRenderer.trimToWidth(cost, width), left, line + 1, MUTED);
+			line += 11;
+		}
+		for (OrderedText text : needLines) {
+			context.drawText(textRenderer, text, left, line, BAD, false);
+			line += 10;
+		}
+		if (showProgress) {
+			boolean running = project.state() == 2;
+			String progress = String.format(Locale.ROOT, "%.1f%%", project.progress() * 100);
+			if (running && research.researchRate() > 0) {
+				progress += String.format(Locale.ROOT, ", %s left", duration(project.work() * (1 - project.progress()) / research.researchRate()));
+			} else if (running) {
+				progress += ", waiting";
+			}
+			int progressWidth = textRenderer.getWidth(progress);
+			bar(context, left, line + 3, width - progressWidth - 6, project.progress(), running ? ACCENT : 0xFF3A525C);
+			text(context, progress, right - progressWidth, line + 1, running && research.researchRate() <= 0 ? WARN : TEXT);
+			line += 11;
+		}
+		if (buttons) {
+			List<Button> list = new ArrayList<>();
+			int index = project.index();
+			if (project.state() == 2) list.add(new Button("Pause", WARN, () -> send(Action.RESEARCH_PAUSE, index, 0)));
+			else list.add(new Button(project.paid() ? "Resume" : String.format(Locale.ROOT, "Start: %,d RC", project.credits()), GOOD,
+					() -> send(Action.RESEARCH, index, 0)));
+			flowButtons(context, list, left, right, line + 2, mouseX, mouseY);
+		}
+		return row + height + 5;
+	}
+
+	/** 2,500,000 as "2.5M". */
+	private static String compact(double value) {
+		if (value >= 1e9) return String.format(Locale.ROOT, "%.1fB", value / 1e9);
+		if (value >= 1e6) return String.format(Locale.ROOT, "%.1fM", value / 1e6);
+		if (value >= 1e4) return String.format(Locale.ROOT, "%.0fk", value / 1e3);
+		return String.format(Locale.ROOT, "%,.0f", value);
+	}
+
+	/** Seconds as "3h 20m", "12m" or "40s". */
+	private static String duration(double seconds) {
+		if (!Double.isFinite(seconds)) return "?";
+		long total = Math.max(0, Math.round(seconds));
+		if (total >= 3600) return total / 3600 + "h " + total % 3600 / 60 + "m";
+		if (total >= 60) return total / 60 + "m";
+		return total + "s";
 	}
 
 	private int alerts(DrawContext context, OpsSnapshot snapshot, int top) {

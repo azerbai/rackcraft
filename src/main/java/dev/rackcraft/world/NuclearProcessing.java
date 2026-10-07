@@ -19,6 +19,8 @@ import net.minecraft.item.Items;
  *   <li>Gas Centrifuge: six Yellowcake to one Enriched Uranium and four Depleted Uranium (120 s, 60 kW).</li>
  *   <li>Fuel Fabricator: Enriched Uranium and two Steel Ingots to a Fuel Cell, the only way to make one (60 s, 30 kW).</li>
  *   <li>Cask Sealer: four Spent Fuel and four Depleted Uranium to a Sealed Waste Cask (60 s, 15 kW).</li>
+ *   <li>Wafer Fab: sixteen Silicon and four GPU Chips to a Wafer-Scale Engine (5 min, 400 kW). It only runs once
+ *       Extreme UV Lithography is researched; until then it reports {@link Status#LOCKED}.</li>
  * </ul>
  */
 public final class NuclearProcessing {
@@ -27,7 +29,7 @@ public final class NuclearProcessing {
 	/** Idle draw of a formed core that has nothing to do. */
 	private static final double IDLE_KW = 0.1;
 
-	public enum Status { RUNNING, NOT_FORMED, NO_INPUT, OUTPUT_FULL, NO_POWER }
+	public enum Status { RUNNING, NOT_FORMED, NO_INPUT, OUTPUT_FULL, NO_POWER, LOCKED }
 
 	public record Recipe(Item inputA, int countA, Item inputB, int countB, Item output, int outputCount, Item byproduct,
 			int byproductCount, double seconds, double kwPerCore) {}
@@ -42,6 +44,7 @@ public final class NuclearProcessing {
 			case "fuel_fabricator" -> new Recipe(item("enriched_uranium"), 1, item("steel_ingot"), 2, item("fuel_cell"), 1, null, 0, 60, 30);
 			case "cask_sealer" -> new Recipe(item("spent_fuel"), 4, item("depleted_uranium"), 4,
 					RcBlocks.get("waste_cask").asItem(), 1, null, 0, 60, 15);
+			case "wafer_fab" -> new Recipe(item("silicon"), 16, item("gpu_chip"), 4, item("wafer_scale_engine"), 1, null, 0, 300, 400);
 			default -> null;
 		};
 	}
@@ -61,7 +64,8 @@ public final class NuclearProcessing {
 	}
 
 	/** One step for every processing cube: pool inputs, check power, inputs and room, and make what it can. */
-	public static void step(Map<MachineBlockEntity, ReactorArrays.Array> arrays, Map<MachineBlockEntity, Double> satisfaction, double dt) {
+	public static void step(Map<MachineBlockEntity, ReactorArrays.Array> arrays, Map<MachineBlockEntity, Double> satisfaction, double dt,
+			dev.rackcraft.compute.Research.Effects research) {
 		for (ReactorArrays.Array array : new HashSet<>(arrays.values())) {
 			Recipe recipe = recipe(array.controller().blockId());
 			if (recipe == null) continue;
@@ -78,7 +82,10 @@ public final class NuclearProcessing {
 				double progress = controller.workProgress();
 				boolean ready = ready(members, recipe);
 				active = ready;
-				if (!ready) {
+				if (array.controller().blockId().equals("wafer_fab") && !research.lithography()) {
+					status = Status.LOCKED;
+					active = false;
+				} else if (!ready) {
 					status = hasInputs(members, recipe) ? Status.OUTPUT_FULL : Status.NO_INPUT;
 				} else if (power < 0.5) {
 					status = Status.NO_POWER;

@@ -124,7 +124,7 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 			"freshwater_pump", "server_rack", "modular_reactor", "rear_door_cooler", "dry_cooler", "chiller", "water_heat_exchanger");
 	/** Machines an Item Pipe feeds from storage (and empties into it): storage itself, the training stations and generators. */
 	public static final java.util.Set<String> ITEM_MACHINES = java.util.Set.of("storage_array", "tape_library", "art_table",
-			"writing_desk", "diesel_generator", "modular_reactor", "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer");
+			"writing_desk", "diesel_generator", "modular_reactor", "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer", "wafer_fab");
 
 	public static java.util.Set<NetKind> networkKinds(String id) {
 		java.util.EnumSet<NetKind> kinds = java.util.EnumSet.noneOf(NetKind.class);
@@ -417,7 +417,7 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 			case "server_rack" -> MachineScreenHandler.Mode.RACK;
 			case "diesel_generator", "fire_suppression_tank" -> MachineScreenHandler.Mode.SINGLE_SLOT;
 			case "modular_reactor" -> MachineScreenHandler.Mode.REACTOR;
-			case "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer" -> MachineScreenHandler.Mode.PROCESSOR;
+			case "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer", "wafer_fab" -> MachineScreenHandler.Mode.PROCESSOR;
 			case "crypto_exchange" -> MachineScreenHandler.Mode.EXCHANGE;
 			case "storage_array" -> MachineScreenHandler.Mode.STORAGE_ARRAY;
 			case "tape_library" -> MachineScreenHandler.Mode.TAPE_LIBRARY;
@@ -427,10 +427,11 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 			case "facility_controller" -> MachineScreenHandler.Mode.CONTROLLER;
 			case "monitoring_wall" -> MachineScreenHandler.Mode.MONITOR_WALL;
 			case "art_table", "writing_desk" -> MachineScreenHandler.Mode.WORKSTATION;
-			case "operations_terminal" -> null;
+			case "operations_terminal", "darknet_terminal" -> null;
 			default -> MachineScreenHandler.Mode.MACHINE_STATUS;
 		};
 		if (id.equals("operations_terminal")) return new dev.rackcraft.compute.OpsScreenHandler(syncId, playerInventory, pos);
+		if (id.equals("darknet_terminal")) return new dev.rackcraft.darknet.DarknetScreenHandler(syncId, playerInventory, pos);
 		if (mode == null) return new dev.rackcraft.storage.TerminalScreenHandler(syncId, playerInventory, terminalAccess());
 		return new MachineScreenHandler(syncId, playerInventory, this, mode);
 	}

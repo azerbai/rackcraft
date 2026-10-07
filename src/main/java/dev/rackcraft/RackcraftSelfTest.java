@@ -34,7 +34,10 @@ public final class RackcraftSelfTest {
 		int[] failures = {0};
 		// Racks boot instantly here, so the other checks don't wait; checkBoot turns it back on.
 		RackcraftConfig.values.sim.rackBootScale = 0;
-		check("S0.a", RcBlocks.BLOCKS.size() == 50 && RcItems.ITEMS.size() == 49,
+		// Random events would break modules and reboot racks mid-check; checkResearch fires them on purpose.
+		RackcraftConfig.values.events.enabled = false;
+		dev.rackcraft.compute.ResearchLab.get(server.getOverworld()).reset();
+		check("S0.a", RcBlocks.BLOCKS.size() == 52 && RcItems.ITEMS.size() == 51,
 				"blocks=" + RcBlocks.BLOCKS.size() + " items=" + RcItems.ITEMS.size(), failures);
 		ServerWorld world = server.getOverworld();
 		BlockPos generatorPos = new BlockPos(0, 80, 0);
@@ -114,6 +117,8 @@ public final class RackcraftSelfTest {
 		checkSolar(world, failures);
 		checkTerminalGrid(world, failures);
 		checkPrices(failures);
+		checkResearch(world, failures);
+		checkDarknet(world, failures);
 		checkStructures(world, failures);
 		check("S0.b", SimTicker.failedSteps() == 0, "simulation steps that threw=" + SimTicker.failedSteps(), failures);
 		Rackcraft.LOGGER.info("RACKCRAFT_SELFTEST DONE failures={}", failures[0]);
@@ -660,6 +665,228 @@ public final class RackcraftSelfTest {
 		var placed = world.getRegistryManager().get(net.minecraft.registry.RegistryKeys.PLACED_FEATURE);
 		check("N2.a", placed.containsId(Rackcraft.id("uranium_ore")) && RcBlocks.BLOCKS.containsKey("uranium_ore"),
 				"uranium ore feature registered=" + placed.containsId(Rackcraft.id("uranium_ore")), failures);
+	}
+
+	/**
+	 * R&D: a research project borrows racks and pays off; a frontier run needs one big cluster and rolls back to its
+	 * checkpoint when the cluster loses power; a lease is served and paid; the Wafer Fab waits for its research; and
+	 * events now do what they say. Research is reset afterwards, since the dev world keeps it.
+	 */
+	private static void checkResearch(ServerWorld world, int[] failures) {
+		var lab = dev.rackcraft.compute.ResearchLab.get(world);
+		var market = dev.rackcraft.compute.ComputeMarket.get(world);
+		FacilityManager facility = FacilityManager.get(world);
+		lab.reset();
+		BlockPos origin = clearArea(world, new BlockPos(-1280, 150, -1280), 16, 8, 16);
+
+		// A research project runs on idle racks and its effect applies when it's done.
+		BlockPos generalPower = origin;
+		world.setBlockState(generalPower, RcBlocks.get("creative_power").getDefaultState());
+		MachineBlockEntity crafter = rack(world, generalPower.east(), "crafting_coprocessor");
+		facility.addCredits(1_000_000);
+		long before = facility.credits();
+		String problem = lab.start(world, "firmware");
+		long paid = before - facility.credits();
+		for (int step = 0; step < 4; step++) SimTicker.stepNow(world);
+		double progress = lab.progress("firmware");
+		check("RD1.a", problem == null && paid == 50_000 && progress > 0 && crafter.rackStatus() == RackStatus.RESEARCHING,
+				"problem=" + problem + " paid=" + paid + " progress=" + progress + " rack=" + crafter.rackStatus(), failures);
+		lab.addWork(world, dev.rackcraft.compute.Research.get("firmware"), 1e9);
+		check("RD1.b", lab.done("firmware") && lab.effects().bootScale() == 0.5 && lab.effects().mining() > 1.04 && lab.active().isEmpty(),
+				"done=" + lab.done("firmware") + " effects=" + lab.effects(), failures);
+		String locked = lab.start(world, "thermal_envelope");
+		check("RD1.c", locked != null && locked.contains("Coolant Chemistry"), "locked=" + locked, failures);
+
+		// A frontier run on one Wafer-Scale Engine rack (1,200 AI), cooled by a chiller on top. Machines touching each
+		// other share a power network, so the one creative source powers both, and removing it stops both.
+		BlockPos aiPower = origin.south(6);
+		world.setBlockState(aiPower, RcBlocks.get("creative_power").getDefaultState());
+		BlockPos aiRackPos = aiPower.east();
+		MachineBlockEntity aiRack = rack(world, aiRackPos, "wafer_scale_engine");
+		world.setBlockState(aiRackPos.up(), RcBlocks.get("chiller").getDefaultState());
+		world.setBlockState(aiRackPos.down(), RcBlocks.get("uplink_router").getDefaultState());
+		for (String need : List.of("synthetic_data", "distillation", "enterprise_sales")) {
+			lab.complete(world, dev.rackcraft.compute.Research.get(need));
+		}
+		var run = dev.rackcraft.compute.Research.get("frontier_1");
+		facility.addCredits(run.credits());
+		String started = lab.start(world, "frontier_1");
+		for (int step = 0; step < 3; step++) SimTicker.stepNow(world);
+		boolean training = aiRack.rackStatus() == RackStatus.RESEARCHING && lab.frontierRate >= run.minCluster();
+		lab.addWork(world, run, run.work(0) * 0.07);
+		SimTicker.stepNow(world);
+		double beforeCut = lab.progress("frontier_1");
+		double checkpoint = lab.checkpoint();
+		world.setBlockState(aiPower, Blocks.AIR.getDefaultState());
+		SimTicker.stepNow(world);
+		SimTicker.stepNow(world);
+		double afterCut = lab.progress("frontier_1");
+		check("RD2.a", started == null && training && Math.abs(checkpoint - run.work(0) * 0.05) < 1 && beforeCut > checkpoint
+						&& Math.abs(afterCut - checkpoint) < 1 && lab.rollbacks() == 1,
+				"started=" + started + " training=" + training + " rate=" + lab.frontierRate + " checkpoint=" + checkpoint
+						+ " before=" + beforeCut + " after=" + afterCut + " rollbacks=" + lab.rollbacks() + " status=" + lab.frontierStatus, failures);
+		lab.pause("frontier_1");
+		world.setBlockState(aiPower, RcBlocks.get("creative_power").getDefaultState());
+		for (int step = 0; step < 3; step++) SimTicker.stepNow(world);
+		check("RD2.b", Math.abs(lab.progress("frontier_1") - afterCut) < 1 && aiRack.rackStatus() != RackStatus.RESEARCHING,
+				"paused run moved: " + lab.progress("frontier_1") + " rack=" + aiRack.rackStatus(), failures);
+
+		// A Compute Lease on the same rack: served in full, then settled and paid.
+		var lease = market.postLease(world.getTime(), 400);
+		String accepted = market.acceptLease(lease.id, lab.effects().leaseSlots());
+		for (int step = 0; step < 3; step++) SimTicker.stepNow(world);
+		boolean served = aiRack.rackStatus() == RackStatus.LEASED && lease.uptime() > 0.999;
+		lease.elapsed = lease.durationTicks - 5;
+		lease.delivered = lease.elapsed;
+		long beforePay = facility.credits();
+		SimTicker.stepNow(world);
+		check("RD3.a", accepted == null && served && lease.state == dev.rackcraft.compute.Lease.State.DONE
+						&& lease.earned == lease.pay && facility.credits() >= beforePay + lease.pay,
+				"accepted=" + accepted + " served=" + served + " rack=" + aiRack.rackStatus() + " uptime=" + lease.uptime()
+						+ " state=" + lease.state + " earned=" + lease.earned + " pay=" + lease.pay, failures);
+		check("RD3.b", dev.rackcraft.compute.Lease.payFraction(0.999, 0.99) == 1 && Math.abs(dev.rackcraft.compute.Lease.payFraction(0.98, 0.99) - 0.5) < 1e-9
+						&& dev.rackcraft.compute.Lease.payFraction(0.95, 0.99) == 0,
+				"pay at 98% of a 99% guarantee=" + dev.rackcraft.compute.Lease.payFraction(0.98, 0.99), failures);
+
+		// The Wafer Fab does nothing until Extreme UV Lithography is researched.
+		BlockPos fab = clearArea(world, origin.east(10), 4, 4, 4);
+		world.setBlockState(fab.west(), RcBlocks.get("creative_power").getDefaultState());
+		machine(world, fab.west()).setCreativeValue(CreativeSettings.OUTPUT_KW, 10_000);
+		List<MachineBlockEntity> cores = new java.util.ArrayList<>();
+		for (BlockPos pos : BlockPos.iterate(fab, fab.add(1, 1, 1))) cores.add(place(world, pos.toImmutable(), "wafer_fab", Direction.NORTH));
+		cores.get(0).setStack(0, new ItemStack(item("silicon"), 32));
+		cores.get(1).setStack(1, new ItemStack(item("gpu_chip"), 8));
+		for (int step = 0; step < 3; step++) SimTicker.stepNow(world);
+		boolean waited = cores.get(0).processStatus() == dev.rackcraft.world.NuclearProcessing.Status.LOCKED.ordinal();
+		lab.complete(world, dev.rackcraft.compute.Research.get("lithography"));
+		for (int step = 0; step < 80; step++) SimTicker.stepNow(world);
+		int engines = dev.rackcraft.world.ReactorArrays.count(cores, 2, item("wafer_scale_engine"));
+		check("W1.a", waited && engines > 0, "waited=" + waited + " engines=" + engines + " status=" + cores.get(0).processStatus()
+				+ " power=" + cores.get(0).powerSatisfaction(), failures);
+
+		// Events: a hardware failure burns out a module (unless Predictive Maintenance catches it); a surge reboots
+		// racks unless a battery sits on their power network.
+		MachineBlockEntity victim = rack(world, origin.south(12).east(), "gpu_blade");
+		world.setBlockState(origin.south(12), RcBlocks.get("creative_power").getDefaultState());
+		SimTicker.stepNow(world);
+		long failedBefore = failedModules(world);
+		String failure = SimTicker.startEvent(world, "hardware_failure");
+		long failedAfter = failedModules(world);
+		lab.complete(world, dev.rackcraft.compute.Research.get("predictive_maintenance"));
+		String caught = SimTicker.startEvent(world, "hardware_failure");
+		check("EV1.a", failedAfter == failedBefore + 1 && failedModules(world) == failedAfter && caught.contains("caught"),
+				"before=" + failedBefore + " after=" + failedAfter + " failure=" + failure + " caught=" + caught, failures);
+		BlockPos protectedPos = origin.south(15);
+		world.setBlockState(protectedPos, RcBlocks.get("creative_power").getDefaultState());
+		MachineBlockEntity buffered = rack(world, protectedPos.east(), "server_1u");
+		world.setBlockState(protectedPos.west(), RcBlocks.get("battery_bank").getDefaultState());
+		SimTicker.stepNow(world);
+		boolean booted = victim.bootProgress() >= 1 && buffered.bootProgress() >= 1;
+		SimTicker.startEvent(world, "surge");
+		check("EV1.b", booted && victim.bootProgress() == 0 && buffered.bootProgress() >= 1,
+				"booted=" + booted + " unprotected=" + victim.bootProgress() + " battery-backed=" + buffered.bootProgress(), failures);
+		facility.triggerEvent("none", 0);
+
+		// The last frontier run is an AGI, and it leaves its weights in the outbox.
+		int outbox = market.outbox().size();
+		lab.complete(world, dev.rackcraft.compute.Research.get(dev.rackcraft.compute.Research.AGI));
+		boolean weights = market.outbox().size() == outbox + 1 && market.outbox().get(outbox).isOf(item("agi_weights"));
+		check("RD4.a", weights && lab.agi() && lab.effects().mining() > 1.5, "weights=" + weights + " effects=" + lab.effects(), failures);
+		if (weights) market.outbox().remove(outbox);
+
+		market.leases().removeIf(entry -> entry.state == dev.rackcraft.compute.Lease.State.RUNNING
+				|| entry.state == dev.rackcraft.compute.Lease.State.OFFERED);
+		lab.reset();
+		clearArea(world, origin, 16, 8, 16);
+		clearArea(world, fab, 4, 4, 4);
+	}
+
+	/**
+	 * The darknet: lots are never mod items or creative-only ones; a bid is paid up front and starts the one-minute
+	 * countdown; a rival outbids and the bid is refunded; the winner's parcel ships, arrives and can be collected;
+	 * and listing slots cost RackCoin.
+	 */
+	private static void checkDarknet(ServerWorld world, int[] failures) {
+		var market = dev.rackcraft.darknet.DarknetMarket.get(world);
+		FacilityManager facility = FacilityManager.get(world);
+		market.reset(world);
+		java.util.Random random = new java.util.Random(7);
+		java.util.Set<String> categories = new java.util.HashSet<>();
+		List<String> bad = new java.util.ArrayList<>();
+		for (int roll = 0; roll < 600; roll++) {
+			var lot = dev.rackcraft.darknet.DarknetGoods.roll(random, world.getEnabledFeatures());
+			categories.add(lot.category());
+			var id = Registries.ITEM.getId(lot.stack().getItem());
+			if (!id.getNamespace().equals("minecraft") || id.getPath().contains("command_block") || id.getPath().equals("debug_stick")
+					|| id.getPath().equals("obsidian") || id.getPath().equals("bedrock") || id.getPath().equals("barrier")
+					|| id.getPath().equals("wither_spawn_egg") || lot.value() <= 0 || lot.stack().isEmpty()) bad.add(id + "=" + lot.value());
+		}
+		check("DN1.a", bad.isEmpty() && categories.containsAll(List.of("book", "egg", "spawner", "rare", "anything")),
+				"categories=" + categories + " bad=" + bad, failures);
+
+		long now = world.getTime();
+		market.tick(world, now);
+		check("DN1.b", market.listings().size() == 4 && market.listings().stream().allMatch(listing -> listing.endsAt == now
+						+ dev.rackcraft.darknet.DarknetMarket.NO_BID_TICKS && listing.opening > 0 && listing.opening < listing.value),
+				"listings=" + market.listings().size(), failures);
+
+		var player = net.fabricmc.fabric.api.entity.FakePlayer.get(world);
+		var listing = market.listings().get(0);
+		listing.rivalMax = listing.opening * 3;
+		facility.addCredits(listing.rivalMax * 4);
+		long before = facility.credits();
+		String low = market.bid(world, player, listing.id, listing.opening - 1, now);
+		String placed = market.bid(world, player, listing.id, listing.opening, now);
+		check("DN2.a", low != null && placed == null && facility.credits() == before - listing.opening && listing.playerLeading()
+						&& listing.endsAt == now + dev.rackcraft.darknet.DarknetMarket.AFTER_BID_TICKS && listing.rivalAt > now,
+				"low=" + low + " placed=" + placed + " paid=" + (before - facility.credits()) + " endsAt=" + (listing.endsAt - now)
+						+ " rivalAt=" + (listing.rivalAt - now), failures);
+		market.tick(world, listing.rivalAt);
+		check("DN2.b", !listing.playerLeading() && listing.bid > listing.opening && listing.bid <= listing.rivalMax
+						&& facility.credits() == before,
+				"rival=" + listing.bidder + " bid=" + listing.bid + " refunded=" + (facility.credits() == before), failures);
+
+		// Outbid the rival past their ceiling: they give up and the player wins when the minute runs out.
+		long winning = listing.rivalMax + 1_000;
+		String raise = market.bid(world, player, listing.id, winning, now);
+		boolean noAnswer = listing.rivalAt == 0;
+		long endsAt = listing.endsAt;
+		market.tick(world, endsAt);
+		var parcel = market.parcels().isEmpty() ? null : market.parcels().get(0);
+		check("DN2.c", raise == null && noAnswer && market.find(listing.id) == null && parcel != null
+						&& parcel.arrivesAt >= endsAt + 20 * 120 && parcel.arrivesAt <= endsAt + 20 * 360 && facility.credits() == before - winning,
+				"raise=" + raise + " noAnswer=" + noAnswer + " parcel=" + (parcel == null ? null : parcel.stack + " in " + (parcel.arrivesAt - endsAt))
+						+ " spent=" + (before - facility.credits()), failures);
+		int early = market.collect(player, endsAt);
+		market.tick(world, parcel.arrivesAt);
+		int count = player.getInventory().count(parcel.stack.getItem());
+		int collected = market.collect(player, parcel.arrivesAt);
+		check("DN2.d", early == 0 && collected == 1 && player.getInventory().count(parcel.stack.getItem()) >= count + parcel.stack.getCount()
+						&& market.parcels().isEmpty() && market.listings().size() == 4,
+				"early=" + early + " collected=" + collected + " listings=" + market.listings().size(), failures);
+		player.getInventory().clear();
+
+		// Untouched auctions run fifteen minutes; more slots cost RackCoin.
+		var idle = market.listings().get(1);
+		market.tick(world, idle.endsAt);
+		boolean idleClosed = market.find(idle.id) == null;
+		facility.addCredits(dev.rackcraft.darknet.DarknetMarket.SLOT_PRICES[0]);
+		long beforeSlot = facility.credits();
+		String slot = market.buySlot(world);
+		check("DN3.a", idleClosed && slot == null && market.slots() == 5
+						&& facility.credits() == beforeSlot - dev.rackcraft.darknet.DarknetMarket.SLOT_PRICES[0]
+						&& market.nextSlotPrice() == dev.rackcraft.darknet.DarknetMarket.SLOT_PRICES[1],
+				"idleClosed=" + idleClosed + " slot=" + slot + " slots=" + market.slots(), failures);
+		market.reset(world);
+	}
+
+	private static long failedModules(ServerWorld world) {
+		long count = 0;
+		for (MachineBlockEntity machine : SimTicker.machines(world)) {
+			if (!machine.blockId().equals("server_rack")) continue;
+			for (int slot = 0; slot < 8; slot++) if (machine.getStack(slot).isOf(RcItems.ITEMS.get("failed_module"))) count++;
+		}
+		return count;
 	}
 
 	/** A rack boots over its boot time once powered, mining partly on the way, and goes cold when power drops. */

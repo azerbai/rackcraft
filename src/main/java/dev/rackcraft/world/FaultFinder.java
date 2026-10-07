@@ -94,7 +94,7 @@ public final class FaultFinder {
 						faults.add(new Fault(pos, 1, "Reactor: out of Fuel Cells"));
 					}
 				}
-				case "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer" -> {
+				case "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer", "wafer_fab" -> {
 					int status = machine.processStatus();
 					if (status == NuclearProcessing.Status.NOT_FORMED.ordinal()) faults.add(new Fault(pos, 1, "Not a whole cube"));
 					else if (status == NuclearProcessing.Status.NO_POWER.ordinal()) faults.add(new Fault(pos, 2, "Multiblock: no power"));

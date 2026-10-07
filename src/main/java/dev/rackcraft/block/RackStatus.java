@@ -16,7 +16,11 @@ public enum RackStatus {
 	OVERHEATED(false),
 	NO_NETWORK(false),
 	/** Powered and spinning up; it mines (and draws) more as it boots. */
-	BOOTING(true);
+	BOOTING(true),
+	/** Lent to R&D: a research project or a frontier training run. */
+	RESEARCHING(false),
+	/** Lent to a Compute Lease client. */
+	LEASED(false);
 
 	private final boolean mining;
 

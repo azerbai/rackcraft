@@ -24,6 +24,7 @@
     "rackcraft:storage_array",
     "rackcraft:tape_library",
     "rackcraft:uranium_mill",
+    "rackcraft:wafer_fab",
     "rackcraft:water_heat_exchanger",
     "rackcraft:wind_turbine",
     "rackcraft:writing_desk"

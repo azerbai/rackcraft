@@ -53,7 +53,8 @@ public final class ExchangeCatalog {
 			"splash_potion", "lingering_potion", "tipped_arrow", "suspicious_stew", "goat_horn", "dragon_egg",
 			"suspicious_sand", "suspicious_gravel", "player_head", "chorus_plant", "bundle", "recipe_pattern",
 			// Training data and AI work have to be earned, and nuclear waste has to be made (and dealt with).
-			"art_aggregate", "text_corpus", "generated_image", "generated_document", "spent_fuel", "waste_cask");
+			"art_aggregate", "text_corpus", "generated_image", "generated_document", "spent_fuel", "waste_cask",
+			"wafer_scale_engine", "agi_weights");
 
 	private static volatile Map<Item, Long> prices = Map.of();
 

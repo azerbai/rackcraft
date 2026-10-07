@@ -64,7 +64,11 @@ public final class Cluster {
 		if (rack.powerSatisfaction() < 0.5 || rack.isTripped() || rack.thermalFactor() <= 0) return 0;
 		double total = 0;
 		for (ServerModel.Module module : rack.modules()) total += kind == Kind.AI ? module.aiCompute() : module.compute();
-		return total * rack.load();
+		if (total <= 0) return 0;
+		// Research makes every rack lend more.
+		Research.Effects effects = rack.getWorld() instanceof net.minecraft.server.world.ServerWorld world
+				? ResearchLab.effects(world) : Research.Effects.NONE;
+		return total * rack.load() * (kind == Kind.AI ? effects.aiCompute() : effects.generalCompute());
 	}
 
 	/**

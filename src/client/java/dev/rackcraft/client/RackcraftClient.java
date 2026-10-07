@@ -40,6 +40,18 @@ public final class RackcraftClient implements ClientModInitializer {
 		ScreenRegistry.register(RcScreenHandlers.REACTOR, dev.rackcraft.client.screen.ReactorScreen::new);
 		ScreenRegistry.register(RcScreenHandlers.PROCESSOR, dev.rackcraft.client.screen.ProcessorScreen::new);
 		ScreenRegistry.register(RcScreenHandlers.OPERATIONS, dev.rackcraft.client.screen.OpsScreen::new);
+		ScreenRegistry.register(RcScreenHandlers.DARKNET, dev.rackcraft.client.screen.DarknetScreen::new);
+		net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.registerGlobalReceiver(
+				dev.rackcraft.darknet.DarknetScreenHandler.SYNC, (client, handler, buf, responseSender) -> {
+					int syncId = buf.readVarInt();
+					net.minecraft.network.PacketByteBuf copy = net.fabricmc.fabric.api.networking.v1.PacketByteBufs.copy(buf);
+					client.execute(() -> {
+						if (client.player != null && client.player.currentScreenHandler
+								instanceof dev.rackcraft.darknet.DarknetScreenHandler darknet && darknet.syncId == syncId) {
+							darknet.applySync(copy);
+						}
+					});
+				});
 		net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.registerGlobalReceiver(
 				dev.rackcraft.compute.OpsScreenHandler.SYNC, (client, handler, buf, responseSender) -> {
 					int syncId = buf.readVarInt();

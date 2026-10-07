@@ -16,7 +16,7 @@ import net.minecraft.registry.Registry;
 public final class RcItems {
 	private static final Set<String> SINGLE_STACK = Set.of(
 			"pi_node", "server_1u", "asic_miner", "gpu_blade", "quantum_core", "tensor_accelerator", "crafting_coprocessor",
-			"crafting_accelerator", "failed_module", "thermal_scanner", "field_manual");
+			"crafting_accelerator", "wafer_scale_engine", "agi_weights", "failed_module", "thermal_scanner", "field_manual");
 	public static final Map<String, Item> ITEMS = new LinkedHashMap<>();
 
 	private RcItems() {}
@@ -41,6 +41,11 @@ public final class RcItems {
 				case "respirator" -> new net.minecraft.item.ArmorItem(dev.rackcraft.item.RespiratorMaterial.INSTANCE,
 						net.minecraft.item.ArmorItem.Type.HELMET, settings);
 				case "carbon_offset" -> new dev.rackcraft.item.CarbonOffsetItem(settings);
+				case "agi_weights" -> new Item(settings.rarity(net.minecraft.util.Rarity.EPIC).fireproof()) {
+					@Override
+					public boolean hasGlint(net.minecraft.item.ItemStack stack) { return true; }
+				};
+				case "wafer_scale_engine" -> new Item(settings.rarity(net.minecraft.util.Rarity.RARE));
 				case "drive_1k", "drive_4k", "drive_16k", "drive_64k", "tape_cartridge" -> new dev.rackcraft.storage.DriveItem(settings,
 						ContentIds.DRIVE_CAPACITY.get(id), id.equals("tape_cartridge"));
 				default -> new Item(settings);
