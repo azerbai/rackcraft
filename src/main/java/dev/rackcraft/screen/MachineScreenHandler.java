@@ -202,6 +202,9 @@ public final class MachineScreenHandler extends ScreenHandler {
 			case Stat.FUEL_CELLS -> machine.arrayFuelCells();
 			case Stat.PROCESS_STATUS -> machine.processStatus();
 			case Stat.BOOT -> (int) Math.round(machine.bootProgress() * 100);
+			case Stat.DATA_BANDWIDTH -> (int) Math.min(Integer.MAX_VALUE, Math.round(machine.dataBandwidth()));
+			case Stat.DATA_DEMAND -> tenths(machine.dataDemand());
+			case Stat.DATA_RACKS -> machine.dataRacks();
 			default -> 0;
 		};
 	}
@@ -255,7 +258,10 @@ public final class MachineScreenHandler extends ScreenHandler {
 		public static final int FUEL_CELLS = 40;        // Fuel Cells waiting in a reactor array's slots
 		public static final int PROCESS_STATUS = 41;    // ReactorArrays.ReactorStatus or NuclearProcessing.Status ordinal
 		public static final int BOOT = 42;              // percent a rack has booted
-		static final int COUNT = 43;
+		public static final int DATA_BANDWIDTH = 43;    // RC/s a router's fiber network can carry
+		public static final int DATA_DEMAND = 44;       // tenths of RC/s its racks would mine
+		public static final int DATA_RACKS = 45;        // racks on a router's fiber network
+		static final int COUNT = 46;
 
 		private Stat() {}
 	}

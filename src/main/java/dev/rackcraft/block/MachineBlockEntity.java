@@ -90,6 +90,10 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 	private int processStatus;
 	private boolean processActive;
 	private int pendingWaste;
+	// Routers: their fiber network's bandwidth, what its racks need, and how many racks; refreshed every step.
+	private double dataBandwidth;
+	private double dataDemand;
+	private int dataRacks;
 	// Racks: how far through booting, 0 to 1. Saved, so a reload doesn't cold-start the hall.
 	private double bootProgress;
 
@@ -341,6 +345,14 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 	public void setProcess(int status, boolean active) {
 		processStatus = status;
 		processActive = active;
+	}
+	public double dataBandwidth() { return dataBandwidth; }
+	public double dataDemand() { return dataDemand; }
+	public int dataRacks() { return dataRacks; }
+	public void setDataNetwork(double bandwidth, double demand, int racks) {
+		dataBandwidth = bandwidth;
+		dataDemand = demand;
+		dataRacks = racks;
 	}
 	public double bootProgress() { return bootProgress; }
 	public void setBootProgress(double value) {

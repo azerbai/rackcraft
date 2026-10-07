@@ -136,6 +136,10 @@
      "desc":"The endgame module. It draws 3 to 9 kW and mines 60 RC per second, but only runs when a CDU is directly beside its rack. On top of its CDU it needs 4 units of freshwater cooling from a pump."},
     {"id":"tensor_accelerator","name":"Tensor Accelerator","color":"5E4A6E","pattern":"tensor",
      "desc":"An AI card. It can't mine, but it lends 12 AI compute to contract generation and model training, which pays about a third more than a GPU Blade mining in the same bay. It draws 0.8 to 2.6 kW and needs freshwater cooling (2 units)."},
+    {"id":"crafting_coprocessor","name":"Crafting Coprocessor","color":"3E7A5E","pattern":"server",
+     "desc":"A rack module built for autocrafting: 8 general compute (four 1U Servers' worth) for 0.9 kW, and air-cooled, so it needs no coolant loop. It can't mine, and lends only 0.5 AI compute. Racks full of them turn a Storage Terminal's job queue into a production line. Boots in 4 seconds."},
+    {"id":"crafting_accelerator","name":"Crafting Accelerator","color":"4A6E9A","pattern":"gpu",
+     "desc":"The heavy autocrafting module: 30 general compute (five GPU Blades' worth) for 3.5 kW. It is liquid-cooled, so its rack must be on a coolant loop with a heat sink. It can't mine and lends only 2 AI compute. Boots in 8 seconds."},
     {"id":"failed_module","name":"Failed Module","color":"9A4039","pattern":"failed",
      "desc":"Dead hardware. Recycle it in a blast furnace to recover Silicon."},
     {"id":"thermal_scanner","name":"Thermal Scanner","color":"D68B3F","pattern":"scanner",
@@ -210,7 +214,7 @@
      "entries":["circuit_board","cpu_chip","ram_module","gpu_chip","cryo_coil"]},
     {"id":"compute","title":"Compute","icon":"server_rack",
      "intro":"A rack has eight bays, one module each. Earnings need power of at least 50% satisfaction, a fiber link to a router, and a cool intake. Above 27 C performance falls, and at 40 C the rack stops. A rack whose power drops below 50% trips and stays off until its inlet is under 32 C.",
-     "entries":["server_rack","pi_node","server_1u","asic_miner","gpu_blade","quantum_core","tensor_accelerator","failed_module","repair_kit","blanking_panel"]},
+     "entries":["server_rack","pi_node","server_1u","asic_miner","gpu_blade","quantum_core","tensor_accelerator","crafting_coprocessor","crafting_accelerator","failed_module","repair_kit","blanking_panel"]},
     {"id":"power","title":"Power","icon":"diesel_generator",
      "intro":"Each power network draws on its sources in a fixed order: solar, wind, reactor and utility first, then batteries, then diesel. Surplus charges batteries. When power runs short, cooling and other machines are fed before racks. Battery Banks built into a solid cube (2x2x2 up to 5x5x5) become one Grid-Scale Battery, bigger and less lossy per bank.",
      "entries":["power_cable","pdu","utility_intake","solar_panel","wind_turbine","battery_bank","diesel_generator"]},
@@ -224,7 +228,7 @@
      "intro":"Connect racks over fiber to routers to sell compute. The Facility Controller tracks RackCoin and availability, runs a small parts shop, and warns you of events: outages, cooling failures, hardware failures, cable cuts, heat waves and surges.",
      "entries":["fiber_cable","uplink_router","core_router","facility_controller","monitoring_wall","fire_suppression_tank","suppression_canister"]},
     {"id":"storage","title":"Storage & Autocrafting","icon":"storage_terminal",
-     "intro":"Store items on drives in Storage Arrays, cold-archive them on tape, and reach it all from a Storage Terminal on the same fiber. Autocrafting runs on your server racks: they lend compute (Pi 1, 1U 2, GPU 6, Quantum 20, ASIC none) and stop mining while a job runs.",
+     "intro":"Store items on drives in Storage Arrays, cold-archive them on tape, and reach it all from a Storage Terminal on the same fiber. Autocrafting runs on your server racks: they lend compute (Pi 1, 1U 2, GPU 6, Quantum 20, ASIC none, and the specialists: Crafting Coprocessor 8, Crafting Accelerator 30) and stop mining while a job runs. In the terminal, middle-click a craftable item (marked +) to order more, even when some is in stock.",
      "entries":["storage_array","drive_1k","drive_4k","drive_16k","drive_64k","tape_library","tape_cartridge","storage_terminal","item_pipe","blank_pattern","recipe_pattern","wireless_transmitter","wireless_terminal"]},
     {"id":"ai","title":"AI Contracts","icon":"operations_terminal",
      "intro":"Racks can do more than mine. Clients post contracts at the Operations Terminal: an image of something absurd, or an essay, a legal document, somebody's homework. Accept one, press Generate and pick a cluster (it needs an uplink router), and its racks work until the item reaches the required quality; finished work lands in the outbox and is delivered automatically. Pay beats mining on the same racks, more so with Tensor Accelerators, and late work earns half. Each kind of work has a lineup of models, like a real lab's: Lite models are fast and learn from a few examples but top out early, Pro models are slow and data-hungry but end up far better, and Flash sits between. Pick one per contract, or leave it on Auto for the fastest that reaches the quality. Every model trains separately, on training data: children drawing at a Kids' Art Table, and librarians shackled to Scriptorium Desks. Upload what they make to a model at the terminal and idle racks train it. Keep spare finished work: clients often order the same thing again.",
@@ -320,6 +324,8 @@
     {"id":"gas_centrifuge","kind":"shaped","result":"gas_centrifuge","pattern":["AGA","WQW","ABA"],"key":{"A":"rackcraft:aluminum_ingot","G":"rackcraft:gpu_chip","W":"rackcraft:copper_wire","Q":"rackcraft:cryo_coil","B":"rackcraft:steel_block"}},
     {"id":"fuel_fabricator","kind":"shaped","result":"fuel_fabricator","pattern":["BCB","FDF","BBB"],"key":{"B":"rackcraft:steel_block","C":"rackcraft:cpu_chip","F":"minecraft:blast_furnace","D":"minecraft:diamond"}},
     {"id":"cask_sealer","kind":"shaped","result":"cask_sealer","pattern":["BPB","OCO","BBB"],"key":{"B":"rackcraft:steel_block","P":"minecraft:piston","O":"minecraft:obsidian","C":"rackcraft:circuit_board"}},
+    {"id":"crafting_coprocessor","kind":"shapeless","result":"crafting_coprocessor","ingredients":["rackcraft:steel_ingot","rackcraft:circuit_board","rackcraft:circuit_board","rackcraft:cpu_chip","rackcraft:cpu_chip","rackcraft:ram_module","rackcraft:ram_module","minecraft:redstone"]},
+    {"id":"crafting_accelerator","kind":"shapeless","result":"crafting_accelerator","ingredients":["rackcraft:steel_ingot","rackcraft:steel_ingot","rackcraft:aluminum_ingot","rackcraft:crafting_coprocessor","rackcraft:crafting_coprocessor","rackcraft:gpu_chip","rackcraft:ram_module","rackcraft:ram_module","rackcraft:cryo_coil"]},
     {"id":"carbon_offset","kind":"shapeless","result":"carbon_offset","count":4,"ingredients":["minecraft:paper","minecraft:paper","minecraft:oak_sapling","minecraft:emerald"]}
   ]
 }

@@ -129,6 +129,23 @@ public final class TerminalScreenHandler extends ScreenHandler {
 			super(player, input, inventory, index, x, y);
 		}
 
+		/**
+		 * Only hand over a result the grid still makes. Moving items out of the grid without going through the grid's
+		 * own setters (a shift-click) used to leave a stale result that could be taken for nothing.
+		 */
+		@Override
+		public boolean canTakeItems(PlayerEntity player) {
+			if (player.getWorld() instanceof ServerWorld world) {
+				Optional<CraftingRecipe> recipe = world.getRecipeManager().getFirstMatch(RecipeType.CRAFTING, craftGrid, world);
+				ItemStack expected = recipe.map(match -> match.craft(craftGrid, world.getRegistryManager())).orElse(ItemStack.EMPTY);
+				if (!ItemStack.areEqual(expected, getStack())) {
+					onContentChanged(craftGrid);
+					return false;
+				}
+			}
+			return super.canTakeItems(player);
+		}
+
 		@Override
 		public void onTakeItem(PlayerEntity player, ItemStack stack) {
 			List<ItemKey> before = new ArrayList<>(9);
@@ -157,7 +174,8 @@ public final class TerminalScreenHandler extends ScreenHandler {
 		if (index == RESULT_SLOT) {
 			// Craft as many as fit, like a crafting table.
 			ItemStack first = stack.copy();
-			for (int crafts = 0; crafts < 64 && slot.hasStack() && ItemStack.canCombine(slot.getStack(), first); crafts++) {
+			for (int crafts = 0; crafts < 64 && slot.hasStack() && ItemStack.canCombine(slot.getStack(), first)
+					&& slot.canTakeItems(player); crafts++) {
 				ItemStack crafted = slot.getStack().copy();
 				if (!insertItem(crafted, FIRST_PLAYER_SLOT, slots.size(), true)) break;
 				slot.onTakeItem(player, slot.getStack().copy());
@@ -166,6 +184,8 @@ public final class TerminalScreenHandler extends ScreenHandler {
 		}
 		if (index < FIRST_PLAYER_SLOT) {
 			if (insertItem(stack, FIRST_PLAYER_SLOT, slots.size(), true)) slot.markDirty();
+			// markDirty doesn't reach a crafting grid's listener, so recompute the result by hand.
+			if (slot.inventory == craftGrid) onContentChanged(craftGrid);
 			return ItemStack.EMPTY;
 		}
 		// From the player's inventory: blank patterns go to the pattern slot, everything else into storage.

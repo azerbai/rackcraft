@@ -99,6 +99,18 @@ public final class MachineStatusScreen extends RackcraftHandledScreen {
 					: "Idle: the air in front of it is cool", 12, 30, moved > 0 ? GOOD : MUTED);
 			line(context, String.format(java.util.Locale.ROOT, "Smog in this chunk: %.1f", smog), 12, 44,
 					smog >= 55 ? BAD : smog > 30 ? WARN : MUTED);
+		} else if (!dev.rackcraft.block.MachineBlockEntity.networkKinds(id).contains(dev.rackcraft.sim.NetKind.POWER)) {
+			// Routers run on fiber alone: show what the network carries instead of a power readout.
+			int bandwidth = stat(Stat.DATA_BANDWIDTH);
+			double demand = stat(Stat.DATA_DEMAND) / 10.0;
+			int racks = stat(Stat.DATA_RACKS);
+			boolean short_ = bandwidth < demand;
+			line(context, racks == 0 ? "No racks on this fiber network yet" : short_ ? "Bandwidth-limited: add routers"
+					: "Online: carrying every rack", 12, 30, racks == 0 ? MUTED : short_ ? WARN : GOOD);
+			line(context, String.format(java.util.Locale.ROOT, "%d racks need %.1f RC/s; routers carry %,d", racks, demand, bandwidth),
+					12, 44, TEXT);
+			line(context, "Needs no power: Uplink 100 RC/s, Core 1,000 RC/s", 12, 56, MUTED);
+			return;
 		} else if (id.equals("pdu")) {
 			boolean live = stat(Stat.NETWORK_CAPACITY) > 0;
 			line(context, live ? "Energised" : "Dead: no power source on this network", 12, 30, live ? GOOD : BAD);

@@ -25,7 +25,8 @@ import org.lwjgl.glfw.GLFW;
 
 /**
  * Storage Terminal. Left-click takes a stack (or deposits the held one), right-click takes half (or deposits
- * one), Shift-click sends a stack to your inventory, Ctrl-click a craftable item (marked +) to autocraft it.
+ * one), Shift-click sends a stack to your inventory, and middle-click or Ctrl/Cmd-click a craftable item (marked +) to
+ * autocraft more of it, even when some is in stock (a plain click does it when there is none).
  * Items only on tape are tinted blue and arrive in your inventory after the tape mounts.
  */
 public final class TerminalScreen extends HandledScreen<TerminalScreenHandler> {
@@ -152,7 +153,7 @@ public final class TerminalScreen extends HandledScreen<TerminalScreenHandler> {
 			if (hovered.cold() > 0) {
 				tooltip.add(Text.literal(String.format(Locale.ROOT, "On tape: %,d (2 s to mount)", hovered.cold())).formatted(Formatting.AQUA));
 			}
-			if (hovered.craftable()) tooltip.add(Text.literal("Craftable: Ctrl-click to autocraft").formatted(Formatting.YELLOW));
+			if (hovered.craftable()) tooltip.add(Text.literal("Craftable: middle-click (or Ctrl/Cmd-click) to autocraft more").formatted(Formatting.YELLOW));
 			context.drawTooltip(textRenderer, tooltip, mouseX, mouseY);
 		} else if (selected == null && !handler.jobs().isEmpty() && mouseX >= x + 4 && mouseX < x + JOB_ROW_RIGHT
 				&& mouseY >= y + 174 && mouseY < y + 192) {
@@ -246,7 +247,7 @@ public final class TerminalScreen extends HandledScreen<TerminalScreenHandler> {
 			context.fill(26, 187, JOB_ROW_RIGHT, 189, 0xFF3A525C);
 			context.fill(26, 187, 26 + filled, 189, color);
 		} else {
-			context.drawText(textRenderer, "Ctrl-click + items to autocraft", 8, 179, MUTED, false);
+			context.drawText(textRenderer, "Middle-click + items to autocraft", 8, 179, MUTED, false);
 		}
 	}
 
@@ -264,18 +265,27 @@ public final class TerminalScreen extends HandledScreen<TerminalScreenHandler> {
 
 	@Override
 	public boolean mouseClicked(double mouseX, double mouseY, int button) {
-		if (inGrid(mouseX, mouseY) && (button == 0 || button == 1)) {
+		if (inGrid(mouseX, mouseY) && (button == 0 || button == 1 || button == 2)) {
 			Entry entry = entryAt(mouseX, mouseY);
-			if (entry != null && entry.craftable() && handler.getCursorStack().isEmpty() && (hasControlDown() || entry.total() == 0)) {
+			boolean craftClick = button == 2 || craftModifier() || entry != null && entry.total() == 0;
+			if (entry != null && entry.craftable() && handler.getCursorStack().isEmpty() && craftClick) {
 				selected = entry.key();
 				amount.setText("1");
 				setFocused(amount);
 				return true;
 			}
+			if (button == 2) return true;
 			ClientNet.terminalClick(handler.syncId, entry == null ? null : entry.key(), button, hasShiftDown());
 			return true;
 		}
 		return super.mouseClicked(mouseX, mouseY, button);
+	}
+
+	/** Ctrl or, on a Mac, Cmd: Minecraft's own check only knows Cmd there, and Ctrl-click is a right-click to macOS. */
+	private boolean craftModifier() {
+		long window = net.minecraft.client.MinecraftClient.getInstance().getWindow().getHandle();
+		return hasControlDown() || net.minecraft.client.util.InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_LEFT_CONTROL)
+				|| net.minecraft.client.util.InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_RIGHT_CONTROL);
 	}
 
 	@Override

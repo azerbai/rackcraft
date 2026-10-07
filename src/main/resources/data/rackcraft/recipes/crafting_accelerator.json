@@ -1,0 +1,36 @@
+{
+  "ingredients": [
+    {
+      "item": "rackcraft:steel_ingot"
+    },
+    {
+      "item": "rackcraft:steel_ingot"
+    },
+    {
+      "item": "rackcraft:aluminum_ingot"
+    },
+    {
+      "item": "rackcraft:crafting_coprocessor"
+    },
+    {
+      "item": "rackcraft:crafting_coprocessor"
+    },
+    {
+      "item": "rackcraft:gpu_chip"
+    },
+    {
+      "item": "rackcraft:ram_module"
+    },
+    {
+      "item": "rackcraft:ram_module"
+    },
+    {
+      "item": "rackcraft:cryo_coil"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:crafting_accelerator"
+  },
+  "type": "minecraft:crafting_shapeless"
+}

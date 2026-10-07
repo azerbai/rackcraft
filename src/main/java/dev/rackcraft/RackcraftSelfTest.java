@@ -34,7 +34,7 @@ public final class RackcraftSelfTest {
 		int[] failures = {0};
 		// Racks boot instantly here, so the other checks don't wait; checkBoot turns it back on.
 		RackcraftConfig.values.sim.rackBootScale = 0;
-		check("S0.a", RcBlocks.BLOCKS.size() == 50 && RcItems.ITEMS.size() == 47,
+		check("S0.a", RcBlocks.BLOCKS.size() == 50 && RcItems.ITEMS.size() == 49,
 				"blocks=" + RcBlocks.BLOCKS.size() + " items=" + RcItems.ITEMS.size(), failures);
 		ServerWorld world = server.getOverworld();
 		BlockPos generatorPos = new BlockPos(0, 80, 0);
@@ -82,6 +82,9 @@ public final class RackcraftSelfTest {
 						&& generator.networkDemandKw() > 0 && generator.networkCapacityKw() >= 40,
 				"output=" + generator.powerKw() + " demand=" + generator.networkDemandKw()
 						+ " capacity=" + generator.networkCapacityKw(), failures);
+		MachineBlockEntity router = machine(world, routerPos);
+		check("S6.f", router.dataBandwidth() == 100 && router.dataRacks() >= 1 && router.dataDemand() >= 16,
+				"router: bandwidth=" + router.dataBandwidth() + " racks=" + router.dataRacks() + " demand=" + router.dataDemand(), failures);
 		check("S6.d", ExchangeOffers.all().values().stream().allMatch(offer -> offer.item() != null
 						&& offer.item() != Items.AIR) && ExchangeOffers.all().get("diamond").price() == 2000,
 				"offers=" + ExchangeOffers.all().size(), failures);
@@ -109,6 +112,7 @@ public final class RackcraftSelfTest {
 		checkNuclear(world, failures);
 		checkBoot(world, failures);
 		checkSolar(world, failures);
+		checkTerminalGrid(world, failures);
 		checkPrices(failures);
 		checkStructures(world, failures);
 		check("S0.b", SimTicker.failedSteps() == 0, "simulation steps that threw=" + SimTicker.failedSteps(), failures);
@@ -712,6 +716,47 @@ public final class RackcraftSelfTest {
 		check("P2.a", noon > 1.99 && lit && supplied > 0.99 && night == 0,
 				"noon=" + noon + " loadSupplied=" + supplied + " lit=" + lit + " night=" + night, failures);
 		clearArea(world, origin, 4, 4, 4);
+	}
+
+	/**
+	 * The terminal's crafting result always matches its grid: shift-clicking the ingredients out clears it, and a
+	 * stale result can't be taken. (2x2 sand used to leave sandstone behind, free for the taking.) Also checks the
+	 * two crafting modules.
+	 */
+	private static void checkTerminalGrid(ServerWorld world, int[] failures) {
+		BlockPos origin = clearArea(world, new BlockPos(-640, 150, -240), 4, 4, 4);
+		world.setBlockState(origin, RcBlocks.get("creative_power").getDefaultState());
+		MachineBlockEntity array = place(world, origin.east(), "storage_array", Direction.NORTH);
+		array.setStack(0, new ItemStack(RcItems.ITEMS.get("drive_1k")));
+		world.setBlockState(origin.east(2), RcBlocks.get("storage_terminal").getDefaultState());
+		SimTicker.stepNow(world);
+		var player = net.fabricmc.fabric.api.entity.FakePlayer.get(world);
+		player.getInventory().clear();
+		var access = new dev.rackcraft.storage.StorageService.Access(world.getRegistryKey(), origin.east(2), false);
+		var handler = new dev.rackcraft.storage.TerminalScreenHandler(0, player.getInventory(), access);
+		int[] grid = {0, 1, 3, 4};
+		for (int slot : grid) handler.slots.get(slot).setStack(new ItemStack(Items.SAND));
+		boolean made = handler.slots.get(9).getStack().isOf(Items.SANDSTONE);
+		for (int slot : grid) handler.quickMove(player, slot);
+		boolean cleared = handler.slots.get(9).getStack().isEmpty() && player.getInventory().count(Items.SAND) == 4;
+		// A result left behind by any other route is refused rather than handed out for free.
+		for (int slot : grid) handler.slots.get(slot).setStack(new ItemStack(Items.SAND));
+		for (int slot : grid) handler.slots.get(slot).getStack().setCount(0);
+		boolean refused = !handler.slots.get(9).canTakeItems(player);
+		check("T1.a", made && cleared && refused, "sandstoneMade=" + made + " clearedAfterShiftClick=" + cleared
+				+ " staleRefused=" + refused, failures);
+		player.getInventory().clear();
+		array.setStack(0, ItemStack.EMPTY);
+		clearArea(world, origin, 4, 4, 4);
+
+		var coprocessor = dev.rackcraft.sim.ServerModel.Module.byItemId("crafting_coprocessor");
+		var accelerator = dev.rackcraft.sim.ServerModel.Module.byItemId("crafting_accelerator");
+		boolean dryAccelerator = dev.rackcraft.sim.ServerModel.calculate(List.of(accelerator), 100, 1, 24, true, false).waterBlocked();
+		boolean dryCoprocessor = dev.rackcraft.sim.ServerModel.calculate(List.of(coprocessor), 100, 1, 24, true, false).waterBlocked();
+		check("M1.a", coprocessor.compute() == 8 && accelerator.compute() == 30 && coprocessor.creditsPerSecond() == 0
+						&& dryAccelerator && !dryCoprocessor,
+				"coprocessor=" + coprocessor.compute() + " accelerator=" + accelerator.compute() + " acceleratorNeedsLoop=" + dryAccelerator
+						+ " coprocessorAirCooled=" + !dryCoprocessor, failures);
 	}
 
 	/** Uranium is priced by the work behind it, materials pay double, and plain building blocks don't. */

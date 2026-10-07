@@ -308,6 +308,7 @@ public final class SimTicker {
 		Map<MachineBlockEntity, RackStatus> lent = ComputeScheduler.tick(world, racks, dt);
 		awardCredits(world, machines, rackSteps, networks, satisfaction, lent, dt);
 		updateRackHealth(world, racks);
+		updateRouters(world, machines, networks);
 		FaultFinder.send(world, machines);
 		FacilityManager facility = FacilityManager.get(world);
 		long previousEventTick = facility.eventTicks();
@@ -442,6 +443,35 @@ public final class SimTicker {
 				world.setBlockState(machine.getPos(), state.with(MachineBlock.LIT, active),
 						net.minecraft.block.Block.NOTIFY_LISTENERS);
 			}
+		}
+	}
+
+	/** Routers report their fiber network: bandwidth, what its racks need, and how many racks it carries. */
+	private static void updateRouters(ServerWorld world, List<MachineBlockEntity> machines, NetworkManager networks) {
+		Map<Set<BlockPos>, double[]> byNetwork = new java.util.IdentityHashMap<>();
+		for (MachineBlockEntity router : machines) {
+			String id = router.blockId();
+			if (!id.equals("uplink_router") && !id.equals("core_router") && !id.equals("creative_router")) continue;
+			double[] stats = byNetwork.computeIfAbsent(networks.component(router.getPos(), NetKind.DATA), network -> {
+				double bandwidth = 0;
+				double demand = 0;
+				int racks = 0;
+				for (BlockPos pos : network) {
+					if (!(world.getBlockEntity(pos) instanceof MachineBlockEntity member)) continue;
+					switch (member.blockId()) {
+						case "uplink_router" -> bandwidth += 100;
+						case "core_router" -> bandwidth += 1000;
+						case "creative_router" -> bandwidth += member.creativeValue(CreativeSettings.BANDWIDTH);
+						case "server_rack" -> {
+							racks++;
+							demand += member.modules().stream().mapToDouble(ServerModel.Module::creditsPerSecond).sum();
+						}
+						default -> {}
+					}
+				}
+				return new double[] {bandwidth, demand, racks};
+			});
+			router.setDataNetwork(stats[0], stats[1], (int) stats[2]);
 		}
 	}
 

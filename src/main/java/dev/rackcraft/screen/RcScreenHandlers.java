@@ -31,6 +31,12 @@ public final class RcScreenHandlers {
 
 	private RcScreenHandlers() {}
 
+	/**
+	 * Registers every screen type, by loading this class during mod initialisation. Without it a dedicated server
+	 * (no client code to load it early) registered them on first use, after the registries froze, and crashed.
+	 */
+	public static void register() {}
+
 	private static ScreenHandlerType<MachineScreenHandler> register(String id, MachineScreenHandler.Mode mode) {
 		ExtendedScreenHandlerType<MachineScreenHandler> type = new ExtendedScreenHandlerType<>(
 				(syncId, inventory, buf) -> new MachineScreenHandler(syncId, inventory, buf, mode));

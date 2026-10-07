@@ -19,7 +19,10 @@ public final class ServerModel {
 		ASIC_MINER("asic_miner", 0.4, 1.2, 5, 0, 0, true),
 		GPU_BLADE("gpu_blade", 1, 3, 12, 6, 10, true),
 		QUANTUM_CORE("quantum_core", 3, 9, 60, 20, 50, true),
-		TENSOR_ACCELERATOR("tensor_accelerator", 0.8, 2.6, 0, 3, 12, true);
+		TENSOR_ACCELERATOR("tensor_accelerator", 0.8, 2.6, 0, 3, 12, true),
+		/** Autocrafting specialists: lots of general compute, no mining, little AI. */
+		CRAFTING_COPROCESSOR("crafting_coprocessor", 0.15, 0.9, 0, 8, 0.5, false),
+		CRAFTING_ACCELERATOR("crafting_accelerator", 0.8, 3.5, 0, 30, 2, true);
 
 		private final String itemId;
 		private final double idleKw;
@@ -68,9 +71,9 @@ public final class ServerModel {
 	public static double bootSeconds(List<Module> modules) {
 		return modules.stream().mapToDouble(module -> switch (module) {
 			case PI_NODE -> 2;
-			case SERVER_1U -> 4;
+			case SERVER_1U, CRAFTING_COPROCESSOR -> 4;
 			case ASIC_MINER -> 5;
-			case GPU_BLADE, TENSOR_ACCELERATOR -> 8;
+			case GPU_BLADE, TENSOR_ACCELERATOR, CRAFTING_ACCELERATOR -> 8;
 			case QUANTUM_CORE -> 15;
 		}).sum();
 	}

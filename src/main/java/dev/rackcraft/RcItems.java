@@ -15,7 +15,8 @@ import net.minecraft.registry.Registry;
 
 public final class RcItems {
 	private static final Set<String> SINGLE_STACK = Set.of(
-			"pi_node", "server_1u", "asic_miner", "gpu_blade", "quantum_core", "tensor_accelerator", "failed_module", "thermal_scanner", "field_manual");
+			"pi_node", "server_1u", "asic_miner", "gpu_blade", "quantum_core", "tensor_accelerator", "crafting_coprocessor",
+			"crafting_accelerator", "failed_module", "thermal_scanner", "field_manual");
 	public static final Map<String, Item> ITEMS = new LinkedHashMap<>();
 
 	private RcItems() {}
