@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/cube_all",
+  "textures": {
+    "all": "rackcraft:block/heat_recovery_plant_formed_mega_on"
+  }
+}

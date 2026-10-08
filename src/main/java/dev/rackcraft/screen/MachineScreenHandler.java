@@ -111,10 +111,11 @@ public final class MachineScreenHandler extends ScreenHandler {
 			addPlayerInventory(playerInventory, 8, 152);
 		} else if (mode == Mode.LAUNCH) {
 			// Three stage slots, the payload, and hydrogen in.
-			for (int index = 0; index < 3; index++) addSlot(new MachineSlot(machineInventory, index, 8 + index * 18, 42));
-			addSlot(new MachineSlot(machineInventory, 3, 80, 42));
-			addSlot(new MachineSlot(machineInventory, 4, 152, 42));
-			addPlayerInventory(playerInventory, 8, 158);
+			// A wider panel than most (230), so the readouts fit; the player's inventory sits in the middle of it.
+			for (int index = 0; index < 3; index++) addSlot(new MachineSlot(machineInventory, index, 12 + index * 18, 42));
+			addSlot(new MachineSlot(machineInventory, 3, 107, 42));
+			addSlot(new MachineSlot(machineInventory, 4, 202, 42));
+			addPlayerInventory(playerInventory, 34, 158);
 		}
 		addProperties(properties);
 	}
@@ -251,6 +252,7 @@ public final class MachineScreenHandler extends ScreenHandler {
 			case Stat.CUBE_BYPRODUCT -> machine.cubeByproduct();
 			case Stat.CUBE_DEMAND -> tenths(machine.cubeDemandKw());
 			case Stat.DOCK_JOBS -> machine.dockJobs();
+			case Stat.LOCKED_CUBE -> machine.lockedCube();
 			case Stat.LAUNCH_TANK -> machine.launchTank();
 			case Stat.LAUNCH_COUNTDOWN -> machine.launchCountdown();
 			case Stat.LAUNCH_FLIGHT -> machine.launchFlight();
@@ -333,7 +335,8 @@ public final class MachineScreenHandler extends ScreenHandler {
 		public static final int ORBIT_DATACENTERS = 57;
 		public static final int ORBIT_MIRRORS = 58;
 		public static final int ORBIT_LAUNCHES = 59;
-		static final int COUNT = 60;
+		public static final int LOCKED_CUBE = 60;     // edge of a whole cube too big for the research done, else 0
+		static final int COUNT = 61;
 
 		private Stat() {}
 	}

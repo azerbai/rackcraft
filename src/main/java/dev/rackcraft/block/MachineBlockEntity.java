@@ -97,6 +97,8 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 	private double cubeDemandKw;
 	// Utility plants: RackCoin per second earned (exported power, sold heat); not saved.
 	private double income;
+	// Cube machines: the size of the whole cube this block is part of, when that size isn't researched yet; not saved.
+	private int lockedCube;
 	// Drone Docks: jobs within range right now; not saved.
 	private int dockJobs;
 	// Launch Controls: hydrogen in the tank, the countdown and flight in progress, and what is on the rocket. Saved, so a
@@ -371,6 +373,8 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 		arrayFuelCells = fuelCells;
 	}
 	public double income() { return income; }
+	public int lockedCube() { return lockedCube; }
+	public void setLockedCube(int edge) { lockedCube = edge; }
 	public int dockJobs() { return dockJobs; }
 	public int launchTank() { return launchTank; }
 	public void setLaunchTank(int canisters) { launchTank = Math.max(0, canisters); markDirty(); }

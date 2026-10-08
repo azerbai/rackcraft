@@ -36,7 +36,8 @@ public final class ReactorScreen extends RackcraftHandledScreen {
 
 		int edge = Math.max(1, stat(Stat.ARRAY_EDGE));
 		line(context, edge > 1 ? "Array " + edge + "x" + edge + "x" + edge : "Single core", 8, 80, edge > 1 ? GOOD : MUTED);
-		line(context, edge > 1 ? "-" + 5 * (edge - 1) + "% fuel" : "Cube: 2 to 5", 8, 91, MUTED);
+		line(context, edge > 1 ? "-" + Math.round((1 - dev.rackcraft.world.ReactorArrays.efficiency(edge)) * 100) + "% fuel"
+				: stat(Stat.LOCKED_CUBE) > 0 ? "Too big: research" : "Cube: 2 or more", 8, 91, stat(Stat.LOCKED_CUBE) > 0 ? WARN : MUTED);
 		CubePort.draw(this, context, 8, 128);
 	}
 

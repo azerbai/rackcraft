@@ -15,7 +15,7 @@ import net.minecraft.util.math.Direction;
 
 /**
  * Cube multiblocks. Any machine in {@code ContentIds.ARRAY_IDS} built into a solid cube of the same machine,
- * 2x2x2 up to 5x5x5, works as one: every block is a core, items in their slots are shared evenly across the
+ * 2x2x2 up to 5x5x5 (10x10x10 with research), works as one: every block is a core, items in their slots are shared evenly across the
  * cube, and bigger cubes are more economical (5% less per core for a 2-cube, up to 20% for a 5-cube).
  *
  * <p>Modular Reactors make {@link #CORE_KW} each and burn a Fuel Cell every {@link #FUEL_CELL_TICKS} ticks at
@@ -26,7 +26,10 @@ import net.minecraft.util.math.Direction;
 public final class ReactorArrays {
 	public static final double CORE_KW = 500;
 	public static final int FUEL_CELL_TICKS = 36000;
-	public static final int MAX_EDGE = 5;
+	/** The biggest cube anything can form, once Arcology is researched. */
+	public static final int MAX_EDGE = 10;
+	/** The biggest cube without research; Structural Engineering, Space Frame Design and Arcology raise it. */
+	public static final int BASE_EDGE = 5;
 	/** Spent Fuel each core's waste slot holds. */
 	public static final int WASTE_PER_CORE = 16;
 	public static final int FUEL_SLOT = 0;
@@ -38,8 +41,15 @@ public final class ReactorArrays {
 
 	private ReactorArrays() {}
 
-	/** A reactor array (or a lone reactor, {@code edge} 1). The controller holds the shared fuel clock. */
-	public record Array(MachineBlockEntity controller, List<MachineBlockEntity> members, int edge) {
+	/**
+	 * A reactor array (or a lone reactor, {@code edge} 1). The controller holds the shared fuel clock. {@code locked} is
+	 * the size of the whole cube a lone block is part of when that size isn't researched yet, otherwise 0.
+	 */
+	public record Array(MachineBlockEntity controller, List<MachineBlockEntity> members, int edge, int locked) {
+		public Array(MachineBlockEntity controller, List<MachineBlockEntity> members, int edge) {
+			this(controller, members, edge, 0);
+		}
+
 		public int cores() { return members.size(); }
 		public double capacityKw() { return cores() * CORE_KW; }
 		public double fuelUse() { return efficiency(edge); }
@@ -55,25 +65,46 @@ public final class ReactorArrays {
 		}
 	}
 
-	/** Fuel each core of an array this size burns, relative to a lone reactor. */
+	/**
+	 * Fuel (or power) each core of an array this size uses, relative to a lone block: 5% less per step up to a 5-cube
+	 * (80%), then 2.5% less per step beyond, down to 67.5% for a 10-cube.
+	 */
 	public static double efficiency(int edge) {
-		return edge <= 1 ? 1 : 1 - 0.05 * (Math.min(MAX_EDGE, edge) - 1);
+		if (edge <= 1) return 1;
+		int clamped = Math.min(MAX_EDGE, edge);
+		return clamped <= BASE_EDGE ? 1 - 0.05 * (clamped - 1) : 0.8 - 0.025 * (clamped - BASE_EDGE);
+	}
+
+	/** The research that allows a cube this big. */
+	public static String researchFor(int edge) {
+		return edge >= 10 ? "Arcology" : edge >= 8 ? "Space Frame Design" : "Structural Engineering";
+	}
+
+	/** What a lone block says when the cube it's part of is too big for the research done, or when it's no cube at all. */
+	public static String notFormed(int locked) {
+		return locked > 0 ? String.format(java.util.Locale.ROOT, "A %dx%dx%d cube needs %s research", locked, locked, locked, researchFor(locked))
+				: "Not formed: build a solid cube, 2x2x2 or bigger";
+	}
+
+	/** The biggest cube this world's research allows. */
+	public static int maxEdge(net.minecraft.server.world.ServerWorld world) {
+		return dev.rackcraft.compute.ResearchLab.effects(world).maxCubeEdge();
 	}
 
 	/** Groups this step's reactors into arrays; every reactor maps to the array it runs in. */
-	public static Map<MachineBlockEntity, Array> scan(List<MachineBlockEntity> machines) {
-		return scan(machines, "modular_reactor");
+	public static Map<MachineBlockEntity, Array> scan(List<MachineBlockEntity> machines, int maxEdge) {
+		return scan(machines, "modular_reactor", maxEdge);
 	}
 
 	/** Every array machine, by kind, grouped into its cubes (or left on its own). */
-	public static Map<MachineBlockEntity, Array> scanAll(List<MachineBlockEntity> machines) {
+	public static Map<MachineBlockEntity, Array> scanAll(List<MachineBlockEntity> machines, int maxEdge) {
 		Map<MachineBlockEntity, Array> all = new HashMap<>();
-		for (String id : dev.rackcraft.generated.ContentIds.ARRAY_IDS) all.putAll(scan(machines, id));
+		for (String id : dev.rackcraft.generated.ContentIds.ARRAY_IDS) all.putAll(scan(machines, id, maxEdge));
 		return all;
 	}
 
 	/** Groups this step's machines of one kind into cubes; every one maps to the array it runs in. */
-	public static Map<MachineBlockEntity, Array> scan(List<MachineBlockEntity> machines, String id) {
+	public static Map<MachineBlockEntity, Array> scan(List<MachineBlockEntity> machines, String id, int maxEdge) {
 		Map<BlockPos, MachineBlockEntity> reactors = new HashMap<>();
 		for (MachineBlockEntity machine : machines) {
 			if (machine.blockId().equals(id)) reactors.put(machine.getPos(), machine);
@@ -93,13 +124,15 @@ public final class ReactorArrays {
 				}
 			}
 			int edge = cubeEdge(group);
-			if (edge >= 2 && queue.isEmpty()) {
+			if (edge >= 2 && edge <= maxEdge && queue.isEmpty()) {
 				group.sort(Comparator.comparingInt((MachineBlockEntity member) -> member.getPos().getY())
 						.thenComparingInt(member -> member.getPos().getZ()).thenComparingInt(member -> member.getPos().getX()));
 				Array array = new Array(group.get(0), List.copyOf(group), edge);
 				for (MachineBlockEntity member : group) arrays.put(member, array);
 			} else {
-				for (MachineBlockEntity member : seen) arrays.put(member, new Array(member, List.of(member), 1));
+				// A whole cube bigger than the research allows stays a pile of lone blocks, but says how big it is.
+				int locked = edge > maxEdge && queue.isEmpty() ? edge : 0;
+				for (MachineBlockEntity member : seen) arrays.put(member, new Array(member, List.of(member), 1, locked));
 			}
 		}
 		return arrays;
@@ -248,7 +281,7 @@ public final class ReactorArrays {
 
 	/** The cube this machine belongs to, found fresh from the loaded machines. */
 	public static Array arrayOf(net.minecraft.server.world.ServerWorld world, MachineBlockEntity machine) {
-		return scan(dev.rackcraft.world.SimTicker.machines(world), machine.blockId()).get(machine);
+		return scan(dev.rackcraft.world.SimTicker.machines(world), machine.blockId(), maxEdge(world)).get(machine);
 	}
 
 	/** How many of this item the array's cores hold in this slot. */

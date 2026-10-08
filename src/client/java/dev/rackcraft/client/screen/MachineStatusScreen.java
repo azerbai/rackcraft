@@ -35,7 +35,12 @@ public final class MachineStatusScreen extends RackcraftHandledScreen {
 		String id = blockId();
 		breaker.visible = id.equals("pdu");
 		int power = stat(Stat.POWER);
-		if (SOURCES.contains(id)) {
+		if (id.equals("rectenna")) {
+			int capacity = stat(Stat.NETWORK_CAPACITY);
+			line(context, power > 0 ? "Receiving " + kw(power) + " from the swarm" : "Idle: no Dyson Mirrors in orbit, or nothing drawing power",
+					12, 30, power > 0 ? GOOD : MUTED);
+			line(context, "Each mirror beams 2 MW, shared by every Rectenna (up to 20 MW each)", 12, 44, MUTED);
+		} else if (SOURCES.contains(id)) {
 			line(context, power > 0 ? "Generating" : "Idle: nothing is drawing power", 12, 30, power > 0 ? GOOD : MUTED);
 			line(context, "Output " + kw(power), 12, 44, TEXT);
 		} else if (id.equals("battery_bank")) {
@@ -50,8 +55,9 @@ public final class MachineStatusScreen extends RackcraftHandledScreen {
 			line(context, "Charge " + permille / 10 + "%", 12, 44, TEXT);
 			bar(context, 12, 56, 206, permille / 1000.0, GOOD);
 			line(context, edge > 1 ? String.format(java.util.Locale.ROOT, "Grid-Scale Battery %dx%dx%d: %.1f MJ, %d%% efficient",
-					edge, edge, edge, stat(Stat.SOURCE_CAPACITY) / 10000.0, 90 + 2 * (edge - 1))
-					: "A lone bank: build a cube of them for a Grid-Scale Battery", 12, 68, MUTED);
+					edge, edge, edge, stat(Stat.SOURCE_CAPACITY) / 10000.0, Math.round(dev.rackcraft.world.SimTicker.batteryEfficiency(edge) * 100))
+					: stat(Stat.LOCKED_CUBE) > 0 ? notFormed() : "A lone bank: build a cube of them for a Grid-Scale Battery", 12, 68,
+					stat(Stat.LOCKED_CUBE) > 0 ? WARN : MUTED);
 		} else if (id.equals("freshwater_pump")) {
 			String[] states = {"Pumping fresh water", "No power", "Not touching water: place it beside a lake or river",
 					"Salt water: oceans and beaches don't count", "Too little water: needs 12 source blocks nearby"};
@@ -108,7 +114,7 @@ public final class MachineStatusScreen extends RackcraftHandledScreen {
 			int edge = stat(Stat.ARRAY_EDGE);
 			int moved = stat(Stat.COOLING_KW);
 			int villagers = stat(Stat.COOLING_DETAIL);
-			String state = edge < 2 ? "Not formed: build a solid cube, 2x2x2 to 5x5x5"
+			String state = edge < 2 ? notFormed()
 					: moved > 0 ? "Selling " + kw(moved) + " of heat to the village"
 					: villagers == 0 ? "No customers: no villagers within 64 blocks" : "Idle: no heat on its coolant loop";
 			line(context, state, 12, 30, edge < 2 || villagers == 0 ? WARN : moved > 0 ? GOOD : MUTED);
@@ -122,7 +128,7 @@ public final class MachineStatusScreen extends RackcraftHandledScreen {
 			int edge = stat(Stat.ARRAY_EDGE);
 			int state = stat(Stat.PUMP_STATUS);
 			boolean running = state == dev.rackcraft.world.FreshwaterCooling.PumpStatus.PUMPING.ordinal();
-			String text = edge < 2 ? "Not formed: build a solid cube, 2x2x2 to 5x5x5"
+			String text = edge < 2 ? notFormed()
 					: running ? "Making fresh water" : state == dev.rackcraft.world.FreshwaterCooling.PumpStatus.NO_POWER.ordinal()
 					? "No power" : "Not touching water: any water works, the sea too";
 			line(context, text, 12, 30, running ? GOOD : edge < 2 ? WARN : BAD);
@@ -134,7 +140,7 @@ public final class MachineStatusScreen extends RackcraftHandledScreen {
 			int edge = stat(Stat.ARRAY_EDGE);
 			int price = stat(Stat.COOLING_DETAIL);
 			boolean fed = stat(Stat.NETWORK_CAPACITY) > 0;
-			line(context, edge < 2 ? "Not formed: build a solid cube, 2x2x2 to 5x5x5" : power > 0 ? "Exporting " + kw(power)
+			line(context, edge < 2 ? notFormed() : power > 0 ? "Exporting " + kw(power)
 					: !fed ? "Idle: no generator on its power network" : "Idle: no spare solar, wind or nuclear",
 					12, 30, edge < 2 ? WARN : power > 0 ? GOOD : !fed ? BAD : MUTED);
 			line(context, String.format(java.util.Locale.ROOT, "Sells up to %s. Price x%.1f (%s)", kw(stat(Stat.SOURCE_CAPACITY)),
@@ -172,6 +178,10 @@ public final class MachineStatusScreen extends RackcraftHandledScreen {
 		line(context, "Power network", 12, top, MUTED);
 		line(context, "Delivering " + kw(stat(Stat.NETWORK_DELIVERED)) + " of " + kw(stat(Stat.NETWORK_DEMAND)) + " demand", 12, top + 12, TEXT);
 		line(context, "Generating capacity " + kw(stat(Stat.NETWORK_CAPACITY)), 12, top + 24, TEXT);
+	}
+
+	private String notFormed() {
+		return dev.rackcraft.world.ReactorArrays.notFormed(stat(Stat.LOCKED_CUBE));
 	}
 
 	/** Every line on this screen is cut to the panel, so a big grid's figures can't run off the edge. */

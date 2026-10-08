@@ -65,7 +65,7 @@ public final class ResearchLab extends PersistentState {
 		return new Research.Effects(base.mining(), base.aiCompute() * orbit, base.generalCompute() * orbit, base.rackPower(),
 				base.sinkCapacity(), base.thermalOffset(), base.bootScale(), base.trainingWork(), base.contractWork(), base.contractPay(),
 				base.leasePay(), base.leaseSlots() + slots, base.reactorOutput(), base.leases(), base.lithography(), base.safeHardware(),
-				base.agi());
+				base.agi(), base.maxCubeEdge());
 	}
 
 	public Research.Effects effects() {

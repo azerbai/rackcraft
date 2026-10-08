@@ -111,6 +111,9 @@ public final class ExchangeScreen extends RackcraftHandledScreen {
 				? Text.translatable("exchange.rackcraft.mining", compactCoins(rate / 100.0), stat(Stat.MINING_RACKS), stat(Stat.TOTAL_RACKS)).getString()
 				: Text.translatable("exchange.rackcraft.not_mining").getString();
 		int room = backgroundWidth - 16 - textRenderer.getWidth(balanceText) - 10;
+		// Too long: drop the rack count before cutting anything, so the figure that matters stays whole.
+		if (rate > 0 && textRenderer.getWidth(mining) > room) mining = "+" + compactCoins(rate / 100.0) + " RC/s, " + stat(Stat.MINING_RACKS) + " racks";
+		if (rate > 0 && textRenderer.getWidth(mining) > room) mining = "+" + compactCoins(rate / 100.0) + " RC/s";
 		if (textRenderer.getWidth(mining) > room) mining = textRenderer.trimToWidth(mining, room - textRenderer.getWidth("...")).trim() + "...";
 		context.drawText(textRenderer, mining, backgroundWidth - 8 - textRenderer.getWidth(mining), 24, rate > 0 ? TEXT : WARN, false);
 

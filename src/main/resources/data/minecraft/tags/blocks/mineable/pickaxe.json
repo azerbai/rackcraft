@@ -46,6 +46,7 @@
     "rackcraft:assembly_arm",
     "rackcraft:drone_dock",
     "rackcraft:launch_pad",
+    "rackcraft:launch_tower",
     "rackcraft:launch_control",
     "rackcraft:rectenna",
     "rackcraft:waste_cask",

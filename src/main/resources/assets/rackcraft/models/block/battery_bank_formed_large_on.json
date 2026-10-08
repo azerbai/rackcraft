@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/cube_all",
+  "textures": {
+    "all": "rackcraft:block/battery_bank_formed_large_on"
+  }
+}

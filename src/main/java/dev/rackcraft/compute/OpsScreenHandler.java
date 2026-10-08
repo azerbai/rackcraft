@@ -410,7 +410,7 @@ public final class OpsScreenHandler extends ScreenHandler {
 						alerts.add(new OpsSnapshot.Alert(1, String.format(Locale.ROOT, "%s%s: running at %d%% speed, the grid covers only part of its %,.0f kW",
 								name, at, Math.round(machine.powerSatisfaction() * 100), machine.cubeDemandKw())));
 					} else if (status == dev.rackcraft.world.NuclearProcessing.Status.NOT_FORMED.ordinal()) {
-						alerts.add(new OpsSnapshot.Alert(1, name + at + ": not part of a whole 2x2x2 to 5x5x5 cube"));
+						alerts.add(new OpsSnapshot.Alert(1, name + at + ": " + (machine.lockedCube() > 0 ? dev.rackcraft.world.ReactorArrays.notFormed(machine.lockedCube()) : "not part of a whole cube")));
 					}
 				}
 				case "diesel_generator" -> {

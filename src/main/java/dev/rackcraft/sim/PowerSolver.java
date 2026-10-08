@@ -10,7 +10,7 @@ import java.util.Map;
 
 public final class PowerSolver {
 	private static final List<SourceKind> DISPATCH_ORDER = List.of(
-			SourceKind.SOLAR, SourceKind.WIND, SourceKind.REACTOR, SourceKind.UTILITY,
+			SourceKind.BEAMED, SourceKind.SOLAR, SourceKind.WIND, SourceKind.REACTOR, SourceKind.UTILITY,
 			SourceKind.BATTERY, SourceKind.DIESEL);
 
 	private PowerSolver() {}
@@ -116,7 +116,8 @@ public final class PowerSolver {
 		return Math.max(0, availableKw - demand * ratio);
 	}
 
-	public enum SourceKind { SOLAR, WIND, REACTOR, UTILITY, BATTERY, DIESEL }
+	/** BEAMED: power from the Dyson swarm, free and steady, so it is drawn first; like UTILITY it is never exported. */
+	public enum SourceKind { SOLAR, WIND, REACTOR, UTILITY, BATTERY, DIESEL, BEAMED }
 
 	public enum StorageMode { NONE, STORAGE }
 

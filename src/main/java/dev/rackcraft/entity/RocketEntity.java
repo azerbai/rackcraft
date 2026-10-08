@@ -27,8 +27,8 @@ public final class RocketEntity extends Entity {
 	private static final TrackedData<Integer> LIFTOFF = DataTracker.registerData(RocketEntity.class, TrackedDataHandlerRegistry.INTEGER);
 	private static final TrackedData<String> PAYLOAD = DataTracker.registerData(RocketEntity.class, TrackedDataHandlerRegistry.STRING);
 	/** Ticks after liftoff when a doomed rocket comes apart. */
-	private static final int FAILS_AFTER = 70;
-	private static final int GONE_AFTER = 320;
+	private static final int FAILS_AFTER = 100;
+	private static final int GONE_AFTER = 400;
 	private boolean doomed;
 	private double climb;
 	/** Client only: where the rocket stood, so the exhaust can still hit the pad once it has climbed away. */
@@ -65,6 +65,35 @@ public final class RocketEntity extends Entity {
 		dataTracker.startTracking(PAYLOAD, "");
 	}
 
+	/** Where each engine sits, in blocks from the centre line: five for a Saturn V, four for a IB, one otherwise. */
+	public static double[][] engines(int stages) {
+		return switch (stages) {
+			case 3 -> new double[][] {{0, 0}, {0.875, 0.875}, {-0.875, 0.875}, {0.875, -0.875}, {-0.875, -0.875}};
+			case 2 -> new double[][] {{0.625, 0.625}, {-0.625, 0.625}, {0.625, -0.625}, {-0.625, -0.625}};
+			default -> new double[][] {{0, 0}};
+		};
+	}
+
+	/** How tall the rocket is, in blocks, to the tip of the escape tower or fairing. */
+	public static double height(int stages) {
+		return switch (stages) {
+			case 3 -> 37.7;
+			case 2 -> 19.5;
+			default -> 14.3;
+		};
+	}
+
+	/** Its speed this many ticks after liftoff: a slow, heavy start (it takes a few seconds to clear its own height). */
+	public static double speed(int flight) {
+		return Math.min(2.0, 0.00025 * flight * flight);
+	}
+
+	@Override
+	public net.minecraft.util.math.Box getVisibilityBoundingBox() {
+		// Seen from anywhere it could be: the collision box is only a stub at its feet.
+		return new net.minecraft.util.math.Box(getX() - 3, getY(), getZ() - 3, getX() + 3, getY() + height(stages()), getZ() + 3);
+	}
+
 	@Override
 	public void tick() {
 		super.tick();
@@ -74,62 +103,85 @@ public final class RocketEntity extends Entity {
 			return;
 		}
 		ServerWorld world = (ServerWorld) getWorld();
+		if (flight == -40) world.playSound(null, getBlockPos(), SoundEvents.BLOCK_FIRE_EXTINGUISH, SoundCategory.BLOCKS, 4, 0.5f);
 		if (flight == 0) {
-			world.playSound(null, getBlockPos(), SoundEvents.ENTITY_GENERIC_EXPLODE, SoundCategory.BLOCKS, 6, 0.5f);
-			world.playSound(null, getBlockPos(), SoundEvents.ENTITY_FIREWORK_ROCKET_LAUNCH, SoundCategory.BLOCKS, 6, 0.4f);
+			world.playSound(null, getBlockPos(), SoundEvents.ENTITY_GENERIC_EXPLODE, SoundCategory.BLOCKS, 8, 0.4f);
+			world.playSound(null, getBlockPos(), SoundEvents.ENTITY_LIGHTNING_BOLT_THUNDER, SoundCategory.BLOCKS, 8, 0.5f);
 		}
 		if (flight > 0) {
-			if (flight % 15 == 0) world.playSound(null, getBlockPos(), SoundEvents.ENTITY_BLAZE_SHOOT, SoundCategory.BLOCKS, 5, 0.35f);
-			// Gentle at first, then hard: about 40 blocks in the first three seconds, out of sight by ten.
-			climb = Math.min(2.5, 0.0008 * flight * flight);
+			// A low roar that follows it up.
+			if (flight % 12 == 0) world.playSound(null, getBlockPos(), SoundEvents.ENTITY_BLAZE_SHOOT, SoundCategory.BLOCKS, 8, 0.3f);
+			if (flight % 40 == 20 && flight < 200) {
+				world.playSound(null, getBlockPos(), SoundEvents.ENTITY_LIGHTNING_BOLT_THUNDER, SoundCategory.BLOCKS, 6, 0.4f);
+			}
+			climb = speed(flight);
 			setPosition(getX(), getY() + climb, getZ());
 			velocityDirty = true;
 			if (doomed && flight == FAILS_AFTER) {
-				world.spawnParticles(ParticleTypes.EXPLOSION_EMITTER, getX(), getY() + 3, getZ(), 3, 1.5, 2, 1.5, 0);
-				world.spawnParticles(ParticleTypes.LARGE_SMOKE, getX(), getY() + 3, getZ(), 80, 2, 3, 2, 0.1);
-				world.spawnParticles(ParticleTypes.FLAME, getX(), getY() + 3, getZ(), 120, 2, 3, 2, 0.2);
-				world.playSound(null, getBlockPos(), SoundEvents.ENTITY_GENERIC_EXPLODE, SoundCategory.BLOCKS, 10, 0.6f);
+				double middle = getY() + height(stages()) * 0.4;
+				world.spawnParticles(ParticleTypes.EXPLOSION_EMITTER, getX(), middle, getZ(), 6, 2, height(stages()) * 0.3, 2, 0);
+				world.spawnParticles(ParticleTypes.LARGE_SMOKE, getX(), middle, getZ(), 200, 3, height(stages()) * 0.3, 3, 0.15);
+				world.spawnParticles(ParticleTypes.FLAME, getX(), middle, getZ(), 250, 3, height(stages()) * 0.3, 3, 0.3);
+				world.playSound(null, getBlockPos(), SoundEvents.ENTITY_GENERIC_EXPLODE, SoundCategory.BLOCKS, 12, 0.5f);
+				world.playSound(null, getBlockPos(), SoundEvents.ENTITY_LIGHTNING_BOLT_THUNDER, SoundCategory.BLOCKS, 12, 0.6f);
 				discard();
 				return;
 			}
 		}
-		if (flight > GONE_AFTER || getY() > world.getTopY() + 160) discard();
+		if (flight > GONE_AFTER || getY() > world.getTopY() + 200) discard();
 	}
 
-	/** Vapour off the tanks during the countdown, then fire and smoke under the engines. */
+	/**
+	 * Vapour boiling off the tanks during the countdown, ignition smoke in the last seconds, then a column of fire under
+	 * every engine, and at liftoff the flame trench throwing a ring of exhaust out across the pad.
+	 */
 	private void clientTick(int flight) {
 		if (lerpSteps > 0) {
 			setPosition(getX(), getY() + (lerpY - getY()) / lerpSteps, getZ());
 			lerpSteps--;
 		}
 		World world = getWorld();
+		var random = world.random;
 		if (Double.isNaN(padY)) padY = getY();
+		int stages = stages();
+		double height = height(stages);
+		double radius = stages == 3 ? 1.6 : stages == 2 ? 1.35 : 0.75;
 		if (flight < 0) {
-			if (age % 3 == 0) {
-				double side = world.random.nextBoolean() ? 0.5 : -0.5;
-				world.addParticle(ParticleTypes.CLOUD, getX() + side, getY() + 2 + world.random.nextDouble() * stages() * 1.5,
-						getZ() + (world.random.nextDouble() - 0.5), side * 0.05, 0, 0);
+			if (age % 2 == 0) {
+				double angle = random.nextDouble() * Math.PI * 2;
+				world.addParticle(ParticleTypes.CLOUD, getX() + Math.cos(angle) * radius, getY() + height * (0.3 + random.nextDouble() * 0.6),
+						getZ() + Math.sin(angle) * radius, Math.cos(angle) * 0.04, -0.02, Math.sin(angle) * 0.04);
 			}
-			if (flight > -30) {
-				world.addParticle(ParticleTypes.CAMPFIRE_COSY_SMOKE, getX() + (world.random.nextDouble() - 0.5) * 2, getY() + 0.2,
-						getZ() + (world.random.nextDouble() - 0.5) * 2, 0, 0.05, 0);
+			if (flight > -40) {
+				for (double[] engine : engines(stages)) {
+					world.addParticle(ParticleTypes.CAMPFIRE_COSY_SMOKE, getX() + engine[0] + (random.nextDouble() - 0.5), padY + 0.2,
+							getZ() + engine[1] + (random.nextDouble() - 0.5), 0, 0.04, 0);
+				}
 			}
 			return;
 		}
-		int plume = flight < 60 ? 10 : 4;
-		for (int index = 0; index < plume; index++) {
-			double spread = flight < 40 ? 1.6 : 0.4;
-			world.addParticle(ParticleTypes.FLAME, getX() + (world.random.nextDouble() - 0.5) * 0.5, getY() - 0.3,
-					getZ() + (world.random.nextDouble() - 0.5) * 0.5, (world.random.nextDouble() - 0.5) * 0.1, -0.6, (world.random.nextDouble() - 0.5) * 0.1);
-			world.addParticle(ParticleTypes.LARGE_SMOKE, getX() + (world.random.nextDouble() - 0.5) * spread, getY() - 0.6,
-					getZ() + (world.random.nextDouble() - 0.5) * spread, (world.random.nextDouble() - 0.5) * 0.3, -0.05, (world.random.nextDouble() - 0.5) * 0.3);
+		double scale = stages == 3 ? 1.6 : stages == 2 ? 1.2 : 0.8;
+		for (double[] engine : engines(stages)) {
+			for (int index = 0; index < (flight < 100 ? 4 : 2); index++) {
+				double x = getX() + engine[0] + (random.nextDouble() - 0.5) * 0.4 * scale;
+				double z = getZ() + engine[1] + (random.nextDouble() - 0.5) * 0.4 * scale;
+				world.addParticle(ParticleTypes.FLAME, x, getY() - 0.2, z, (random.nextDouble() - 0.5) * 0.08, -0.9 - climb, (random.nextDouble() - 0.5) * 0.08);
+				world.addParticle(ParticleTypes.LARGE_SMOKE, x, getY() - 1.2 - random.nextDouble() * 2, z,
+						(random.nextDouble() - 0.5) * 0.25 * scale, -0.1, (random.nextDouble() - 0.5) * 0.25 * scale);
+			}
+			if (random.nextInt(3) == 0) {
+				world.addParticle(ParticleTypes.CAMPFIRE_SIGNAL_SMOKE, getX() + engine[0], getY() - 2, getZ() + engine[1],
+						(random.nextDouble() - 0.5) * 0.05, 0.01, (random.nextDouble() - 0.5) * 0.05);
+			}
 		}
-		if (flight < 40) {
-			// The flame trench throws the exhaust out sideways at liftoff.
-			for (int index = 0; index < 6; index++) {
-				double angle = world.random.nextDouble() * Math.PI * 2;
-				world.addParticle(ParticleTypes.CLOUD, getX(), padY + 0.3, getZ(),
-						Math.cos(angle) * 0.6, 0.02, Math.sin(angle) * 0.6);
+		if (flight < 120) {
+			// The flame trench throws the exhaust out sideways in a great ring across the pad.
+			int ring = (int) (14 * scale * (1 - flight / 120.0)) + 2;
+			for (int index = 0; index < ring; index++) {
+				double angle = random.nextDouble() * Math.PI * 2;
+				double speed = 0.4 + random.nextDouble() * 0.5 * scale;
+				world.addParticle(index % 3 == 0 ? ParticleTypes.LARGE_SMOKE : ParticleTypes.CLOUD, getX(), padY + 0.4 + random.nextDouble(), getZ(),
+						Math.cos(angle) * speed, 0.03, Math.sin(angle) * speed);
 			}
 		}
 	}

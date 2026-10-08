@@ -1,0 +1,23 @@
+{
+  "key": {
+    "B": {
+      "item": "minecraft:iron_bars"
+    },
+    "R": {
+      "item": "minecraft:red_dye"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    }
+  },
+  "pattern": [
+    "SBS",
+    "BRB",
+    "SBS"
+  ],
+  "result": {
+    "count": 16,
+    "item": "rackcraft:launch_tower"
+  },
+  "type": "minecraft:crafting_shaped"
+}

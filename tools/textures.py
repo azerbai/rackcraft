@@ -892,9 +892,16 @@ def machine_textures(entry):
     if entry.get("array"):
         faces["formed"] = formed_face(base, key, False)
         faces["formed_on"] = formed_face(base, key, True)
-        if key not in ("battery_bank", "desalination_plant", "grid_substation", "heat_recovery_plant"):
+        has_port = key not in ("battery_bank", "desalination_plant", "grid_substation", "heat_recovery_plant")
+        if has_port:
             faces["port"] = port_face(base, key, False)
             faces["port_on"] = port_face(base, key, True)
+        for scale, name in ((1, "large"), (2, "mega")):
+            faces[f"formed_{name}"] = formed_face(base, key, False, scale)
+            faces[f"formed_{name}_on"] = formed_face(base, key, True, scale)
+            if has_port:
+                faces[f"port_{name}"] = port_face(base, key, False, scale)
+                faces[f"port_{name}_on"] = port_face(base, key, True, scale)
     return faces
 
 
@@ -1086,13 +1093,43 @@ FORMED_FACES = {
 }
 
 
-def formed_face(base, key, on):
+GOLD_TRIM = (232, 190, 80)
+
+
+def _scale_trim(canvas, base, frame, on, scale, corners_only=False):
+    """What sets a bigger cube apart. Scale 1 (6x6x6 to 9x9x9): a heavy steel frame with hazard-striped corner braces.
+    Scale 2 (10x10x10): dark plating with a gold trim line that pulses while it runs, and glowing corner studs."""
+    if scale == 1:
+        if not corners_only:
+            canvas.frame(0, 0, 15, 15, (40, 42, 46))
+            canvas.frame(1, 1, 14, 14, (96, 100, 108))
+        for cx, cy, dx, dy in ((0, 0, 1, 1), (15, 0, -1, 1), (0, 15, 1, -1), (15, 15, -1, -1)):
+            for i in range(4):
+                for j in range(4 - i):
+                    canvas.set(cx + dx * i, cy + dy * j, YELLOW if (i + j) % 2 == 0 else BLACK)
+        for x, y in ((7, 1), (8, 1), (7, 14), (8, 14), (1, 7), (1, 8), (14, 7), (14, 8)):
+            canvas.set(x, y, (180, 186, 194))
+    elif scale == 2:
+        gold = mix(GOLD_TRIM, (255, 245, 200), [0.0, 0.5, 1.0, 0.5][frame]) if on else GOLD_TRIM
+        if not corners_only:
+            canvas.frame(0, 0, 15, 15, (20, 20, 24))
+            canvas.frame(1, 1, 14, 14, gold)
+        stud = (150, 240, 255) if on else (90, 140, 160)
+        for x, y in ((1, 1), (14, 1), (1, 14), (14, 14)):
+            canvas.rect(x - 1 if x > 7 else x, y - 1 if y > 7 else y, x if x > 7 else x + 1, y if y > 7 else y + 1, stud)
+        for x, y in ((7, 0), (8, 0), (7, 15), (8, 15), (0, 7), (0, 8), (15, 7), (15, 8)):
+            canvas.set(x, y, gold)
+
+
+def formed_face(base, key, on, scale=0):
     """Casing for a formed multiblock: every machine has its own face (a reactor's trefoil, a centrifuge's rotors,
-    a fab's wafer), so cubes are easy to tell apart. It animates while the cube works."""
+    a fab's wafer), so cubes are easy to tell apart. It animates while the cube works. Bigger cubes (scale 1 and 2)
+    keep the machine's face but wear their own trim, see _scale_trim."""
     frames = []
     for frame in range(4 if on else 1):
-        canvas = _casing(base, key)
+        canvas = _casing(darken(base, 0.25) if scale == 2 else base, key)
         FORMED_FACES.get(key, _reactor_face)(canvas, base, frame, on)
+        _scale_trim(canvas, base, frame, on, scale)
         frames.append(canvas)
     return frames
 
@@ -1100,7 +1137,7 @@ def formed_face(base, key, on):
 PORT = (64, 214, 224)
 
 
-def port_face(base, key, on):
+def port_face(base, key, on, scale=0):
     """The port: the machine's own casing behind a bright cyan frame and an output hatch with an arrow, so the one
     block you empty a cube from stands out from the rest of it."""
     frames = []
@@ -1115,6 +1152,7 @@ def port_face(base, key, on):
         canvas.hline(5, 10, 8, arrow)
         canvas.hline(6, 9, 9, arrow)
         canvas.hline(7, 8, 10, arrow)
+        _scale_trim(canvas, base, frame, on, scale, corners_only=True)
         frames.append(canvas)
     return frames
 
@@ -2511,22 +2549,131 @@ ITEM_STYLES.update({"stage_frame": item_stage_frame, "rocket_stage": item_rocket
                     "comms": item_comms, "survey": item_survey, "orbital_dc": item_orbital_dc, "mirror": item_mirror})
 
 
+# ---------------------------------------------------------------- the big rocket: one texture per stage, painted to size
+
+class Sheet:
+    """An arbitrary-size image for parts too big for one 16x16 tile (a stage's whole side, 8 px to a block)."""
+    def __init__(self, width, height, fill):
+        self.width, self.height = width, height
+        self.px = [[(*fill, 255) for _ in range(width)] for _ in range(height)]
+
+    def set(self, x, y, color):
+        if 0 <= x < self.width and 0 <= y < self.height:
+            self.px[y][x] = (*color[:3], 255)
+
+    def rect(self, x0, y0, x1, y1, color):
+        for y in range(y0, y1 + 1):
+            for x in range(x0, x1 + 1):
+                self.set(x, y, color)
+
+    def png(self):
+        return png_rgba(self.width, self.height, self.px)
+
+
+ROCKET_WHITE = (236, 236, 232)
+ROCKET_SHADE = (214, 214, 210)
+ROCKET_BLACK = (26, 26, 30)
+
+
+def _panel_lines(sheet, every, color):
+    """Faint seams between the skin panels, so a 12-block stage doesn't read as one flat slab."""
+    for y in range(0, sheet.height, every):
+        for x in range(sheet.width):
+            if sheet.px[y][x][:3] == ROCKET_WHITE:
+                sheet.set(x, y, color)
+
+
+def _letters(sheet, x, y, word, color):
+    """Tall stencil letters, 3 px wide and 5 high, stacked down the side the way they are on the real thing."""
+    glyphs = {"U": ["101", "101", "101", "101", "111"], "S": ["111", "100", "111", "001", "111"],
+              "A": ["010", "101", "111", "101", "101"]}
+    for index, letter in enumerate(word):
+        for row, bits in enumerate(glyphs[letter]):
+            for column, bit in enumerate(bits):
+                if bit == "1":
+                    for dy in range(2):
+                        sheet.set(x + column * 2, y + index * 13 + row * 2 + dy, color)
+                        sheet.set(x + column * 2 + 1, y + index * 13 + row * 2 + dy, color)
+
+
+def rocket_first_stage():
+    """The S-IC look: white, a black-and-white band at the top, USA stencilled down it, and a black skirt."""
+    sheet = Sheet(24, 96, ROCKET_WHITE)
+    _panel_lines(sheet, 8, ROCKET_SHADE)
+    sheet.rect(0, 0, 11, 10, ROCKET_BLACK)
+    sheet.rect(0, 11, 23, 12, ROCKET_SHADE)
+    _letters(sheet, 9, 24, "USA", (40, 40, 44))
+    sheet.rect(0, 84, 11, 95, ROCKET_BLACK)
+    sheet.rect(12, 88, 23, 95, ROCKET_BLACK)
+    for x in range(0, 24, 4):
+        sheet.set(x, 83, ROCKET_SHADE)
+    return sheet.png()
+
+
+def rocket_second_stage():
+    """The S-II look: white, with a black ring top and bottom and a thin stripe a third of the way down."""
+    sheet = Sheet(24, 72, ROCKET_WHITE)
+    _panel_lines(sheet, 9, ROCKET_SHADE)
+    sheet.rect(0, 0, 23, 3, ROCKET_BLACK)
+    sheet.rect(0, 22, 23, 22, ROCKET_BLACK)
+    sheet.rect(0, 68, 23, 71, ROCKET_BLACK)
+    return sheet.png()
+
+
+def rocket_third_stage():
+    """The S-IVB look: white, a black aft section on one half of each face, and a stripe near the top."""
+    sheet = Sheet(16, 48, ROCKET_WHITE)
+    _panel_lines(sheet, 8, ROCKET_SHADE)
+    sheet.rect(0, 30, 7, 47, ROCKET_BLACK)
+    sheet.rect(0, 4, 15, 4, ROCKET_BLACK)
+    return sheet.png()
+
+
 def rocket_parts():
-    """Tiles for the rocket entity: 0 stage skin, 1 interstage, 2 engine, 3 fairing, 4 fin."""
-    white = (232, 232, 236)
-    skin = plate(white, "rocket:skin")
-    skin.rect(2, 4, 6, 8, BLACK)
-    skin.rect(9, 9, 13, 13, BLACK)
-    skin.hline(0, 15, 1, darken(white, 0.2))
+    """Tiles for the rocket's smaller parts: 0 interstage, 1 engine bell, 2 instrument ring, 3 capsule and fairing,
+    4 fin, 5 escape tower, 6 engine fairing."""
+    white = ROCKET_WHITE
     interstage = plate((40, 42, 46), "rocket:interstage")
-    interstage.hline(0, 15, 5, (70, 72, 78))
-    interstage.hline(0, 15, 10, (70, 72, 78))
+    for y in (3, 7, 11):
+        interstage.hline(0, 15, y, (70, 72, 78))
     engine = plate((70, 66, 64), "rocket:engine")
     for y in range(SIZE):
-        engine.hline(0, 15, y, mix((90, 86, 84), (150, 80, 50), y / 15))
-    fairing = plate(white, "rocket:fairing")
-    fairing.rect(4, 6, 11, 9, (40, 120, 200))
-    fairing.set(5, 7, (230, 240, 255))
-    fin = plate((40, 42, 46), "rocket:fin")
-    fin.hline(0, 15, 14, YELLOW)
-    return _strip([skin, interstage, engine, fairing, fin])
+        engine.hline(0, 15, y, mix((60, 58, 58), (150, 80, 50), y / 15))
+    for x in (3, 8, 12):
+        engine.vline(x, 0, 15, (40, 38, 38))
+    ring = plate((170, 176, 182), "rocket:ring")
+    ring.hline(0, 15, 5, (110, 116, 124))
+    ring.hline(0, 15, 10, (110, 116, 124))
+    capsule = plate(white, "rocket:capsule")
+    for y in (4, 9, 14):
+        capsule.hline(0, 15, y, (196, 198, 200))
+    capsule.rect(6, 6, 9, 8, (60, 70, 90))
+    fin = plate(white, "rocket:fin")
+    fin.hline(0, 15, 15, ROCKET_BLACK)
+    fin.vline(15, 0, 15, ROCKET_BLACK)
+    tower = Canvas()
+    for y in range(SIZE):
+        for x in range(SIZE):
+            if x in (0, 15) or (x - y) % 8 == 0 or (x + y) % 8 == 0:
+                tower.set(x, y, (210, 80, 40))
+    fairing = plate(white, "rocket:enginefairing")
+    fairing.hline(0, 15, 0, ROCKET_BLACK)
+    return _strip([interstage, engine, ring, capsule, fin, tower, fairing])
+
+
+def lattice_block(entry):
+    """An open steel truss: a frame and two diagonals per face, everything else see-through."""
+    base = rgb(entry["color"])
+    canvas = Canvas()
+    for i in range(SIZE):
+        for x, y in ((i, 0), (i, 15), (0, i), (15, i), (i, i), (i, 15 - i)):
+            canvas.set(x, y, base)
+    for i in range(SIZE):
+        canvas.set(i, 1, darken(base, 0.3))
+        canvas.set(1, i, lighten(base, 0.15))
+    for x, y in ((0, 0), (15, 0), (0, 15), (15, 15)):
+        canvas.set(x, y, darken(base, 0.45))
+    return canvas
+
+
+BLOCK_STYLES["lattice"] = lattice_block

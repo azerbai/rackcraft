@@ -1,116 +1,340 @@
 {
   "variants": {
-    "facing=east,lit=false,formed=false,port=false": {
+    "facing=east,lit=false,formed=false,port=false,scale=0": {
       "model": "rackcraft:block/heat_recovery_plant",
       "y": 90
     },
-    "facing=east,lit=false,formed=false,port=true": {
+    "facing=east,lit=false,formed=false,port=false,scale=1": {
       "model": "rackcraft:block/heat_recovery_plant",
       "y": 90
     },
-    "facing=east,lit=false,formed=true,port=false": {
+    "facing=east,lit=false,formed=false,port=false,scale=2": {
+      "model": "rackcraft:block/heat_recovery_plant",
+      "y": 90
+    },
+    "facing=east,lit=false,formed=false,port=true,scale=0": {
+      "model": "rackcraft:block/heat_recovery_plant",
+      "y": 90
+    },
+    "facing=east,lit=false,formed=false,port=true,scale=1": {
+      "model": "rackcraft:block/heat_recovery_plant",
+      "y": 90
+    },
+    "facing=east,lit=false,formed=false,port=true,scale=2": {
+      "model": "rackcraft:block/heat_recovery_plant",
+      "y": 90
+    },
+    "facing=east,lit=false,formed=true,port=false,scale=0": {
       "model": "rackcraft:block/heat_recovery_plant_formed"
     },
-    "facing=east,lit=false,formed=true,port=true": {
+    "facing=east,lit=false,formed=true,port=false,scale=1": {
+      "model": "rackcraft:block/heat_recovery_plant_formed_large"
+    },
+    "facing=east,lit=false,formed=true,port=false,scale=2": {
+      "model": "rackcraft:block/heat_recovery_plant_formed_mega"
+    },
+    "facing=east,lit=false,formed=true,port=true,scale=0": {
       "model": "rackcraft:block/heat_recovery_plant_formed"
     },
-    "facing=east,lit=true,formed=false,port=false": {
+    "facing=east,lit=false,formed=true,port=true,scale=1": {
+      "model": "rackcraft:block/heat_recovery_plant_formed_large"
+    },
+    "facing=east,lit=false,formed=true,port=true,scale=2": {
+      "model": "rackcraft:block/heat_recovery_plant_formed_mega"
+    },
+    "facing=east,lit=true,formed=false,port=false,scale=0": {
       "model": "rackcraft:block/heat_recovery_plant_on",
       "y": 90
     },
-    "facing=east,lit=true,formed=false,port=true": {
+    "facing=east,lit=true,formed=false,port=false,scale=1": {
       "model": "rackcraft:block/heat_recovery_plant_on",
       "y": 90
     },
-    "facing=east,lit=true,formed=true,port=false": {
+    "facing=east,lit=true,formed=false,port=false,scale=2": {
+      "model": "rackcraft:block/heat_recovery_plant_on",
+      "y": 90
+    },
+    "facing=east,lit=true,formed=false,port=true,scale=0": {
+      "model": "rackcraft:block/heat_recovery_plant_on",
+      "y": 90
+    },
+    "facing=east,lit=true,formed=false,port=true,scale=1": {
+      "model": "rackcraft:block/heat_recovery_plant_on",
+      "y": 90
+    },
+    "facing=east,lit=true,formed=false,port=true,scale=2": {
+      "model": "rackcraft:block/heat_recovery_plant_on",
+      "y": 90
+    },
+    "facing=east,lit=true,formed=true,port=false,scale=0": {
       "model": "rackcraft:block/heat_recovery_plant_formed_on"
     },
-    "facing=east,lit=true,formed=true,port=true": {
+    "facing=east,lit=true,formed=true,port=false,scale=1": {
+      "model": "rackcraft:block/heat_recovery_plant_formed_large_on"
+    },
+    "facing=east,lit=true,formed=true,port=false,scale=2": {
+      "model": "rackcraft:block/heat_recovery_plant_formed_mega_on"
+    },
+    "facing=east,lit=true,formed=true,port=true,scale=0": {
       "model": "rackcraft:block/heat_recovery_plant_formed_on"
     },
-    "facing=north,lit=false,formed=false,port=false": {
+    "facing=east,lit=true,formed=true,port=true,scale=1": {
+      "model": "rackcraft:block/heat_recovery_plant_formed_large_on"
+    },
+    "facing=east,lit=true,formed=true,port=true,scale=2": {
+      "model": "rackcraft:block/heat_recovery_plant_formed_mega_on"
+    },
+    "facing=north,lit=false,formed=false,port=false,scale=0": {
       "model": "rackcraft:block/heat_recovery_plant",
       "y": 0
     },
-    "facing=north,lit=false,formed=false,port=true": {
+    "facing=north,lit=false,formed=false,port=false,scale=1": {
       "model": "rackcraft:block/heat_recovery_plant",
       "y": 0
     },
-    "facing=north,lit=false,formed=true,port=false": {
+    "facing=north,lit=false,formed=false,port=false,scale=2": {
+      "model": "rackcraft:block/heat_recovery_plant",
+      "y": 0
+    },
+    "facing=north,lit=false,formed=false,port=true,scale=0": {
+      "model": "rackcraft:block/heat_recovery_plant",
+      "y": 0
+    },
+    "facing=north,lit=false,formed=false,port=true,scale=1": {
+      "model": "rackcraft:block/heat_recovery_plant",
+      "y": 0
+    },
+    "facing=north,lit=false,formed=false,port=true,scale=2": {
+      "model": "rackcraft:block/heat_recovery_plant",
+      "y": 0
+    },
+    "facing=north,lit=false,formed=true,port=false,scale=0": {
       "model": "rackcraft:block/heat_recovery_plant_formed"
     },
-    "facing=north,lit=false,formed=true,port=true": {
+    "facing=north,lit=false,formed=true,port=false,scale=1": {
+      "model": "rackcraft:block/heat_recovery_plant_formed_large"
+    },
+    "facing=north,lit=false,formed=true,port=false,scale=2": {
+      "model": "rackcraft:block/heat_recovery_plant_formed_mega"
+    },
+    "facing=north,lit=false,formed=true,port=true,scale=0": {
       "model": "rackcraft:block/heat_recovery_plant_formed"
     },
-    "facing=north,lit=true,formed=false,port=false": {
+    "facing=north,lit=false,formed=true,port=true,scale=1": {
+      "model": "rackcraft:block/heat_recovery_plant_formed_large"
+    },
+    "facing=north,lit=false,formed=true,port=true,scale=2": {
+      "model": "rackcraft:block/heat_recovery_plant_formed_mega"
+    },
+    "facing=north,lit=true,formed=false,port=false,scale=0": {
       "model": "rackcraft:block/heat_recovery_plant_on",
       "y": 0
     },
-    "facing=north,lit=true,formed=false,port=true": {
+    "facing=north,lit=true,formed=false,port=false,scale=1": {
       "model": "rackcraft:block/heat_recovery_plant_on",
       "y": 0
     },
-    "facing=north,lit=true,formed=true,port=false": {
+    "facing=north,lit=true,formed=false,port=false,scale=2": {
+      "model": "rackcraft:block/heat_recovery_plant_on",
+      "y": 0
+    },
+    "facing=north,lit=true,formed=false,port=true,scale=0": {
+      "model": "rackcraft:block/heat_recovery_plant_on",
+      "y": 0
+    },
+    "facing=north,lit=true,formed=false,port=true,scale=1": {
+      "model": "rackcraft:block/heat_recovery_plant_on",
+      "y": 0
+    },
+    "facing=north,lit=true,formed=false,port=true,scale=2": {
+      "model": "rackcraft:block/heat_recovery_plant_on",
+      "y": 0
+    },
+    "facing=north,lit=true,formed=true,port=false,scale=0": {
       "model": "rackcraft:block/heat_recovery_plant_formed_on"
     },
-    "facing=north,lit=true,formed=true,port=true": {
+    "facing=north,lit=true,formed=true,port=false,scale=1": {
+      "model": "rackcraft:block/heat_recovery_plant_formed_large_on"
+    },
+    "facing=north,lit=true,formed=true,port=false,scale=2": {
+      "model": "rackcraft:block/heat_recovery_plant_formed_mega_on"
+    },
+    "facing=north,lit=true,formed=true,port=true,scale=0": {
       "model": "rackcraft:block/heat_recovery_plant_formed_on"
     },
-    "facing=south,lit=false,formed=false,port=false": {
+    "facing=north,lit=true,formed=true,port=true,scale=1": {
+      "model": "rackcraft:block/heat_recovery_plant_formed_large_on"
+    },
+    "facing=north,lit=true,formed=true,port=true,scale=2": {
+      "model": "rackcraft:block/heat_recovery_plant_formed_mega_on"
+    },
+    "facing=south,lit=false,formed=false,port=false,scale=0": {
       "model": "rackcraft:block/heat_recovery_plant",
       "y": 180
     },
-    "facing=south,lit=false,formed=false,port=true": {
+    "facing=south,lit=false,formed=false,port=false,scale=1": {
       "model": "rackcraft:block/heat_recovery_plant",
       "y": 180
     },
-    "facing=south,lit=false,formed=true,port=false": {
+    "facing=south,lit=false,formed=false,port=false,scale=2": {
+      "model": "rackcraft:block/heat_recovery_plant",
+      "y": 180
+    },
+    "facing=south,lit=false,formed=false,port=true,scale=0": {
+      "model": "rackcraft:block/heat_recovery_plant",
+      "y": 180
+    },
+    "facing=south,lit=false,formed=false,port=true,scale=1": {
+      "model": "rackcraft:block/heat_recovery_plant",
+      "y": 180
+    },
+    "facing=south,lit=false,formed=false,port=true,scale=2": {
+      "model": "rackcraft:block/heat_recovery_plant",
+      "y": 180
+    },
+    "facing=south,lit=false,formed=true,port=false,scale=0": {
       "model": "rackcraft:block/heat_recovery_plant_formed"
     },
-    "facing=south,lit=false,formed=true,port=true": {
+    "facing=south,lit=false,formed=true,port=false,scale=1": {
+      "model": "rackcraft:block/heat_recovery_plant_formed_large"
+    },
+    "facing=south,lit=false,formed=true,port=false,scale=2": {
+      "model": "rackcraft:block/heat_recovery_plant_formed_mega"
+    },
+    "facing=south,lit=false,formed=true,port=true,scale=0": {
       "model": "rackcraft:block/heat_recovery_plant_formed"
     },
-    "facing=south,lit=true,formed=false,port=false": {
+    "facing=south,lit=false,formed=true,port=true,scale=1": {
+      "model": "rackcraft:block/heat_recovery_plant_formed_large"
+    },
+    "facing=south,lit=false,formed=true,port=true,scale=2": {
+      "model": "rackcraft:block/heat_recovery_plant_formed_mega"
+    },
+    "facing=south,lit=true,formed=false,port=false,scale=0": {
       "model": "rackcraft:block/heat_recovery_plant_on",
       "y": 180
     },
-    "facing=south,lit=true,formed=false,port=true": {
+    "facing=south,lit=true,formed=false,port=false,scale=1": {
       "model": "rackcraft:block/heat_recovery_plant_on",
       "y": 180
     },
-    "facing=south,lit=true,formed=true,port=false": {
+    "facing=south,lit=true,formed=false,port=false,scale=2": {
+      "model": "rackcraft:block/heat_recovery_plant_on",
+      "y": 180
+    },
+    "facing=south,lit=true,formed=false,port=true,scale=0": {
+      "model": "rackcraft:block/heat_recovery_plant_on",
+      "y": 180
+    },
+    "facing=south,lit=true,formed=false,port=true,scale=1": {
+      "model": "rackcraft:block/heat_recovery_plant_on",
+      "y": 180
+    },
+    "facing=south,lit=true,formed=false,port=true,scale=2": {
+      "model": "rackcraft:block/heat_recovery_plant_on",
+      "y": 180
+    },
+    "facing=south,lit=true,formed=true,port=false,scale=0": {
       "model": "rackcraft:block/heat_recovery_plant_formed_on"
     },
-    "facing=south,lit=true,formed=true,port=true": {
+    "facing=south,lit=true,formed=true,port=false,scale=1": {
+      "model": "rackcraft:block/heat_recovery_plant_formed_large_on"
+    },
+    "facing=south,lit=true,formed=true,port=false,scale=2": {
+      "model": "rackcraft:block/heat_recovery_plant_formed_mega_on"
+    },
+    "facing=south,lit=true,formed=true,port=true,scale=0": {
       "model": "rackcraft:block/heat_recovery_plant_formed_on"
     },
-    "facing=west,lit=false,formed=false,port=false": {
+    "facing=south,lit=true,formed=true,port=true,scale=1": {
+      "model": "rackcraft:block/heat_recovery_plant_formed_large_on"
+    },
+    "facing=south,lit=true,formed=true,port=true,scale=2": {
+      "model": "rackcraft:block/heat_recovery_plant_formed_mega_on"
+    },
+    "facing=west,lit=false,formed=false,port=false,scale=0": {
       "model": "rackcraft:block/heat_recovery_plant",
       "y": 270
     },
-    "facing=west,lit=false,formed=false,port=true": {
+    "facing=west,lit=false,formed=false,port=false,scale=1": {
       "model": "rackcraft:block/heat_recovery_plant",
       "y": 270
     },
-    "facing=west,lit=false,formed=true,port=false": {
+    "facing=west,lit=false,formed=false,port=false,scale=2": {
+      "model": "rackcraft:block/heat_recovery_plant",
+      "y": 270
+    },
+    "facing=west,lit=false,formed=false,port=true,scale=0": {
+      "model": "rackcraft:block/heat_recovery_plant",
+      "y": 270
+    },
+    "facing=west,lit=false,formed=false,port=true,scale=1": {
+      "model": "rackcraft:block/heat_recovery_plant",
+      "y": 270
+    },
+    "facing=west,lit=false,formed=false,port=true,scale=2": {
+      "model": "rackcraft:block/heat_recovery_plant",
+      "y": 270
+    },
+    "facing=west,lit=false,formed=true,port=false,scale=0": {
       "model": "rackcraft:block/heat_recovery_plant_formed"
     },
-    "facing=west,lit=false,formed=true,port=true": {
+    "facing=west,lit=false,formed=true,port=false,scale=1": {
+      "model": "rackcraft:block/heat_recovery_plant_formed_large"
+    },
+    "facing=west,lit=false,formed=true,port=false,scale=2": {
+      "model": "rackcraft:block/heat_recovery_plant_formed_mega"
+    },
+    "facing=west,lit=false,formed=true,port=true,scale=0": {
       "model": "rackcraft:block/heat_recovery_plant_formed"
     },
-    "facing=west,lit=true,formed=false,port=false": {
+    "facing=west,lit=false,formed=true,port=true,scale=1": {
+      "model": "rackcraft:block/heat_recovery_plant_formed_large"
+    },
+    "facing=west,lit=false,formed=true,port=true,scale=2": {
+      "model": "rackcraft:block/heat_recovery_plant_formed_mega"
+    },
+    "facing=west,lit=true,formed=false,port=false,scale=0": {
       "model": "rackcraft:block/heat_recovery_plant_on",
       "y": 270
     },
-    "facing=west,lit=true,formed=false,port=true": {
+    "facing=west,lit=true,formed=false,port=false,scale=1": {
       "model": "rackcraft:block/heat_recovery_plant_on",
       "y": 270
     },
-    "facing=west,lit=true,formed=true,port=false": {
+    "facing=west,lit=true,formed=false,port=false,scale=2": {
+      "model": "rackcraft:block/heat_recovery_plant_on",
+      "y": 270
+    },
+    "facing=west,lit=true,formed=false,port=true,scale=0": {
+      "model": "rackcraft:block/heat_recovery_plant_on",
+      "y": 270
+    },
+    "facing=west,lit=true,formed=false,port=true,scale=1": {
+      "model": "rackcraft:block/heat_recovery_plant_on",
+      "y": 270
+    },
+    "facing=west,lit=true,formed=false,port=true,scale=2": {
+      "model": "rackcraft:block/heat_recovery_plant_on",
+      "y": 270
+    },
+    "facing=west,lit=true,formed=true,port=false,scale=0": {
       "model": "rackcraft:block/heat_recovery_plant_formed_on"
     },
-    "facing=west,lit=true,formed=true,port=true": {
+    "facing=west,lit=true,formed=true,port=false,scale=1": {
+      "model": "rackcraft:block/heat_recovery_plant_formed_large_on"
+    },
+    "facing=west,lit=true,formed=true,port=false,scale=2": {
+      "model": "rackcraft:block/heat_recovery_plant_formed_mega_on"
+    },
+    "facing=west,lit=true,formed=true,port=true,scale=0": {
       "model": "rackcraft:block/heat_recovery_plant_formed_on"
+    },
+    "facing=west,lit=true,formed=true,port=true,scale=1": {
+      "model": "rackcraft:block/heat_recovery_plant_formed_large_on"
+    },
+    "facing=west,lit=true,formed=true,port=true,scale=2": {
+      "model": "rackcraft:block/heat_recovery_plant_formed_mega_on"
     }
   }
 }

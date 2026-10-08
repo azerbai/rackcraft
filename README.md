@@ -140,6 +140,11 @@ The late game: once the cluster is big, the Operations Terminal's **R&D** tab tu
 | Distillation | Synthetic Data | 500,000 RC + 12M AI | Contract work takes 20% less compute |
 | Reactor Uprate | Titanium PSUs | 1,000,000 RC + 15M general | Modular Reactors make 20% more from the same fuel |
 | Extreme UV Lithography | Titanium PSUs, Coolant Chemistry | 2,000,000 RC + 25M general | Unlocks the Wafer Fab |
+| Structural Engineering | Reactor Uprate | 5,000,000 RC + 100M general | Cube multiblocks up to 7x7x7 |
+| Space Frame Design | Structural Engineering | 25,000,000 RC + 400M general | Cube multiblocks up to 9x9x9 |
+| Arcology | Space Frame Design | 100,000,000 RC + 1.5B general | Cube multiblocks up to 10x10x10 |
+
+Every cube multiblock (reactors, batteries, the processing and utility cubes, the Electrolyser) stops at 5x5x5 until the megastructure research is done, so a new world can't build its way straight to the end. A cube bigger than the research allows stays a pile of lone blocks, and the fault finder and its screen say which research it needs. Bigger cubes keep getting better, more gently past 5: fuel and power per core drop 2.5% per step (67.5% at 10x10x10), batteries hold 5% more per bank per step (65% more at 10) and reach 99% efficiency. Cubes from 6x6x6 to 9x9x9 wear a heavy steel casing with hazard-striped corners, and a 10x10x10 its own gold-trimmed one.
 
 **Repeatables** never end: Hash Kernel Tuning (+5% mining a level), Cooling Science (+5% sink capacity), Power Electronics (3% less rack power) and Inference Optimisation (+5% AI compute). Each level costs 2.5 times the RackCoin and twice the compute of the last.
 
@@ -223,7 +228,7 @@ Each belt carries one item, so only one robot works on it at a time; a second ro
 
 ## The Launch Programme
 
-A **Launch Control** touching a flat 3x3 **Launch Pad** (with open sky over the centre) launches payloads. Load Rocket Stages, a payload and Hydrogen Canisters (its tank holds 4,096; hoppers and Item Pipes can fill it), press Launch, and after a ten-second countdown the rocket lifts off. Every stage burns 128 canisters. About one launch in fifty fails: the stages and fuel are lost, the payload comes back.
+A **Launch Control** touching a flat 3x3 **Launch Pad** (with open sky over all nine blocks) launches payloads. The rocket is sized to the job: one stage is a slim rocket about 14 blocks tall, two stages a Saturn IB about 19, and three stages a full Saturn V three blocks across and about 37 tall. Players near the pad get the T-minus count on screen. **Launch Tower** blocks are see-through red lattice for building a service tower beside the pad; they're decoration only. Load Rocket Stages, a payload and Hydrogen Canisters (its tank holds 4,096; hoppers and Item Pipes can fill it), press Launch, and after a ten-second countdown the rocket lifts off. Every stage burns 128 canisters. About one launch in fifty fails: the stages and fuel are lost, the payload comes back.
 
 | Payload | Built from a Satellite Bus with | Stages | In orbit |
 | --- | --- | --- | --- |

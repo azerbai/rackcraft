@@ -83,6 +83,16 @@ public final class Research {
 			project("lithography", "Extreme UV Lithography", Kind.GENERAL, 2_000_000, 2.5e7, List.of("psu_titanium", "coolant_chemistry"),
 					"Unlocks the Wafer Fab, which makes Wafer-Scale Engines",
 					"Tin droplets, lasers and a machine the size of a bus. Now you can make your own chips."),
+			// Megastructures: bigger cube multiblocks, so a new world can't build a 10-cube on day one.
+			project("structural_engineering", "Structural Engineering", Kind.GENERAL, 5_000_000, 1e8, List.of("reactor_uprate"),
+					"Cube multiblocks can be built up to 7x7x7",
+					"Someone with a hard hat ran the numbers. The cube can be bigger if you stop leaning on it."),
+			project("space_frames", "Space Frame Design", Kind.GENERAL, 25_000_000, 4e8, List.of("structural_engineering"),
+					"Cube multiblocks can be built up to 9x9x9",
+					"Triangles. It was triangles all along."),
+			project("arcology", "Arcology", Kind.GENERAL, 100_000_000, 1.5e9, List.of("space_frames"),
+					"Cube multiblocks can be built up to 10x10x10",
+					"A machine so large it has its own weather, its own postcode and a cafe nobody can find."),
 			// Frontier runs
 			frontier("frontier_1", "Gemerald Ultra", 1_000_000, 2.5e7, 1_000, List.of("distillation", "enterprise_sales"),
 					"AI contracts pay 25% more",
@@ -144,8 +154,9 @@ public final class Research {
 	public record Effects(double mining, double aiCompute, double generalCompute, double rackPower, double sinkCapacity,
 			double thermalOffset, double bootScale, double trainingWork, double contractWork, double contractPay,
 			double leasePay, int leaseSlots, double reactorOutput, boolean leases, boolean lithography,
-			boolean safeHardware, boolean agi) {
-		public static final Effects NONE = new Effects(1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, false, false, false, false);
+			boolean safeHardware, boolean agi, int maxCubeEdge) {
+		public static final Effects NONE = new Effects(1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, false, false, false, false,
+				dev.rackcraft.world.ReactorArrays.BASE_EDGE);
 	}
 
 	/** The combined effect of these finished levels (0 for not done; a repeatable's level otherwise). */
@@ -174,6 +185,8 @@ public final class Research {
 				leases,
 				level.applyAsInt("lithography") > 0,
 				level.applyAsInt("predictive_maintenance") > 0,
-				agi);
+				agi,
+				level.applyAsInt("arcology") > 0 ? 10 : level.applyAsInt("space_frames") > 0 ? 9
+						: level.applyAsInt("structural_engineering") > 0 ? 7 : dev.rackcraft.world.ReactorArrays.BASE_EDGE);
 	}
 }

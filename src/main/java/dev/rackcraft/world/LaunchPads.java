@@ -112,7 +112,10 @@ public final class LaunchPads {
 		if (control.launchFlight() > 0) return Status.IN_FLIGHT;
 		BlockPos centre = padCentre(world, control.getPos());
 		if (centre == null) return Status.NO_PAD;
-		if (!world.isSkyVisible(centre.up())) return Status.NO_SKY;
+		// The big rockets are three blocks across, so the whole pad needs open sky above it.
+		for (BlockPos pos : BlockPos.iterate(centre.add(-1, 1, -1), centre.add(1, 1, 1))) {
+			if (!world.isSkyVisible(pos)) return Status.NO_SKY;
+		}
 		int needed = stagesFor(control.getStack(PAYLOAD_SLOT));
 		if (needed == 0) return Status.NO_PAYLOAD;
 		if (stagesLoaded(control) < needed) return Status.NO_STAGES;
@@ -135,7 +138,11 @@ public final class LaunchPads {
 				}
 			}
 			if (control.launchCountdown() > 0) {
+				int before = (control.launchCountdown() + 19) / 20;
 				control.setLaunchCountdown(control.launchCountdown() - steps);
+				int after = (control.launchCountdown() + 19) / 20;
+				// Everyone near the pad hears the count, second by second.
+				if (after != before) countdown(world, control.getPos(), after);
 				if (control.launchCountdown() <= 0) control.setLaunchFlight(FLIGHT_TICKS);
 			} else if (control.launchFlight() > 0) {
 				control.setLaunchFlight(control.launchFlight() - steps);
@@ -222,6 +229,17 @@ public final class LaunchPads {
 		else ItemScatterer.spawn(world, control.getPos().getX() + 0.5, control.getPos().getY() + 1.2, control.getPos().getZ() + 0.5, stack);
 	}
 
+	private static void countdown(ServerWorld world, BlockPos pos, int seconds) {
+		Text text = seconds > 0 ? Text.literal("T-" + seconds).formatted(seconds <= 3 ? Formatting.RED : Formatting.GOLD, Formatting.BOLD)
+				: Text.literal("LIFTOFF").formatted(Formatting.GREEN, Formatting.BOLD);
+		for (ServerPlayerEntity player : world.getPlayers()) {
+			if (!player.getBlockPos().isWithinDistance(pos, 160)) continue;
+			player.sendMessage(text, true);
+			player.playSound(seconds > 0 ? net.minecraft.sound.SoundEvents.BLOCK_NOTE_BLOCK_PLING.value()
+					: net.minecraft.sound.SoundEvents.BLOCK_BELL_USE, net.minecraft.sound.SoundCategory.BLOCKS, 0.8f, seconds > 0 ? 1.2f : 0.8f);
+		}
+	}
+
 	private static void announce(ServerWorld world, BlockPos pos, Text message) {
 		for (ServerPlayerEntity player : world.getPlayers()) {
 			if (player.getBlockPos().isWithinDistance(pos, 256)) player.sendMessage(message, false);
@@ -232,7 +250,7 @@ public final class LaunchPads {
 		return switch (status) {
 			case READY -> "ready";
 			case NO_PAD -> "it isn't touching a whole 3x3 Launch Pad";
-			case NO_SKY -> "the pad's centre can't see the sky";
+			case NO_SKY -> "something is over the pad: all nine blocks need open sky";
 			case NO_PAYLOAD -> "no payload loaded";
 			case NO_STAGES -> "not enough Rocket Stages";
 			case NO_FUEL -> "not enough hydrogen in the tank";

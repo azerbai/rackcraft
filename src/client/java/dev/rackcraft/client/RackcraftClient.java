@@ -43,6 +43,8 @@ public final class RackcraftClient implements ClientModInitializer {
 		ScreenRegistry.register(RcScreenHandlers.DARKNET, dev.rackcraft.client.screen.DarknetScreen::new);
 		ScreenRegistry.register(RcScreenHandlers.WORKCELL, dev.rackcraft.client.screen.WorkcellScreen::new);
 		ScreenRegistry.register(RcScreenHandlers.LAUNCH, dev.rackcraft.client.screen.LaunchScreen::new);
+		net.fabricmc.fabric.api.blockrenderlayer.v1.BlockRenderLayerMap.INSTANCE.putBlock(dev.rackcraft.RcBlocks.get("launch_tower"),
+				net.minecraft.client.render.RenderLayer.getCutout());
 		net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry.register(dev.rackcraft.entity.RcEntities.ROCKET,
 				dev.rackcraft.client.render.RocketRenderer::new);
 		net.minecraft.client.render.block.entity.BlockEntityRendererFactories.register(dev.rackcraft.RcBlocks.BELT_ENTITY,

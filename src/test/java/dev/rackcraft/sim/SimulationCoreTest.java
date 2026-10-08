@@ -45,6 +45,19 @@ final class SimulationCoreTest {
 	}
 
 	@Test
+	void beamedPowerIsDrawnFirstAndNeverSold() {
+		PowerSolver.Source beamed = new PowerSolver.Source("rectenna", PowerSolver.SourceKind.BEAMED, 6);
+		PowerSolver.Source solar = new PowerSolver.Source("solar", PowerSolver.SourceKind.SOLAR, 10);
+		PowerSolver.Result result = PowerSolver.solve(List.of(
+				new PowerSolver.Sink("rack", 1, 4),
+				new PowerSolver.Sink("substation", 3, 1000, true)),
+				List.of(solar, beamed), 0.5);
+		// The rack runs on the swarm's power; only the solar panel's untouched 10 kW is sold.
+		assertEquals(4, result.sourceOutputKw().get("rectenna"), 1e-9);
+		assertEquals(0.010, result.satisfaction().get("substation"), 1e-9);
+	}
+
+	@Test
 	void exportNeverDrainsABattery() {
 		PowerSolver.Source battery = new PowerSolver.Source("battery", PowerSolver.SourceKind.BATTERY, 0, 100, 100, 15, 60);
 		PowerSolver.Result result = PowerSolver.solve(List.of(new PowerSolver.Sink("substation", 3, 1000, true)),

@@ -12,7 +12,7 @@ import net.minecraft.text.Text;
  * cube is doing and what it needs, and on the port core, a button that empties every product in the cube.
  */
 public final class ProcessorScreen extends RackcraftHandledScreen {
-	private static final String[] STATES = {"Running", "Not formed: build a solid cube of 2x2x2 to 5x5x5",
+	private static final String[] STATES = {"Running", "Not formed: build a solid cube, 2x2x2 or bigger",
 			"Idle: waiting for input", "Stopped: output full, empty the port", "Stopped: not enough power (under 10%)",
 			"Locked: needs EUV Lithography research", "Running slowly: short of power",
 			"Stopped: needs water against the cube"};
@@ -30,7 +30,8 @@ public final class ProcessorScreen extends RackcraftHandledScreen {
 			case 1, 5, 6 -> WARN;
 			default -> BAD;
 		};
-		wrappedClamped(context, Text.literal(STATES[state]), 8, 30, 160, 1, color);
+		String headline = state == 1 ? dev.rackcraft.world.ReactorArrays.notFormed(stat(Stat.LOCKED_CUBE)) : STATES[state];
+		wrappedClamped(context, Text.literal(headline), 8, 30, 160, 1, color);
 		int edge = Math.max(1, stat(Stat.ARRAY_EDGE));
 		line(context, edge > 1 ? "Array " + edge + "x" + edge + "x" + edge + ": " + edge * edge * edge + " cores, " + kw(stat(Stat.POWER))
 				: "Single block: not a multiblock yet", 8, 41, edge > 1 ? TEXT : MUTED);

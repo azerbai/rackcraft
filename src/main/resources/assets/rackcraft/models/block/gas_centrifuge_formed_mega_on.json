@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/cube_all",
+  "textures": {
+    "all": "rackcraft:block/gas_centrifuge_formed_mega_on"
+  }
+}

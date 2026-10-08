@@ -441,7 +441,8 @@ def main():
                 for alert in ("warn", "fault"):
                     write_json(RESOURCES / f"assets/rackcraft/models/block/{identifier}_{alert}.json", machine_model(identifier, f"front_{alert}"))
             if block.get("array"):
-                for suffix in ("formed", "formed_on") + (("port", "port_on") if identifier not in NO_PORT else ()):
+                kinds = ("formed",) + (("port",) if identifier not in NO_PORT else ())
+                for suffix in [f"{kind}{size}{lit}" for kind in kinds for size in ("", "_large", "_mega") for lit in ("", "_on")]:
                     write_json(RESOURCES / f"assets/rackcraft/models/block/{identifier}_{suffix}.json", {
                         "parent": "minecraft:block/cube_all", "textures": {"all": f"rackcraft:block/{identifier}_{suffix}"}})
         else:
@@ -460,13 +461,16 @@ def main():
             if block.get("array"):
                 # A formed cube shows its casing on every face; facing doesn't matter then. Its port core (where the
                 # products gather) gets the port face; Grid-Scale Batteries make nothing, so they have no port.
-                def formed_model(key, port):
+                # Bigger cubes wear their own casing: scale 1 for 6x6x6 to 9x9x9, scale 2 for 10x10x10.
+                sizes = {0: "", 1: "_large", 2: "_mega"}
+                def formed_model(key, port, scale):
                     lit = "_on" if "lit=true" in key else ""
                     kind = "port" if port and identifier not in NO_PORT else "formed"
-                    return {"model": f"rackcraft:block/{identifier}_{kind}{lit}"}
-                variants = {f"{key},formed={str(formed).lower()},port={str(port).lower()}": (
-                    formed_model(key, port) if formed else value)
-                    for key, value in variants.items() for formed in (False, True) for port in (False, True)}
+                    return {"model": f"rackcraft:block/{identifier}_{kind}{sizes[scale]}{lit}"}
+                variants = {f"{key},formed={str(formed).lower()},port={str(port).lower()},scale={scale}": (
+                    formed_model(key, port, scale) if formed else value)
+                    for key, value in variants.items() for formed in (False, True) for port in (False, True)
+                    for scale in (0, 1, 2)}
             if identifier == "server_rack":
                 # Health: amber for a slowed rack, red for a stopped one, whether or not it is lit. Only the Server Rack
                 # has the property; the Creative Rack shares its face but not its health.
@@ -735,6 +739,9 @@ def main():
     entity_textures.mkdir(parents=True, exist_ok=True)
     (entity_textures / "maintenance_drone.png").write_bytes(textures.drone_parts())
     (entity_textures / "rocket.png").write_bytes(textures.rocket_parts())
+    (entity_textures / "rocket_first_stage.png").write_bytes(textures.rocket_first_stage())
+    (entity_textures / "rocket_second_stage.png").write_bytes(textures.rocket_second_stage())
+    (entity_textures / "rocket_third_stage.png").write_bytes(textures.rocket_third_stage())
     # The Survey Satellite looks for this one.
     write_json(RESOURCES / "data/rackcraft/tags/worldgen/structure/campus.json",
                {"replace": False, "values": [f"rackcraft:{CAMPUS[0]}"]})

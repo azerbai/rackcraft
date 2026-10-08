@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/cube_all",
+  "textures": {
+    "all": "rackcraft:block/silicon_foundry_port_mega"
+  }
+}

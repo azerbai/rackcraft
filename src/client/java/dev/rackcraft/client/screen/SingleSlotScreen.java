@@ -55,10 +55,10 @@ public final class SingleSlotScreen extends RackcraftHandledScreen {
 			line(context, "Spin-up", 104, 76, MUTED);
 			bar(context, 104, 86, 64, spinup / 20.0, 0xFF5BA7E0);
 		} else {
-			// A lone reactor; a solid 2x2x2 to 5x5x5 cube of them runs as one array.
+			// A lone reactor; a solid cube of them (2x2x2 up to what research allows) runs as one array.
 			int edge = Math.max(1, stat(Stat.ARRAY_EDGE));
 			line(context, edge > 1 ? "Array " + edge + "x" + edge + "x" + edge : "Single core", 104, 76, edge > 1 ? GOOD : MUTED);
-			if (edge > 1) line(context, (100 - Math.round(5 * (edge - 1))) + "% fuel/core", 104, 87, MUTED);
+			if (edge > 1) line(context, Math.round(dev.rackcraft.world.ReactorArrays.efficiency(edge) * 100) + "% fuel/core", 104, 87, MUTED);
 		}
 		// The grid lines run full width below both columns, so long figures can't run into the bars.
 		int delivered = stat(Stat.NETWORK_DELIVERED);

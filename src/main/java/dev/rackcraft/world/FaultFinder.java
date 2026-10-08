@@ -63,6 +63,11 @@ public final class FaultFinder {
 		java.util.Set<String> reported = new java.util.HashSet<>();
 		for (MachineBlockEntity machine : machines) {
 			BlockPos pos = machine.getPos();
+			// Any cube machine (reactors and batteries too) in a cube bigger than the research allows.
+			if (machine.lockedCube() > 0) {
+				faults.add(new Fault(pos, 1, notWhole(machine)));
+				continue;
+			}
 			switch (machine.blockId()) {
 				case "server_rack" -> {
 					RackBlock.Health health = RackBlock.Health.of(machine.rackStatus());
@@ -97,7 +102,7 @@ public final class FaultFinder {
 				case "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer", "wafer_fab", "silicon_foundry", "ewaste_recycler",
 						"electrolyser" -> {
 					int status = machine.processStatus();
-					if (status == NuclearProcessing.Status.NOT_FORMED.ordinal()) faults.add(new Fault(pos, 1, "Not a whole cube"));
+					if (status == NuclearProcessing.Status.NOT_FORMED.ordinal()) faults.add(new Fault(pos, 1, notWhole(machine)));
 					else if (status == NuclearProcessing.Status.NO_POWER.ordinal()) faults.add(new Fault(pos, 2, "Multiblock: no power"));
 					else if (status == NuclearProcessing.Status.OUTPUT_FULL.ordinal()) faults.add(new Fault(pos, 1, "Multiblock: output full"));
 					else if (status == NuclearProcessing.Status.LOCKED.ordinal()) faults.add(new Fault(pos, 1, "Wafer Fab: needs EUV Lithography research"));
@@ -126,16 +131,16 @@ public final class FaultFinder {
 				}
 				case "desalination_plant" -> {
 					int status = machine.pumpStatus();
-					if (machine.reactorArraySize() < 2) faults.add(new Fault(pos, 1, "Not a whole cube"));
+					if (machine.reactorArraySize() < 2) faults.add(new Fault(pos, 1, notWhole(machine)));
 					else if (status == FreshwaterCooling.PumpStatus.NO_POWER.ordinal()) faults.add(new Fault(pos, 2, "Desalination: no power"));
 					else if (status == FreshwaterCooling.PumpStatus.NO_WATER.ordinal()) faults.add(new Fault(pos, 2, "Desalination: not touching water"));
 				}
 				case "heat_recovery_plant" -> {
-					if (machine.reactorArraySize() < 2) faults.add(new Fault(pos, 1, "Not a whole cube"));
+					if (machine.reactorArraySize() < 2) faults.add(new Fault(pos, 1, notWhole(machine)));
 					else if (machine.coolingDetail() == 0) faults.add(new Fault(pos, 1, "Heat recovery: no villagers nearby"));
 				}
 				case "grid_substation" -> {
-					if (machine.reactorArraySize() < 2) faults.add(new Fault(pos, 1, "Not a whole cube"));
+					if (machine.reactorArraySize() < 2) faults.add(new Fault(pos, 1, notWhole(machine)));
 				}
 				default -> {}
 			}
@@ -147,6 +152,12 @@ public final class FaultFinder {
 			}
 		}
 		return faults;
+	}
+
+	/** A lone cube machine: not part of a whole cube, or part of one bigger than the research allows. */
+	private static String notWhole(MachineBlockEntity machine) {
+		int locked = machine.lockedCube();
+		return locked > 0 ? "Cube too big: " + locked + "x" + locked + "x" + locked + " needs " + ReactorArrays.researchFor(locked) : "Not a whole cube";
 	}
 
 	public static String describe(RackStatus status) {

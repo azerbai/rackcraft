@@ -111,8 +111,9 @@ public final class SimTicker {
 			if (!machine.blockId().equals("server_rack")) machine.setPowerKw(0);
 		}
 		RECTENNAS.put(world, LaunchPads.rectennas(world, machines));
-		Map<MachineBlockEntity, ReactorArrays.Array> reactors = ReactorArrays.scan(machines);
-		Map<MachineBlockEntity, ReactorArrays.Array> arrays = ReactorArrays.scanAll(machines);
+		int maxEdge = ReactorArrays.maxEdge(world);
+		Map<MachineBlockEntity, ReactorArrays.Array> reactors = ReactorArrays.scan(machines, maxEdge);
+		Map<MachineBlockEntity, ReactorArrays.Array> arrays = ReactorArrays.scanAll(machines, maxEdge);
 		Map<String, ReactorArrays.Array> exportSinks = new HashMap<>();
 		Map<ReactorArrays.Array, Double> exported = new HashMap<>();
 
@@ -375,9 +376,9 @@ public final class SimTicker {
 			case "utility_intake" -> new PowerSolver.Source(id(machine), PowerSolver.SourceKind.UTILITY,
 					FacilityManager.get(world).activeEvent().equals("utility_outage") ? 0 : 100);
 			case "diesel_generator" -> dieselSource(machine);
-			// Beamed down from the Dyson swarm: steady, day and night, and (as a UTILITY source) never resold.
+			// Beamed down from the Dyson swarm: steady, day and night, drawn first and never resold.
 			case "rectenna" -> world.isSkyVisible(machine.getPos().up())
-					? new PowerSolver.Source(id(machine), PowerSolver.SourceKind.UTILITY, OrbitState.rectennaKw(world, rectennaCount(world))) : null;
+					? new PowerSolver.Source(id(machine), PowerSolver.SourceKind.BEAMED, OrbitState.rectennaKw(world, rectennaCount(world))) : null;
 			case "creative_power" -> new PowerSolver.Source(id(machine), PowerSolver.SourceKind.UTILITY,
 					machine.creativeValue(CreativeSettings.OUTPUT_KW));
 		default -> null;
@@ -411,14 +412,17 @@ public final class SimTicker {
 	private static final double BATTERY_IN_KW = 15;
 	private static final double BATTERY_OUT_KW = 60;
 
-	/** Capacity per bank in a Grid-Scale Battery of this edge: 10% more per step up in size. */
+	/** Capacity per bank in a Grid-Scale Battery of this edge: 10% more per step up to a 5-cube, then 5% more per step (65% at 10). */
 	public static double batteryCapacityPerBank(int edge) {
-		return BATTERY_KWS * (1 + 0.1 * (Math.max(1, edge) - 1));
+		int clamped = Math.max(1, Math.min(ReactorArrays.MAX_EDGE, edge));
+		double bonus = clamped <= ReactorArrays.BASE_EDGE ? 0.1 * (clamped - 1) : 0.4 + 0.05 * (clamped - ReactorArrays.BASE_EDGE);
+		return BATTERY_KWS * (1 + bonus);
 	}
 
-	/** One-way efficiency (charging, and again discharging): 90% for a lone bank, up to 98% for a 5-cube. */
+	/** One-way efficiency (charging, and again discharging): 90% for a lone bank, 98% for a 5-cube, 99% for a 10-cube. */
 	public static double batteryEfficiency(int edge) {
-		return 0.9 + 0.02 * (Math.max(1, edge) - 1);
+		int clamped = Math.max(1, Math.min(ReactorArrays.MAX_EDGE, edge));
+		return clamped <= ReactorArrays.BASE_EDGE ? 0.9 + 0.02 * (clamped - 1) : 0.98 + 0.002 * (clamped - ReactorArrays.BASE_EDGE);
 	}
 
 	/**
@@ -541,16 +545,21 @@ public final class SimTicker {
 		return seconds <= 0 ? 1 : Math.min(1, rack.bootProgress() + dt / seconds);
 	}
 
-	/** Multiblock cores switch to their array casing while they are part of a whole cube. */
+	/**
+	 * Multiblock cores switch to their array casing while they are part of a whole cube: one casing up to 5x5x5,
+	 * another for 6x6x6 to 9x9x9, and its own for a 10x10x10. A cube too big for the research done remembers its size.
+	 */
 	private static void updateFormedStates(ServerWorld world, Map<MachineBlockEntity, ReactorArrays.Array> arrays) {
 		arrays.forEach((machine, array) -> {
+			machine.setLockedCube(array.locked());
 			BlockState state = machine.getCachedState();
 			boolean formed = array.edge() >= 2;
 			boolean port = formed && machine == array.controller() && ReactorArrays.hasPort(machine.blockId());
-			if (state.contains(ArrayMachineBlock.FORMED)
-					&& (state.get(ArrayMachineBlock.FORMED) != formed || state.get(ArrayMachineBlock.PORT) != port)) {
-				world.setBlockState(machine.getPos(), state.with(ArrayMachineBlock.FORMED, formed).with(ArrayMachineBlock.PORT, port),
-						net.minecraft.block.Block.NOTIFY_LISTENERS);
+			int scale = formed ? ArrayMachineBlock.scaleFor(array.edge()) : 0;
+			if (state.contains(ArrayMachineBlock.FORMED) && (state.get(ArrayMachineBlock.FORMED) != formed
+					|| state.get(ArrayMachineBlock.PORT) != port || state.get(ArrayMachineBlock.SCALE) != scale)) {
+				world.setBlockState(machine.getPos(), state.with(ArrayMachineBlock.FORMED, formed).with(ArrayMachineBlock.PORT, port)
+						.with(ArrayMachineBlock.SCALE, scale), net.minecraft.block.Block.NOTIFY_LISTENERS);
 			}
 		});
 	}

@@ -38,7 +38,7 @@ public final class RackcraftSelfTest {
 		RackcraftConfig.values.events.enabled = false;
 		dev.rackcraft.compute.ResearchLab.get(server.getOverworld()).reset();
 		dev.rackcraft.world.OrbitState.get(server.getOverworld()).reset();
-		check("S0.a", RcBlocks.BLOCKS.size() == 66 && RcItems.ITEMS.size() == 62,
+		check("S0.a", RcBlocks.BLOCKS.size() == 67 && RcItems.ITEMS.size() == 62,
 				"blocks=" + RcBlocks.BLOCKS.size() + " items=" + RcItems.ITEMS.size(), failures);
 		ServerWorld world = server.getOverworld();
 		BlockPos generatorPos = new BlockPos(0, 80, 0);
@@ -123,6 +123,7 @@ public final class RackcraftSelfTest {
 		checkUtilities(world, failures);
 		checkIndustry(world, failures);
 		checkLaunch(world, failures);
+		checkMegastructures(world, failures);
 		checkStructures(world, failures);
 		check("S0.b", SimTicker.failedSteps() == 0, "simulation steps that threw=" + SimTicker.failedSteps(), failures);
 		Rackcraft.LOGGER.info("RACKCRAFT_SELFTEST DONE failures={}", failures[0]);
@@ -1103,7 +1104,11 @@ public final class RackcraftSelfTest {
 				"tooltip=" + lines, failures);
 		check("I2.c", ExchangeCatalog.price(RcItems.ITEMS.get("hydrogen_canister")) == null
 						&& ExchangeCatalog.price(RcItems.ITEMS.get("maintenance_drone")) == null
-						&& ExchangeCatalog.price(RcItems.ITEMS.get("electric_motor")) != null,
+						&& ExchangeCatalog.price(RcItems.ITEMS.get("electric_motor")) != null
+						&& ExchangeCatalog.price(RcItems.ITEMS.get("comms_satellite")) == null
+						&& ExchangeCatalog.price(RcItems.ITEMS.get("rocket_stage")) == null
+						&& ExchangeCatalog.price(RcItems.ITEMS.get("dyson_mirror")) == null
+						&& ExchangeCatalog.price(RcItems.ITEMS.get("satellite_bus")) != null,
 				"hydrogen=" + ExchangeCatalog.price(RcItems.ITEMS.get("hydrogen_canister")) + " drone="
 						+ ExchangeCatalog.price(RcItems.ITEMS.get("maintenance_drone")), failures);
 
@@ -1249,6 +1254,45 @@ public final class RackcraftSelfTest {
 				net.minecraft.entity.Entity::isAlive).forEach(net.minecraft.entity.Entity::discard);
 		orbit.reset();
 		clearArea(world, origin, 30, 12, 20);
+	}
+
+	/**
+	 * Bigger cubes: a 6x6x6 of Battery Banks stays lone blocks (saying what research it needs) until Structural
+	 * Engineering is done, then forms with the large casing; a 10x10x10 forms after Arcology, with its own casing.
+	 */
+	private static void checkMegastructures(ServerWorld world, int[] failures) {
+		BlockPos origin = clearArea(world, new BlockPos(-2000, 150, -1536), 12, 12, 12);
+		dev.rackcraft.compute.ResearchLab lab = dev.rackcraft.compute.ResearchLab.get(world);
+		lab.reset();
+		for (BlockPos pos : BlockPos.iterate(origin, origin.add(5, 5, 5))) world.setBlockState(pos, RcBlocks.get("battery_bank").getDefaultState());
+		for (int step = 0; step < 2; step++) SimTicker.stepNow(world);
+		MachineBlockEntity corner = machine(world, origin);
+		boolean lockedFormed = world.getBlockState(origin).get(dev.rackcraft.block.ArrayMachineBlock.FORMED);
+		check("G1.a", corner.lockedCube() == 6 && corner.reactorArraySize() == 1 && !lockedFormed
+						&& dev.rackcraft.world.FaultFinder.faults(world, SimTicker.machines(world)).stream()
+								.anyMatch(fault -> fault.label().contains("Structural Engineering")),
+				"locked=" + corner.lockedCube() + " edge=" + corner.reactorArraySize() + " formed=" + lockedFormed, failures);
+		lab.complete(world, dev.rackcraft.compute.Research.get("structural_engineering"));
+		for (int step = 0; step < 2; step++) SimTicker.stepNow(world);
+		var state = world.getBlockState(origin);
+		check("G1.b", corner.reactorArraySize() == 6 && corner.lockedCube() == 0 && state.get(dev.rackcraft.block.ArrayMachineBlock.FORMED)
+						&& state.get(dev.rackcraft.block.ArrayMachineBlock.SCALE) == 1
+						&& SimTicker.batteryCapacityPerBank(6) > SimTicker.batteryCapacityPerBank(5) && SimTicker.batteryEfficiency(10) < 1
+						&& dev.rackcraft.world.ReactorArrays.efficiency(10) < dev.rackcraft.world.ReactorArrays.efficiency(5),
+				"edge=" + corner.reactorArraySize() + " scale=" + state.get(dev.rackcraft.block.ArrayMachineBlock.SCALE)
+						+ " efficiency10=" + SimTicker.batteryEfficiency(10), failures);
+
+		for (BlockPos pos : BlockPos.iterate(origin, origin.add(9, 9, 9))) world.setBlockState(pos, RcBlocks.get("battery_bank").getDefaultState());
+		lab.complete(world, dev.rackcraft.compute.Research.get("space_frames"));
+		lab.complete(world, dev.rackcraft.compute.Research.get("arcology"));
+		for (int step = 0; step < 2; step++) SimTicker.stepNow(world);
+		corner = machine(world, origin);
+		state = world.getBlockState(origin);
+		check("G1.c", corner.reactorArraySize() == 10 && state.get(dev.rackcraft.block.ArrayMachineBlock.SCALE) == 2
+						&& dev.rackcraft.world.ReactorArrays.maxEdge(world) == 10,
+				"edge=" + corner.reactorArraySize() + " scale=" + state.get(dev.rackcraft.block.ArrayMachineBlock.SCALE), failures);
+		lab.reset();
+		clearArea(world, origin, 12, 12, 12);
 	}
 
 	/** Steps the simulation through a launch's countdown and flight. */

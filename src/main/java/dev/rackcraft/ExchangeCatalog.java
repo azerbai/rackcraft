@@ -82,6 +82,9 @@ public final class ExchangeCatalog {
 				|| path.endsWith("command_block") || path.equals("command_block_minecart")) return false;
 		if (item instanceof BlockItem blockItem && blockItem.getBlock() instanceof OperatorBlock) return false;
 		if (id.getNamespace().equals(Rackcraft.MOD_ID) && dev.rackcraft.generated.ContentIds.CREATIVE_IDS.contains(path)) return false;
+		// Whatever the Assembly Line makes (drones, rocket stages, payloads) has to be built: no recipe price would
+		// otherwise leave it on the cheap fallback.
+		if (dev.rackcraft.world.AssemblyLine.recipes().stream().anyMatch(recipe -> recipe.product() == item)) return false;
 		return item.isEnabled(features);
 	}
 

@@ -33,6 +33,8 @@ public final class RcBlocks {
 				case "fiber_cable" -> new CableBlock(settings, NetKind.DATA);
 				case "item_pipe" -> new CableBlock(settings, NetKind.ITEM);
 				case "server_rack" -> new dev.rackcraft.block.RackBlock(settings);
+				// See-through lattice: non-opaque so the blocks behind it still draw.
+				case "launch_tower" -> new Block(settings.nonOpaque());
 				case "conveyor_belt" -> new dev.rackcraft.block.ConveyorBeltBlock(settings.strength(1.5f, 6.0f).nonOpaque());
 				case "welding_arm", "riveting_arm", "assembly_arm" -> new dev.rackcraft.block.RobotArmBlock(settings.nonOpaque());
 				default -> ContentIds.ARRAY_IDS.contains(id) ? new dev.rackcraft.block.ArrayMachineBlock(settings)
