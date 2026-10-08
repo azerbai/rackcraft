@@ -22,7 +22,9 @@ public enum RackStatus {
 	/** Lent to a Compute Lease client. */
 	LEASED(false),
 	/** Quantum Annealers inside and no cold Cryostat beside it. */
-	NEEDS_CRYOSTAT(false);
+	NEEDS_CRYOSTAT(false),
+	/** Working, but nothing in it mines (Tensor Accelerators, NPUs, crafting hardware): it waits for compute work. */
+	NO_MINERS(false);
 
 	private final boolean mining;
 

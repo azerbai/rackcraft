@@ -250,7 +250,7 @@ public final class SimTicker {
 					+ (heatWave ? HEAT_WAVE_K : 0);
 			// Research can widen the envelope: the rack is rated for hotter air, so it throttles and trips later.
 			double rated = inlet - research.thermalOffset();
-			boolean hasCdu = adjacentMachine(machines, rack.getPos(), "cdu");
+			boolean hasCdu = adjacentMachine(byPos, rack.getPos(), "cdu");
 			boolean cryostat = !Cryostats.beside(rack.getPos(), byPos, satisfaction).isEmpty();
 			if (supplied < 0.5) rack.setTripped(true);
 			// Racks boot slowly once they have power, and go cold again when they lose it.
@@ -360,9 +360,11 @@ public final class SimTicker {
 		if (world.getTime() % 20 < Math.max(1, RackcraftConfig.values.sim.stepTicks)) RackcraftNetworking.sendHud(world, machines);
 		List<MachineBlockEntity> racks = machines.stream().filter(Racks::isRack).toList();
 		Map<MachineBlockEntity, RackStatus> lent = ComputeScheduler.tick(world, racks, dt);
-		awardCredits(world, machines, rackSteps, networks, satisfaction, lent, dt);
+		// Each fiber network's bandwidth and demand, worked out once a step and shared by its racks and routers.
+		Map<Set<BlockPos>, double[]> dataStats = new java.util.IdentityHashMap<>();
+		awardCredits(world, machines, rackSteps, networks, satisfaction, lent, dataStats, dt);
 		updateRackHealth(world, racks);
-		updateRouters(world, machines, networks);
+		updateRouters(world, machines, networks, dataStats);
 		FaultFinder.send(world, machines);
 		// The darknet runs wherever a terminal is loaded, or once it has been used: auctions and parcels keep their clocks.
 		dev.rackcraft.darknet.DarknetMarket darknet = machines.stream().anyMatch(machine -> machine.blockId().equals("darknet_terminal"))
@@ -529,33 +531,38 @@ public final class SimTicker {
 	}
 
 	/** Routers report their fiber network: bandwidth, what its racks need, and how many racks it carries. */
-	private static void updateRouters(ServerWorld world, List<MachineBlockEntity> machines, NetworkManager networks) {
-		Map<Set<BlockPos>, double[]> byNetwork = new java.util.IdentityHashMap<>();
+	private static void updateRouters(ServerWorld world, List<MachineBlockEntity> machines, NetworkManager networks,
+			Map<Set<BlockPos>, double[]> dataStats) {
 		for (MachineBlockEntity router : machines) {
 			String id = router.blockId();
 			if (!id.equals("uplink_router") && !id.equals("core_router") && !id.equals("creative_router")) continue;
-			double[] stats = byNetwork.computeIfAbsent(networks.component(router.getPos(), NetKind.DATA), network -> {
-				double bandwidth = 0;
-				double demand = 0;
-				int racks = 0;
-				for (BlockPos pos : network) {
-					if (!(world.getBlockEntity(pos) instanceof MachineBlockEntity member)) continue;
-					switch (member.blockId()) {
-						case "uplink_router" -> bandwidth += 100;
-						case "core_router" -> bandwidth += 1000;
-						case "creative_router" -> bandwidth += member.creativeValue(CreativeSettings.BANDWIDTH);
-						default -> {
-							if (Racks.isRack(member)) {
-								racks++;
-								demand += Racks.bandwidthNeed(member);
-							}
+			double[] stats = dataStats(world, networks.component(router.getPos(), NetKind.DATA), dataStats);
+			router.setDataNetwork(stats[0], stats[1], (int) stats[2]);
+		}
+	}
+
+	/** A fiber network's router bandwidth, what its racks' mining needs of it, and how many racks; cached for the step. */
+	private static double[] dataStats(ServerWorld world, Set<BlockPos> network, Map<Set<BlockPos>, double[]> cache) {
+		return cache.computeIfAbsent(network, ignored -> {
+			double bandwidth = 0;
+			double demand = 0;
+			int racks = 0;
+			for (BlockPos pos : network) {
+				if (!(world.getBlockEntity(pos) instanceof MachineBlockEntity member)) continue;
+				switch (member.blockId()) {
+					case "uplink_router" -> bandwidth += 100;
+					case "core_router" -> bandwidth += 1000;
+					case "creative_router" -> bandwidth += member.creativeValue(CreativeSettings.BANDWIDTH);
+					default -> {
+						if (Racks.isRack(member)) {
+							racks++;
+							demand += Racks.bandwidthNeed(member);
 						}
 					}
 				}
-				return new double[] {bandwidth, demand, racks};
-			});
-			router.setDataNetwork(stats[0], stats[1], (int) stats[2]);
-		}
+			}
+			return new double[] {bandwidth, demand, racks};
+		});
 	}
 
 	/** How far a rack will have booted after this step if it gets its power, which is what it asks the grid for. */
@@ -814,31 +821,26 @@ public final class SimTicker {
 
 	private static void awardCredits(ServerWorld world, List<MachineBlockEntity> machines,
 			Map<MachineBlockEntity, ServerModel.RackStep> rackSteps, NetworkManager networks,
-			Map<MachineBlockEntity, Double> satisfaction, Map<MachineBlockEntity, RackStatus> lent, double dt) {
+			Map<MachineBlockEntity, Double> satisfaction, Map<MachineBlockEntity, RackStatus> lent,
+			Map<Set<BlockPos>, double[]> dataStats, double dt) {
 		FacilityManager facility = FacilityManager.get(world);
 		double mining = ResearchLab.effects(world).mining();
 		double facilityRate = 0;
 		int miningRacks = 0;
+		int lentRacks = 0;
 		for (Map.Entry<MachineBlockEntity, ServerModel.RackStep> entry : rackSteps.entrySet()) {
 			MachineBlockEntity rack = entry.getKey();
 			ServerModel.RackStep result = entry.getValue();
-			Set<BlockPos> dataNetwork = networks.component(rack.getPos(), NetKind.DATA);
-			double bandwidth = 0;
-			double demand = 0;
-			for (BlockPos pos : dataNetwork) {
-				MachineBlockEntity endpoint = world.getBlockEntity(pos) instanceof MachineBlockEntity value ? value : null;
-				if (endpoint == null) continue;
-				if (endpoint.blockId().equals("uplink_router")) bandwidth += 100;
-				if (endpoint.blockId().equals("core_router")) bandwidth += 1000;
-				if (endpoint.blockId().equals("creative_router")) bandwidth += endpoint.creativeValue(CreativeSettings.BANDWIDTH);
-				if (Racks.isRack(endpoint)) demand += Racks.bandwidthNeed(endpoint);
-			}
+			double[] stats = dataStats(world, networks.component(rack.getPos(), NetKind.DATA), dataStats);
+			double bandwidth = stats[0];
+			double demand = stats[1];
 			double rate = bandwidth > 0 && demand > 0
 					? result.creditsPerSecond() * Math.min(1, bandwidth / demand) * mining : 0;
 			RackStatus status;
 			RackStatus lentAs = lent.get(rack);
 			if (lentAs != null) {
 				rack.setMining(lentAs, 0);
+				lentRacks++;
 				continue;
 			}
 			if (rack.modules().isEmpty()) status = RackStatus.EMPTY;
@@ -849,6 +851,7 @@ public final class SimTicker {
 			else if (result.waterBlocked()) status = RackStatus.NEEDS_WATER;
 			else if (result.thermalFactor() <= 0) status = RackStatus.OVERHEATED;
 			else if (bandwidth <= 0) status = RackStatus.NO_NETWORK;
+			else if (rack.modules().stream().allMatch(module -> module.creditsPerSecond() == 0)) status = RackStatus.NO_MINERS;
 			else if (rack.bootProgress() < 1) status = RackStatus.BOOTING;
 			else if (bandwidth < demand) status = RackStatus.NETWORK_LIMITED;
 			else if (result.thermalFactor() < 1) status = RackStatus.THROTTLED;
@@ -872,7 +875,7 @@ public final class SimTicker {
 			miningRacks++;
 			facility.addCredits(rack.accrueCredits(rate, dt));
 		}
-		facility.setMiningStats(facilityRate, miningRacks, rackSteps.size() + creativeRacks);
+		facility.setMiningStats(facilityRate, miningRacks, rackSteps.size() + creativeRacks, lentRacks);
 		facility.addAvailabilitySample(rackSteps.isEmpty() ? 1 : rackSteps.values().stream()
 				.mapToDouble(step -> step.load() > 0 && step.thermalFactor() >= 0.6 ? 1 : 0).average().orElse(1));
 	}
@@ -909,9 +912,12 @@ public final class SimTicker {
 		for (BlockPos cell : cells) heat.depositKw(intake(cell), heatKw / cells.size(), dt);
 	}
 
-	private static boolean adjacentMachine(List<MachineBlockEntity> machines, BlockPos pos, String id) {
-		return machines.stream().anyMatch(machine -> machine.blockId().equals(id)
-				&& machine.getPos().getManhattanDistance(pos) == 1);
+	private static boolean adjacentMachine(Map<BlockPos, MachineBlockEntity> byPos, BlockPos pos, String id) {
+		for (Direction side : Direction.values()) {
+			MachineBlockEntity machine = byPos.get(pos.offset(side));
+			if (machine != null && machine.blockId().equals(id)) return true;
+		}
+		return false;
 	}
 
 	private static ThermalGrid thermalGrid(ServerWorld world) {

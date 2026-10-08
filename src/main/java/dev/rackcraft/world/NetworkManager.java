@@ -18,6 +18,8 @@ public final class NetworkManager {
 	private final EnumMap<NetKind, Set<BlockPos>> nodes = new EnumMap<>(NetKind.class);
 	private final EnumMap<NetKind, NetGraph<BlockPos>> graphs = new EnumMap<>(NetKind.class);
 	private final Map<BlockPos, Set<NetKind>> kindsByPosition = new HashMap<>();
+	/** Which component each position is in, per kind; rebuilt with the graphs. */
+	private final EnumMap<NetKind, Map<BlockPos, Set<BlockPos>>> componentOf = new EnumMap<>(NetKind.class);
 	private boolean dirty = true;
 
 	private NetworkManager(ServerWorld world) {
@@ -50,9 +52,8 @@ public final class NetworkManager {
 
 	public Set<BlockPos> component(BlockPos pos, NetKind kind) {
 		rebuildIfDirty();
-		NetGraph<BlockPos> graph = graphs.get(kind);
-		if (graph == null) return Set.of();
-		return graph.components().stream().filter(component -> component.contains(pos)).findFirst().orElse(Set.of());
+		Map<BlockPos, Set<BlockPos>> index = componentOf.get(kind);
+		return index == null ? Set.of() : index.getOrDefault(pos, Set.of());
 	}
 
 	public Set<BlockPos> endpoints(NetKind kind) {
@@ -86,6 +87,9 @@ public final class NetworkManager {
 				}
 			}
 			graphs.put(kind, graph);
+			Map<BlockPos, Set<BlockPos>> index = new HashMap<>();
+			for (Set<BlockPos> component : graph.components()) for (BlockPos member : component) index.put(member, component);
+			componentOf.put(kind, index);
 		}
 		dirty = false;
 	}

@@ -126,6 +126,7 @@ public final class RackcraftNetworking {
 			buf.writeVarLong(facility.credits());
 			buf.writeFloat((float) facility.miningRate());
 			buf.writeVarInt(facility.miningRacks());
+			buf.writeVarInt(facility.lentRacks());
 			ServerPlayNetworking.send(player, HUD, buf);
 		}
 	}

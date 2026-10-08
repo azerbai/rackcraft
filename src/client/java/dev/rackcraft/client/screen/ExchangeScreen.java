@@ -183,7 +183,6 @@ public final class ExchangeScreen extends RackcraftHandledScreen {
 
 	@Override
 	public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-		renderBackground(context);
 		super.render(context, mouseX, mouseY, delta);
 		ItemStack stack;
 		long price;

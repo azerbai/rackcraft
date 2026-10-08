@@ -21,6 +21,7 @@ public final class CoinHud {
 	private static long balance;
 	private static float rate;
 	private static int miningRacks;
+	private static int lentRacks;
 	private static long receivedAt;
 
 	private CoinHud() {}
@@ -31,7 +32,9 @@ public final class CoinHud {
 			long coins = buf.readVarLong();
 			float coinsPerSecond = buf.readFloat();
 			int racks = buf.readVarInt();
+			int lent = buf.readVarInt();
 			client.execute(() -> {
+				lentRacks = lent;
 				visible = show;
 				balance = coins;
 				rate = coinsPerSecond;
@@ -49,8 +52,11 @@ public final class CoinHud {
 			double elapsed = (Util.getMeasuringTimeMs() - receivedAt) / 1000.0;
 			long shown = balance + (long) Math.floor(rate * Math.min(elapsed, 1.5));
 			String amount = String.format(Locale.ROOT, "%,d RC", shown);
+			// Racks out on R&D, contracts or autocrafting earn nothing for a while: say so, rather than a bare "not mining".
+			String busy = lentRacks > 0 ? String.format(Locale.ROOT, ", %,d busy", lentRacks) : "";
 			String detail = rate > 0
-					? String.format(Locale.ROOT, "+%,.1f/s from %,d rack%s", rate, miningRacks, miningRacks == 1 ? "" : "s")
+					? String.format(Locale.ROOT, "+%,.1f/s from %,d rack%s%s", rate, miningRacks, miningRacks == 1 ? "" : "s", busy)
+					: lentRacks > 0 ? String.format(Locale.ROOT, "not mining: %,d rack%s busy", lentRacks, lentRacks == 1 ? "" : "s")
 					: "not mining";
 			int width = Math.max(client.textRenderer.getWidth(amount), client.textRenderer.getWidth(detail)) + 26;
 			boxRight = 4 + width;

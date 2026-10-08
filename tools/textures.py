@@ -3072,3 +3072,183 @@ def _epitaxy_face(canvas, base, frame, on):
 
 
 FORMED_FACES.update({"cvd_furnace": _cvd_face, "epitaxy_reactor": _epitaxy_face})
+
+
+# ---------------------------------------------------------------- icons redrawn so look-alikes are easy to tell apart
+
+AMBER_GLOW = (255, 176, 64)
+
+
+def item_coprocessor(base, key):
+    """A 1U server whose front is a lit 3x3 crafting grid."""
+    canvas = item_server(base, key)
+    canvas.rect(9, 5, 13, 9, darken(base, 0.55))
+    for gx in (9, 11, 13):
+        for gy in (5, 7, 9):
+            canvas.set(gx, gy, AMBER_GLOW)
+    return canvas
+
+
+def item_accelerator(base, key):
+    """A tall 2U blade: one big fan on the left and a glowing 3x3 crafting grid on the right."""
+    canvas = Canvas()
+    canvas.rect(0, 2, 15, 13, base)
+    canvas.hline(0, 15, 2, lighten(base, 0.25))
+    canvas.hline(0, 15, 13, darken(base, 0.35))
+    canvas.disc(4.5, 7.5, 3.6, darken(base, 0.55))
+    canvas.disc(4.5, 7.5, 1.2, STEEL)
+    canvas.line(2, 6, 7, 9, lighten(base, 0.15))
+    canvas.rect(9, 4, 14, 11, (30, 26, 20))
+    for gx in (9, 11, 13):
+        for gy in (5, 7, 9):
+            canvas.rect(gx, gy, gx + 1, gy + 1, AMBER_GLOW if (gx + gy) % 4 else lighten(AMBER_GLOW, 0.35))
+    return canvas
+
+
+def item_npu(base, key):
+    """A PCIe card: a steel bracket on the left, gold fingers along the bottom, one big chip and a small fan."""
+    canvas = Canvas()
+    canvas.rect(3, 3, 15, 11, base)
+    canvas.hline(3, 15, 3, lighten(base, 0.25))
+    canvas.vline(1, 1, 13, lighten(STEEL, 0.1))
+    canvas.vline(2, 1, 13, STEEL)
+    canvas.set(1, 1, lighten(STEEL, 0.4))
+    for x in range(5, 15, 2):
+        canvas.set(x, 12, GOLD)
+    canvas.rect(5, 5, 9, 9, BLACK)
+    canvas.rect(6, 6, 8, 8, (96, 220, 200))
+    canvas.set(7, 7, (230, 255, 250))
+    canvas.disc(12.5, 7.5, 2.2, darken(base, 0.5))
+    canvas.set(12, 7, STEEL)
+    return canvas
+
+
+def item_neuro_core(base, key):
+    """A rounded magenta die with a web of neurons firing across it: no orb, unlike a Quantum Core."""
+    canvas = Canvas()
+    canvas.rect(3, 2, 12, 13, darken(base, 0.35))
+    canvas.rect(2, 3, 13, 12, darken(base, 0.35))
+    canvas.rect(4, 4, 11, 11, base)
+    for x in range(4, 12, 2):
+        canvas.set(x, 1, GOLD)
+        canvas.set(x, 14, GOLD)
+    spark = (255, 220, 250)
+    nodes = ((5, 5), (10, 5), (7, 8), (5, 10), (10, 10))
+    for (ax, ay), (bx, by) in ((nodes[0], nodes[2]), (nodes[1], nodes[2]), (nodes[2], nodes[3]), (nodes[2], nodes[4]), (nodes[0], nodes[1])):
+        canvas.line(ax, ay, bx, by, lighten(base, 0.45))
+    for nx, ny in nodes:
+        canvas.set(nx, ny, spark)
+    return canvas
+
+
+def item_open_chassis(base, key):
+    """An empty Blade Chassis: two rails and a back plate with a pull handle, nothing in the middle."""
+    canvas = Canvas()
+    canvas.hline(0, 15, 4, lighten(base, 0.2))
+    canvas.hline(0, 15, 5, base)
+    canvas.hline(0, 15, 10, base)
+    canvas.hline(0, 15, 11, darken(base, 0.3))
+    canvas.rect(13, 4, 15, 11, darken(base, 0.15))
+    canvas.vline(14, 6, 9, lighten(STEEL, 0.3))
+    canvas.rect(0, 4, 1, 11, darken(base, 0.25))
+    for x in (4, 8):
+        canvas.vline(x, 6, 9, darken(base, 0.5))
+    return canvas
+
+
+def item_drive_tiered(base, key):
+    """A drive caddy whose label shows its size in bars: one bar for 1k up to four for 64k."""
+    canvas = item_drive(base, key)
+    bars = {"drive_1k": 1, "drive_4k": 2, "drive_16k": 3, "drive_64k": 4}.get(key, 1)
+    canvas.rect(4, 4, 11, 8, base)
+    canvas.hline(4, 11, 4, lighten(base, 0.3))
+    for bar in range(bars):
+        x = 5 + bar * 2
+        canvas.vline(x, 7 - bar, 7, darken(base, 0.6))
+    return canvas
+
+
+def item_binned_chiplet(base, key):
+    """A chiplet whose package and marks give its bin away: one dot bronze, two silver, a star for gold."""
+    canvas = item_chiplet(base, key)
+    package = {"chiplet_bronze": (70, 54, 40), "chiplet_silver": (52, 70, 92), "chiplet_gold": (40, 30, 70)}.get(key, (52, 96, 64))
+    canvas.rect(3, 3, 12, 12, package)
+    canvas.bevel(3, 3, 12, 12, lighten(package, 0.25), darken(package, 0.4))
+    for x in range(4, 12, 2):
+        canvas.set(x, 12, GOLD)
+        canvas.set(x, 3, GOLD)
+    canvas.rect(5, 5, 10, 10, darken(base, 0.15))
+    canvas.bevel(5, 5, 10, 10, lighten(base, 0.45), darken(base, 0.45))
+    mark = (255, 255, 255)
+    if key == "chiplet_bronze":
+        canvas.set(7, 7, mark)
+    elif key == "chiplet_silver":
+        canvas.set(6, 7, mark)
+        canvas.set(9, 8, mark)
+    else:
+        for x, y in ((7, 6), (6, 7), (7, 7), (8, 7), (7, 8), (7, 9), (8, 6), (8, 8), (9, 7)):
+            canvas.set(x, y, mark if (x + y) % 2 else (255, 240, 170))
+    return canvas
+
+
+def item_depleted_ingot(base, key):
+    """A dull, dark ingot with a yellow-and-black hazard band, so it never passes for steel."""
+    canvas = item_ingot(base, key)
+    for x in range(3, 12):
+        canvas.set(x, 10, YELLOW if x % 2 else BLACK)
+    canvas.set(8, 7, (150, 210, 90))
+    return canvas
+
+
+def item_heavy_frame(base, key):
+    """Thick doubled booms, a big riveted deck and hazard corners: a frame for the drones that carry real weight."""
+    canvas = Canvas()
+    for offset in (-1, 0, 1):
+        canvas.line(2 + max(0, offset), 2 + max(0, -offset), 13 - max(0, -offset), 13 - max(0, offset), base if offset == 0 else darken(base, 0.3))
+        canvas.line(13 - max(0, offset), 2 + max(0, -offset), 2 + max(0, -offset), 13 - max(0, offset), base if offset == 0 else darken(base, 0.3))
+    canvas.rect(4, 4, 11, 11, darken(base, 0.15))
+    canvas.frame(4, 4, 11, 11, darken(base, 0.5))
+    for x, y in ((5, 5), (10, 5), (5, 10), (10, 10)):
+        canvas.set(x, y, lighten(STEEL, 0.3))
+    for x in range(6, 10):
+        canvas.set(x, 7, YELLOW if x % 2 else BLACK)
+        canvas.set(x, 8, BLACK if x % 2 else YELLOW)
+    for x, y in ((1, 1), (14, 1), (1, 14), (14, 14)):
+        canvas.set(x, y, lighten(base, 0.3))
+    return canvas
+
+
+def item_tanker(base, key):
+    """The Tanker Drone: the big quadcopter with a fat hydrogen tank slung under it instead of a gripper."""
+    canvas = _site_drone_icon(base, key, "gripper")
+    canvas.rect(2, 6, 13, 9, (215, 232, 246))
+    canvas.hline(3, 12, 5, (240, 250, 255))
+    canvas.hline(3, 12, 10, (110, 150, 196))
+    for x in (2, 13):
+        canvas.set(x, 6, None)
+        canvas.set(x, 9, None)
+    for x in (5, 10):
+        canvas.vline(x, 5, 10, (70, 120, 190))
+    return canvas
+
+
+def item_gpu_die(base, key):
+    """A GPU chip: a wide die split into four blue cores under a heat spreader, wider than a CPU's."""
+    canvas = Canvas()
+    for offset in range(3, 13, 2):
+        canvas.vline(offset, 1, 14, lighten(STEEL, 0.25))
+        canvas.hline(1, 14, offset, lighten(STEEL, 0.25))
+    canvas.rect(2, 3, 13, 12, darken(base, 0.45))
+    canvas.bevel(2, 3, 13, 12, darken(base, 0.2), darken(base, 0.7))
+    for cx, cy in ((4, 5), (8, 5), (4, 8), (8, 8)):
+        canvas.rect(cx, cy, cx + 2, cy + 1, base)
+        canvas.hline(cx, cx + 2, cy, lighten(base, 0.35))
+    canvas.set(3, 4, lighten(STEEL, 0.4))
+    return canvas
+
+
+ITEM_STYLES.update({
+    "coprocessor": item_coprocessor, "accelerator": item_accelerator, "npu": item_npu, "neuro": item_neuro_core,
+    "chassis": item_open_chassis, "drive": item_drive_tiered, "chiplet": item_binned_chiplet, "du_ingot": item_depleted_ingot,
+    "heavy_drone_frame": item_heavy_frame, "tanker": item_tanker, "gpu_die": item_gpu_die,
+})

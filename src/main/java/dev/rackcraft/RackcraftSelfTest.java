@@ -156,6 +156,7 @@ public final class RackcraftSelfTest {
 		checkStorageLogistics(world, failures);
 		checkSiteConstruction(world, failures);
 		checkAdvancedHardware(world, failures);
+		checkPerformance(world, failures);
 		checkStructures(world, failures);
 		check("S0.b", SimTicker.failedSteps() == 0, "simulation steps that threw=" + SimTicker.failedSteps(), failures);
 		Rackcraft.LOGGER.info("RACKCRAFT_SELFTEST DONE failures={}", failures[0]);
@@ -1870,6 +1871,11 @@ public final class RackcraftSelfTest {
 		double training = dev.rackcraft.compute.Cluster.compute(npuRack, dev.rackcraft.compute.Cluster.Kind.AI);
 		check("AH5.a", Math.abs(inference - 8 * 32) < 0.5 && training == 0,
 				"inference=" + inference + " ai=" + training, failures);
+		// With nothing for it to do, a rack that can't mine says so instead of "Mining 0 RC/s".
+		place(world, origin.up(), "core_router", Direction.NORTH);
+		for (int step = 0; step < 3; step++) SimTicker.stepNow(world);
+		check("AH5.b", npuRack.rackStatus() == RackStatus.NO_MINERS && npuRack.miningRate() == 0,
+				"status=" + npuRack.rackStatus() + " rate=" + npuRack.miningRate(), failures);
 		clearArea(world, origin, 40, 8, 24);
 
 		// The CVD Furnace waits for Advanced Materials, then grows graphene from coke and hydrogen.
@@ -1952,6 +1958,43 @@ public final class RackcraftSelfTest {
 		check("AH8.a", forSale.isEmpty() && racksForSale.isEmpty() && ExchangeCatalog.price(item("cvd_furnace")) != null,
 				"forSale=" + forSale + " racksForSale=" + racksForSale + " cvd=" + ExchangeCatalog.price(item("cvd_furnace")), failures);
 		lab.reset();
+	}
+
+	/**
+	 * Big facilities stay cheap to simulate: 400 racks on one fiber network step in a few milliseconds (each rack once
+	 * re-added up its whole network, so a 1,000-rack hall took half a second a step). And a Site Planner's cable goes
+	 * round a wall of machinery in its way rather than giving up.
+	 */
+	private static void checkPerformance(ServerWorld world, int[] failures) {
+		BlockPos origin = clearArea(world, new BlockPos(-2100, 150, -1536), 44, 4, 24);
+		world.setBlockState(origin.west(), RcBlocks.get("creative_power").getDefaultState());
+		machine(world, origin.west()).setCreativeValue(CreativeSettings.OUTPUT_KW, 100_000);
+		for (int x = 0; x < 40; x++) {
+			for (int z = 0; z < 10; z++) {
+				MachineBlockEntity rack = place(world, origin.add(x, 0, z), "server_rack", Direction.NORTH);
+				rack.setStack(0, new ItemStack(RcItems.ITEMS.get("server_1u")));
+			}
+		}
+		place(world, origin.up(), "core_router", Direction.NORTH);
+		for (int step = 0; step < 3; step++) SimTicker.stepNow(world);
+		long start = System.nanoTime();
+		for (int step = 0; step < 5; step++) SimTicker.stepNow(world);
+		double perStep = (System.nanoTime() - start) / 5e6;
+		check("PF1.a", perStep < 30, String.format(java.util.Locale.ROOT, "400 racks on one network: %.1f ms a step", perStep), failures);
+		clearArea(world, origin, 44, 4, 24);
+
+		// A wall of steel blocks (machinery: never dug through) across the straight line from the planner to its target.
+		BlockPos floor = origin.down();
+		for (BlockPos pos : BlockPos.iterate(floor.add(-2, 0, -12), floor.add(24, 0, 12))) world.setBlockState(pos, Blocks.STONE.getDefaultState());
+		for (int z = -4; z <= 4; z++) world.setBlockState(origin.add(8, 0, z), RcBlocks.get("steel_block").getDefaultState());
+		List<BlockPos> route = dev.rackcraft.world.SitePlanner.route(world, origin, origin.east(16), null);
+		boolean clearOfWall = route.stream().noneMatch(pos -> world.getBlockState(pos).isOf(RcBlocks.get("steel_block")));
+		boolean joined = !route.isEmpty() && route.get(0).getManhattanDistance(origin) == 1
+				&& route.get(route.size() - 1).getManhattanDistance(origin.east(16)) == 1;
+		check("PF2.a", clearOfWall && joined && route.size() > 15,
+				"cells=" + route.size() + " clearOfWall=" + clearOfWall + " joined=" + joined, failures);
+		clearArea(world, origin, 44, 4, 24);
+		for (BlockPos pos : BlockPos.iterate(floor.add(-2, 0, -12), floor.add(24, 0, 12))) world.setBlockState(pos, Blocks.AIR.getDefaultState());
 	}
 
 	private static void flyMission(ServerWorld world, MachineBlockEntity control) {

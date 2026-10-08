@@ -99,12 +99,6 @@ public final class CreativeMachineScreen extends RackcraftHandledScreen {
 	}
 
 	@Override
-	public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-		renderBackground(context);
-		super.render(context, mouseX, mouseY, delta);
-	}
-
-	@Override
 	public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
 		if (keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER) {
 			apply();

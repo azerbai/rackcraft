@@ -318,7 +318,7 @@ public final class OpsScreenHandler extends ScreenHandler {
 			Map.entry(RackStatus.NEEDS_CDU, "need a CDU"), Map.entry(RackStatus.NEEDS_CRYOSTAT, "need a cold Cryostat"), Map.entry(RackStatus.NEEDS_WATER, "need liquid cooling"),
 			Map.entry(RackStatus.OVERHEATED, "overheated"), Map.entry(RackStatus.NO_NETWORK, "offline"),
 			Map.entry(RackStatus.BOOTING, "booting"), Map.entry(RackStatus.RESEARCHING, "on R&D"),
-			Map.entry(RackStatus.LEASED, "leased"));
+			Map.entry(RackStatus.LEASED, "leased"), Map.entry(RackStatus.NO_MINERS, "idle (no miners)"));
 
 	private static boolean problem(RackStatus status) {
 		return switch (status) {

@@ -36,11 +36,15 @@ public final class FacilityManager extends PersistentState {
 	public double miningRate() { return miningRate; }
 	public int miningRacks() { return miningRacks; }
 	public int totalRacks() { return totalRacks; }
-	public void setMiningStats(double rate, int mining, int total) {
+	public void setMiningStats(double rate, int mining, int total, int lent) {
 		miningRate = rate;
 		miningRacks = mining;
 		totalRacks = total;
+		lentRacks = lent;
 	}
+	/** Racks lent to autocrafting, AI work or R&D last step, so not mining. Not saved. */
+	public int lentRacks() { return lentRacks; }
+	private int lentRacks;
 	public String activeContract() { return activeContract; }
 	public long randomSeed() { return randomSeed; }
 	public long eventTicks() { return eventTicks; }

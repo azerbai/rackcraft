@@ -961,21 +961,34 @@ public final class SitePlanner {
 				}
 			}
 		}
-		if (target != null) cells.addAll(route(world, planner, target));
+		// No run is needed if the planner's power network already reaches the site (cable laid by hand, say).
+		boolean connected = target != null
+				&& NetworkManager.get(world).component(planner, dev.rackcraft.sim.NetKind.POWER).contains(target);
+		if (target != null && !connected) cells.addAll(route(world, planner, target, site));
 		return new ArrayList<>(cells);
 	}
 
-	/** The cable from beside the planner to beside the target: a walk across then along, following the ground. */
-	private static List<BlockPos> route(ServerWorld world, BlockPos planner, BlockPos target) {
-		List<int[]> columns = new ArrayList<>();
-		int x = planner.getX();
-		int z = planner.getZ();
-		while (x != target.getX() || z != target.getZ()) {
-			if (x != target.getX()) x += Integer.signum(target.getX() - x);
-			else z += Integer.signum(target.getZ() - z);
-			if (x == target.getX() && z == target.getZ()) break;
-			int surface = ground(world, x, z, null) + 1;
-			columns.add(new int[] {x, z, surface, surface});
+	/** How far around the straight line a cable run may detour to get past something in its way. */
+	private static final int DETOUR = 24;
+
+	/**
+	 * The cable from beside the planner to beside the target, following the ground. It takes the shortest way round
+	 * anything it can't dig through (another build, a machine); if there is none, the straight walk across then along,
+	 * so the planner can say what is in the way.
+	 */
+	public static List<BlockPos> route(ServerWorld world, BlockPos planner, BlockPos target, Site site) {
+		List<int[]> columns = detour(world, planner, target, site);
+		if (columns == null) {
+			columns = new ArrayList<>();
+			int x = planner.getX();
+			int z = planner.getZ();
+			while (x != target.getX() || z != target.getZ()) {
+				if (x != target.getX()) x += Integer.signum(target.getX() - x);
+				else z += Integer.signum(target.getZ() - z);
+				if (x == target.getX() && z == target.getZ()) break;
+				int surface = ground(world, x, z, null) + 1;
+				columns.add(new int[] {x, z, surface, surface});
+			}
 		}
 		if (columns.isEmpty()) return List.of();
 		// The first block touches the planner and the last the target, at their heights.
@@ -995,6 +1008,56 @@ public final class SitePlanner {
 		List<BlockPos> cells = new ArrayList<>();
 		for (int[] column : columns) for (int y = column[2]; y <= column[3]; y++) cells.add(new BlockPos(column[0], y, column[1]));
 		return cells;
+	}
+
+	/** A breadth-first walk over ground columns from the planner to the target, round what a run can't pass; null if none. */
+	private static List<int[]> detour(ServerWorld world, BlockPos planner, BlockPos target, Site site) {
+		int minX = Math.min(planner.getX(), target.getX()) - DETOUR;
+		int maxX = Math.max(planner.getX(), target.getX()) + DETOUR;
+		int minZ = Math.min(planner.getZ(), target.getZ()) - DETOUR;
+		int maxZ = Math.max(planner.getZ(), target.getZ()) + DETOUR;
+		java.util.Map<Long, Long> from = new java.util.HashMap<>();
+		java.util.Map<Long, Integer> surface = new java.util.HashMap<>();
+		java.util.ArrayDeque<Long> queue = new java.util.ArrayDeque<>();
+		long start = column(planner.getX(), planner.getZ());
+		long goal = column(target.getX(), target.getZ());
+		from.put(start, start);
+		queue.add(start);
+		while (!queue.isEmpty()) {
+			long here = queue.removeFirst();
+			int hx = (int) (here >> 32);
+			int hz = (int) here;
+			for (Direction side : Direction.Type.HORIZONTAL) {
+				int x = hx + side.getOffsetX();
+				int z = hz + side.getOffsetZ();
+				long next = column(x, z);
+				if (x < minX || x > maxX || z < minZ || z > maxZ || from.containsKey(next)) continue;
+				if (next == goal) {
+					from.put(next, here);
+					List<int[]> path = new ArrayList<>();
+					for (long step = here; step != start; step = from.get(step)) {
+						path.add(0, new int[] {(int) (step >> 32), (int) step, surface.get(step), surface.get(step)});
+					}
+					return path;
+				}
+				int y = ground(world, x, z, null) + 1;
+				BlockPos pos = new BlockPos(x, y, z);
+				BlockState state = world.getBlockState(pos);
+				Cell cell = classify(world, pos, state);
+				boolean inSite = site != null && site.contains(x, z);
+				boolean passable = state.isOf(RcBlocks.get("power_cable")) || cell == Cell.ROOM || cell == Cell.SOFT
+						|| cell == Cell.GROUND && diggable(world, pos, state) && (inSite || natural(state));
+				if (!passable) continue;
+				from.put(next, here);
+				surface.put(next, y);
+				queue.add(next);
+			}
+		}
+		return null;
+	}
+
+	private static long column(int x, int z) {
+		return ((long) x << 32) | (z & 0xFFFFFFFFL);
 	}
 
 	private static Trip wireTrip(ServerWorld world, MachineBlockEntity planner, StorageNetwork storage, List<BlockPos> missing, Set<BlockPos> claimed,

@@ -297,14 +297,30 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 	public void setTripped(boolean value) { tripped = value; markDirty(); }
 	public String feedLabel() { return feedLabel; }
 	public void toggleFeedLabel() { feedLabel = feedLabel.equals("A") ? "B" : "A"; markDirty(); }
-	public String blockId() { return Registries.BLOCK.getId(getCachedState().getBlock()).getPath(); }
+	/** The block's id. A block entity belongs to one block for its whole life, so it is looked up once. */
+	public String blockId() {
+		if (blockId == null) blockId = Registries.BLOCK.getId(getCachedState().getBlock()).getPath();
+		return blockId;
+	}
+	private String blockId;
+
+	/** The modules in this rack's bays, rebuilt only when its slots change (see {@link #markDirty}). */
 	public List<ServerModel.Module> modules() {
-		java.util.ArrayList<ServerModel.Module> modules = new java.util.ArrayList<>();
+		if (modules != null) return modules;
+		java.util.ArrayList<ServerModel.Module> found = new java.util.ArrayList<>();
 		for (ItemStack stack : inventory) {
 			ServerModel.Module module = Racks.module(stack);
-			if (module != null) modules.add(module);
+			if (module != null) found.add(module);
 		}
-		return List.copyOf(modules);
+		modules = List.copyOf(found);
+		return modules;
+	}
+	private List<ServerModel.Module> modules;
+
+	@Override
+	public void markDirty() {
+		modules = null;
+		super.markDirty();
 	}
 	public double inletCelsius() { return inletCelsius; }
 	public double exhaustCelsius() { return exhaustCelsius; }
@@ -578,6 +594,7 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 	public void readNbt(NbtCompound nbt) {
 		super.readNbt(nbt);
 		Inventories.readNbt(nbt, inventory);
+		modules = null;
 		loadLimitPercent = MathHelper.clamp(nbt.getInt("LoadLimit"), 25, 100);
 		chargeKws = Math.max(0, nbt.getDouble("ChargeKws"));
 		tripped = nbt.getBoolean("Tripped");

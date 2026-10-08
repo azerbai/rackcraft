@@ -56,7 +56,29 @@ abstract class RackcraftHandledScreen extends HandledScreen<MachineScreenHandler
 		// Vanilla draws both labels in dark grey, which vanishes on these dark panels.
 		context.drawText(textRenderer, title, titleX, titleY, TEXT, false);
 		context.drawText(textRenderer, playerInventoryTitle, playerInventoryTitleX, playerInventoryTitleY, MUTED, false);
+		cutLines.clear();
 		drawDashboard(context);
+	}
+
+	/** Lines {@link #lineFit} had to cut this frame, so hovering one shows it whole. */
+	private record CutLine(int x, int y, int width, String text) {}
+	private final java.util.List<CutLine> cutLines = new java.util.ArrayList<>();
+
+	@Override
+	public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+		renderBackground(context);
+		super.render(context, mouseX, mouseY, delta);
+		// Hovering an item in any slot names it, as in vanilla containers.
+		drawMouseoverTooltip(context, mouseX, mouseY);
+		if (focusedSlot != null && focusedSlot.hasStack()) return;
+		int localX = mouseX - x;
+		int localY = mouseY - y;
+		for (CutLine cut : cutLines) {
+			if (localX >= cut.x() && localX < cut.x() + cut.width() && localY >= cut.y() - 1 && localY < cut.y() + 9) {
+				context.drawOrderedTooltip(textRenderer, textRenderer.wrapLines(Text.literal(cut.text()), 220), mouseX, mouseY);
+				break;
+			}
+		}
 	}
 
 	protected abstract void drawDashboard(DrawContext context);
@@ -79,8 +101,9 @@ abstract class RackcraftHandledScreen extends HandledScreen<MachineScreenHandler
 
 	/** A single line cut to fit {@code width}, ending in "..." when it doesn't. */
 	protected void lineFit(DrawContext context, String text, int x, int y, int width, int color) {
-		String shown = textRenderer.getWidth(text) <= width ? text
-				: textRenderer.trimToWidth(text, width - textRenderer.getWidth("...")).trim() + "...";
+		boolean fits = textRenderer.getWidth(text) <= width;
+		String shown = fits ? text : textRenderer.trimToWidth(text, width - textRenderer.getWidth("...")).trim() + "...";
+		if (!fits) cutLines.add(new CutLine(x, y, width, text));
 		context.drawText(textRenderer, Text.literal(shown), x, y, color, false);
 	}
 

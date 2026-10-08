@@ -685,6 +685,8 @@ def main():
         "rack_status.rackcraft.researching.hint": "This rack is working on a research project or a frontier training run from the Operations Terminal's R&D tab, so it is not mining. Set its cluster to Mining at the terminal to keep it mining instead.",
         "rack_status.rackcraft.leased": "Busy: leased to a client",
         "rack_status.rackcraft.leased.hint": "This rack is serving a Compute Lease. Keep it powered and cool: the client only pays in full if the lease's uptime guarantee is met.",
+        "rack_status.rackcraft.no_miners": "Idle: nothing in it mines",
+        "rack_status.rackcraft.no_miners.hint": "Its modules (Tensor Accelerators, NPUs, Neuromorphic Cores, crafting hardware and the like) can't mine. They earn by lending compute: keep its cluster on Auto and give it AI contracts, leases, training, research or autocrafting at the Operations Terminal. Add miners if you want it earning RackCoin between jobs.",
         "rack_status.rackcraft.needs_water": "Stopped: needs liquid cooling",
         "rack_status.rackcraft.needs_water.hint": "ASIC Miners, GPU Blades, Tensor Accelerators and Quantum Cores are liquid-cooled. Run Coolant Pipe from this rack to a heat sink: a Cooling Tower, Dry Cooler, Chiller or Water Heat Exchanger. The pipe carries 85% of their heat away.",
         "transmitter.rackcraft.level": "Level %s: %s",

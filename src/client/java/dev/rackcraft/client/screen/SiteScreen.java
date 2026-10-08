@@ -108,7 +108,7 @@ public final class SiteScreen extends RackcraftHandledScreen {
 		String size = chosen == SitePlanner.Layout.HALL && total > 0
 				? " (" + total * SitePlanner.HALL_RACKS_PER_COLUMN + " racks, " + kw(site(SitePlanner.R_DRAW_KW) * 10) + ")"
 				: total > 0 ? " (" + total + " " + UNITS[chosen.ordinal()] + ")" : "";
-		lineFit(context, "Layout: " + chosen.label + size, 8, 89, 160, TEXT);
+		lineFit(context, size.isEmpty() ? "Layout: " + chosen.label : chosen.label + ":" + size.substring(2, size.length() - 1), 8, 89, 160, TEXT);
 
 		int left = site(SitePlanner.R_LEFT);
 		int built = site(SitePlanner.R_BUILT);
@@ -137,9 +137,8 @@ public final class SiteScreen extends RackcraftHandledScreen {
 		}
 		int canisters = handler.getSlot(SitePlanner.FUEL_SLOT).getStack().getCount();
 		int trips = stat(Stat.TOOL_USES) + canisters * RackcraftConfig.values.construction.tripsPerCanister;
-		lineFit(context, "Out: " + stat(Stat.WORKERS) + " building, " + site(SitePlanner.R_TERRAFORMERS_OUT) + " levelling.  Fuel: "
-				+ trips + (trips == 1 ? " trip" : " trips"), 8, 127, 160, TEXT);
-		lineFit(context, "Drones, terraformers, hydrogen, materials", 8, 136, 160, MUTED);
+		lineFit(context, "Out: " + stat(Stat.WORKERS) + " building, " + site(SitePlanner.R_TERRAFORMERS_OUT) + " levelling", 8, 127, 160, TEXT);
+		lineFit(context, "Fuel for " + trips + (trips == 1 ? " trip" : " trips") + "; slots below:", 8, 136, 160, MUTED);
 	}
 
 	private static <E> E enumAt(E[] values, int index) {

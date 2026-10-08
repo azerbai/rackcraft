@@ -65,7 +65,9 @@ public final class FaultFinder {
 			BlockPos pos = machine.getPos();
 			// Any cube machine (reactors and batteries too) in a cube bigger than the research allows.
 			if (machine.lockedCube() > 0) {
-				faults.add(new Fault(pos, 1, notWhole(machine)));
+				// Once per cube, at its lowest corner, not once for each of its (maybe 512) blocks.
+				if (!lockedNeighbour(world, machine, pos.west()) && !lockedNeighbour(world, machine, pos.down())
+						&& !lockedNeighbour(world, machine, pos.north())) faults.add(new Fault(pos, 1, notWhole(machine)));
 				continue;
 			}
 			switch (machine.blockId()) {
@@ -178,6 +180,10 @@ public final class FaultFinder {
 			}
 		}
 		return faults;
+	}
+
+	private static boolean lockedNeighbour(ServerWorld world, MachineBlockEntity machine, BlockPos pos) {
+		return world.getBlockEntity(pos) instanceof MachineBlockEntity other && other.blockId().equals(machine.blockId()) && other.lockedCube() > 0;
 	}
 
 	private static String worn(MachineBlockEntity machine) {
