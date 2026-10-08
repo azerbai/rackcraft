@@ -49,6 +49,10 @@ for item in CONTENT["items"]:
 
 for recipe in CONTENT["recipes"]:
     require(RESOURCES / f"data/rackcraft/recipes/{recipe['id']}.json")
+stale_recipes = sorted(path.stem for path in (RESOURCES / "data/rackcraft/recipes").glob("*.json")
+                       if path.stem not in {recipe["id"] for recipe in CONTENT["recipes"]})
+if stale_recipes:
+    raise SystemExit(f"recipe files not in the catalog: {stale_recipes}")
 
 require(RESOURCES / "data/rackcraft/worldgen/configured_feature/bauxite_ore.json")
 require(RESOURCES / "data/rackcraft/worldgen/placed_feature/bauxite_ore.json")
@@ -76,7 +80,7 @@ require(RESOURCES / "assets/rackcraft/textures/entity/rocket.png")
 
 require(RESOURCES / "assets/rackcraft/textures/entity/wind_rotor.png")
 
-if len(CONTENT["blocks"]) != 74 or len(CONTENT["items"]) != 69:
-    raise SystemExit("content catalog must contain exactly 74 blocks and 69 standalone items")
+if len(CONTENT["blocks"]) != 75 or len(CONTENT["items"]) != 69:
+    raise SystemExit("content catalog must contain exactly 75 blocks and 69 standalone items")
 
 print(f"Rackcraft assets ok: {len(CONTENT['blocks'])} blocks, {len(CONTENT['items'])} standalone items, {len(CONTENT['recipes'])} recipes")

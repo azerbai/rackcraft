@@ -46,6 +46,12 @@ public final class ExchangeCatalog {
 			"scaffolding", "rail", "tnt", "redstone", "repeater", "lever", "button", "pressure_plate", "target", "observer",
 			"piston", "note_block", "tripwire_hook", "slime_block", "honey_block", "beacon", "conduit", "end_crystal");
 	private static final int PASSES = 12;
+	/** Rackcraft items that are hardware rather than materials: they pay the component premium. */
+	private static final Set<String> COMPONENTS = Set.of("circuit_board", "cpu_chip", "ram_module", "gpu_chip", "cryo_coil",
+			"pi_node", "server_1u", "gpu_blade", "asic_miner", "quantum_core", "tensor_accelerator", "crafting_coprocessor",
+			"crafting_accelerator", "thermal_scanner", "multimeter", "repair_kit", "drive_1k", "drive_4k", "drive_16k", "drive_64k",
+			"tape_cartridge", "wireless_terminal", "electric_motor", "drone_frame", "stage_frame", "satellite_bus", "solar_array_frame",
+			"nacelle_frame", "tower_frame", "heavy_drone_frame");
 	private static final Set<String> EXCLUDED = Set.of(
 			"air", "bedrock", "spawner", "end_portal_frame", "budding_amethyst", "reinforced_deepslate",
 			"petrified_oak_slab", "farmland", "dirt_path", "frogspawn", "light", "barrier", "structure_void",
@@ -136,10 +142,23 @@ public final class ExchangeCatalog {
 			long price = value == null ? fallback(item)
 					: fixed.contains(item) ? Math.round(value) : (long) Math.ceil(value * MARKUP);
 			if (!building(item, useful)) price *= MATERIAL_PREMIUM;
-			built.put(item, Math.max(1, price));
+			built.put(item, Math.max(1, Math.round(price * hardwarePremium(item))));
 		}
 		prices = Collections.unmodifiableMap(built);
 		Rackcraft.LOGGER.info("[Rackcraft] Exchange catalog priced {} items", built.size());
+	}
+
+	/**
+	 * The extra a Rackcraft machine or component costs over its value, so a big balance can't simply buy a whole
+	 * facility: see {@link RackcraftConfig.Exchange}. 1 for everything else.
+	 */
+	public static double hardwarePremium(Item item) {
+		Identifier id = Registries.ITEM.getId(item);
+		if (!id.getNamespace().equals(Rackcraft.MOD_ID)) return 1;
+		var exchange = RackcraftConfig.values.exchange;
+		if (dev.rackcraft.generated.ContentIds.MACHINE_IDS.contains(id.getPath())) return Math.max(1, exchange.machinePremium);
+		if (COMPONENTS.contains(id.getPath())) return Math.max(1, exchange.componentPremium);
+		return 1;
 	}
 
 	/**

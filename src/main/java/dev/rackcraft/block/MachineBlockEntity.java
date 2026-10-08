@@ -152,7 +152,7 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 	/** Machines an Item Pipe feeds from storage (and empties into it): storage itself, the training stations and generators. */
 	public static final java.util.Set<String> ITEM_MACHINES = java.util.Set.of("storage_array", "tape_library", "art_table",
 			"writing_desk", "diesel_generator", "modular_reactor", "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer", "wafer_fab", "silicon_foundry", "ewaste_recycler",
-			"electrolyser", "assembly_arm", "drone_dock", "launch_control", "belt_loader", "belt_unloader", "site_planner");
+			"electrolyser", "assembly_arm", "drone_dock", "launch_control", "belt_loader", "belt_unloader", "site_planner", "storage_exporter");
 
 	public static java.util.Set<NetKind> networkKinds(String id) {
 		java.util.EnumSet<NetKind> kinds = java.util.EnumSet.noneOf(NetKind.class);
@@ -225,7 +225,7 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 		if (dev.rackcraft.world.NuclearProcessing.recipe(id) != null) return slot == 2 || slot == 3;
 		// Hoppers under a Drone Dock take away the dead modules its drones bring home, nothing else.
 		if (id.equals("drone_dock")) return stack.isOf(dev.rackcraft.RcItems.ITEMS.get("failed_module"));
-		if (id.equals("assembly_arm") || id.equals("belt_loader")) return false;
+		if (id.equals("assembly_arm") || id.equals("belt_loader") || id.equals("storage_exporter")) return false;
 		// Hoppers can empty a Site Planner's material slots, never its drones or hydrogen.
 		if (id.equals("site_planner")) return slot >= dev.rackcraft.world.SitePlanner.FIRST_MATERIAL;
 		if (id.equals("belt_unloader")) return true;
@@ -258,7 +258,7 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 			return slot < 4 && stack.getItem() instanceof dev.rackcraft.storage.DriveItem drive && drive.cold();
 		}
 		if (blockId.equals("fire_suppression_tank")) return slot == 0;
-		if (blockId.equals("assembly_arm") || blockId.equals("belt_unloader")) return true;
+		if (blockId.equals("assembly_arm") || blockId.equals("belt_unloader") || blockId.equals("storage_exporter")) return true;
 		// A Belt Loader's one slot holds a sample of what to load; nothing else goes in it.
 		if (blockId.equals("belt_loader")) return slot == 0;
 		if (blockId.equals("drone_dock")) return dev.rackcraft.world.DroneDocks.accepts(slot, stack);
@@ -514,7 +514,7 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 			case "diesel_generator", "fire_suppression_tank" -> MachineScreenHandler.Mode.SINGLE_SLOT;
 			case "modular_reactor" -> MachineScreenHandler.Mode.REACTOR;
 			case "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer", "wafer_fab", "silicon_foundry", "ewaste_recycler", "electrolyser" -> MachineScreenHandler.Mode.PROCESSOR;
-			case "welding_arm", "riveting_arm", "assembly_arm", "drone_dock", "belt_loader", "belt_unloader" -> MachineScreenHandler.Mode.WORKCELL;
+			case "welding_arm", "riveting_arm", "assembly_arm", "drone_dock", "belt_loader", "belt_unloader", "storage_exporter" -> MachineScreenHandler.Mode.WORKCELL;
 			case "launch_control" -> MachineScreenHandler.Mode.LAUNCH;
 			case "site_planner" -> MachineScreenHandler.Mode.SITE;
 			case "crypto_exchange" -> MachineScreenHandler.Mode.EXCHANGE;

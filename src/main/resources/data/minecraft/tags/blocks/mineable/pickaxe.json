@@ -55,6 +55,7 @@
     "rackcraft:tower_section",
     "rackcraft:belt_loader",
     "rackcraft:belt_unloader",
+    "rackcraft:storage_exporter",
     "rackcraft:site_planner",
     "rackcraft:waste_cask",
     "rackcraft:monitoring_wall",

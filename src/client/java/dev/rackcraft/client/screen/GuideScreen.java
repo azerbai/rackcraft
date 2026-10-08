@@ -102,7 +102,11 @@ public final class GuideScreen extends Screen {
 	private void buildPages() {
 		pages.clear();
 		entryPages.clear();
-		pages.add(new Page(null, null, false, 0, 0, 0, 0, false));
+		// The contents run over as many pages as the chapters need, a full-size row each.
+		int chapters = ContentIds.GUIDE_CHAPTERS.size();
+		for (int first = 0; first < chapters; first += CONTENTS_ROWS) {
+			pages.add(new Page(null, null, first > 0, first, Math.min(CONTENTS_ROWS, chapters - first), 0, 0, false));
+		}
 		for (GuideChapter chapter : ContentIds.GUIDE_CHAPTERS) {
 			int body = bodyHeight(CHAPTER_HEADER_HEIGHT);
 			Layout layout = new Layout(chapter, null);
@@ -174,6 +178,9 @@ public final class GuideScreen extends Screen {
 	private static final int ENTRY_HEADER_HEIGHT = 26;
 	private static final int RECIPE_HEADER_HEIGHT = 18;
 	private static final int GRID_COLUMNS = TEXT_WIDTH / 22;
+	/** Chapters per contents page: rows of 15 between the "Contents" heading and the buttons. */
+	private static final int CONTENTS_ROW_HEIGHT = 15;
+	private static final int CONTENTS_ROWS = (PANEL_HEIGHT - 31 - 42) / CONTENTS_ROW_HEIGHT;
 
 	/** Room for text, grids and recipes below a page's header, above the buttons. */
 	private static int bodyHeight(int header) {
@@ -262,7 +269,7 @@ public final class GuideScreen extends Screen {
 
 		hotspots.clear();
 		Page current = pages.get(page);
-		if (current.chapter() == null) renderContents(context);
+		if (current.chapter() == null) renderContents(context, current);
 		else if (current.entry() == null) renderChapter(context, current);
 		else renderEntry(context, current);
 		super.render(context, mouseX, mouseY, delta);
@@ -278,17 +285,18 @@ public final class GuideScreen extends Screen {
 		}
 	}
 
-	private void renderContents(DrawContext context) {
+	private void renderContents(DrawContext context, Page current) {
 		int x = left + 12;
 		int y = top + 30;
-		context.drawText(textRenderer, Text.translatable("guide.rackcraft.contents"), x, y, COLOR_ACCENT, false);
+		int contentsPages = (ContentIds.GUIDE_CHAPTERS.size() + CONTENTS_ROWS - 1) / CONTENTS_ROWS;
+		Text heading = contentsPages > 1
+				? Text.translatable("guide.rackcraft.contents").append(" (" + (current.firstLine() / CONTENTS_ROWS + 1) + " of " + contentsPages + ")")
+				: Text.translatable("guide.rackcraft.contents");
+		context.drawText(textRenderer, heading, x, y, COLOR_ACCENT, false);
 		y += 12;
-		// Rows shrink to fit every chapter above the buttons; below 15 px the icons shrink with them.
-		int chapters = ContentIds.GUIDE_CHAPTERS.size();
-		int available = top + PANEL_HEIGHT - 31 - y;
-		int rowHeight = Math.max(10, Math.min(15, available / Math.max(1, chapters)));
-		float iconScale = rowHeight >= 15 ? 1 : (rowHeight - 1) / 16f;
-		for (int index = 0; index < chapters; index++) {
+		int rowHeight = CONTENTS_ROW_HEIGHT;
+		float iconScale = 1;
+		for (int index = current.firstLine(); index < current.firstLine() + current.lineCount(); index++) {
 			GuideChapter chapter = ContentIds.GUIDE_CHAPTERS.get(index);
 			int target = pageOfChapter(chapter);
 			context.getMatrices().push();

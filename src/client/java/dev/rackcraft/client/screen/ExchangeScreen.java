@@ -130,19 +130,30 @@ public final class ExchangeScreen extends RackcraftHandledScreen {
 		return String.format(Locale.ROOT, "%,.1f", perSecond);
 	}
 
+	/** Unit prices from the catalog the server sent with this screen, so curated bundles show what they'll cost. */
+	private java.util.Map<net.minecraft.item.Item, Long> unitPrices;
+
+	private long offerPrice(Offer offer) {
+		if (unitPrices == null) {
+			unitPrices = new java.util.HashMap<>();
+			for (ExchangeCatalog.Entry entry : handler.catalog()) unitPrices.put(entry.item(), entry.price());
+		}
+		return offer.price(unitPrices::get);
+	}
+
 	private void drawCurated(DrawContext context, long balance) {
 		List<Offer> offers = curatedOffers();
 		for (int index = 0; index < offers.size(); index++) {
 			Offer offer = offers.get(index);
 			int cardX = 8 + (index % 2) * (CARD_WIDTH + 8);
 			int cardY = GRID_TOP + (index / 2) * (CARD_HEIGHT + 2);
-			boolean affordable = balance >= offer.price();
+			boolean affordable = balance >= offerPrice(offer);
 			context.fill(cardX, cardY, cardX + CARD_WIDTH, cardY + CARD_HEIGHT, affordable ? 0xFF263A42 : 0xFF1B262C);
 			context.drawItem(offer.stack(), cardX + 3, cardY + 3);
 			context.drawItemInSlot(textRenderer, offer.stack(), cardX + 3, cardY + 3);
 			String name = textRenderer.trimToWidth(offer.stack().getName().getString(), CARD_WIDTH - 66);
 			context.drawText(textRenderer, name, cardX + 23, cardY + 7, affordable ? TEXT : MUTED, false);
-			String price = String.format(Locale.ROOT, "%,d RC", offer.price());
+			String price = String.format(Locale.ROOT, "%,d RC", offerPrice(offer));
 			context.drawText(textRenderer, price, cardX + CARD_WIDTH - 4 - textRenderer.getWidth(price), cardY + 7,
 					affordable ? GOOD : BAD, false);
 		}
@@ -185,7 +196,7 @@ public final class ExchangeScreen extends RackcraftHandledScreen {
 			Offer offer = curatedAt(mouseX, mouseY);
 			if (offer == null) return;
 			stack = offer.stack();
-			price = offer.price();
+			price = offerPrice(offer);
 		}
 		List<Text> tooltip = new ArrayList<>(Screen.getTooltipFromItem(client, stack));
 		tooltip.add(Text.translatable(tab == null ? "exchange.rackcraft.price_each" : "exchange.rackcraft.price",

@@ -34,6 +34,7 @@ public final class WorkcellScreen extends RackcraftHandledScreen {
 			case "drone_dock" -> drawDock(context);
 			case "belt_loader" -> drawLoader(context);
 			case "belt_unloader" -> drawUnloader(context);
+			case "storage_exporter" -> drawExporter(context);
 			default -> drawArm(context);
 		}
 	}
@@ -107,6 +108,24 @@ public final class WorkcellScreen extends RackcraftHandledScreen {
 		wrapped(context, Text.literal("Point the last Conveyor Belt into it. Everything goes into storage once a second; hoppers can empty it too."),
 				8, 56, 160, MUTED);
 		line(context, "Buffer", 8, 105, MUTED);
+	}
+
+	private void drawExporter(DrawContext context) {
+		boolean samples = false;
+		for (int slot = 0; slot < 9; slot++) samples |= !handler.getSlot(slot).getStack().isEmpty();
+		boolean target = false;
+		if (client != null && client.world != null) {
+			var state = client.world.getBlockState(handler.pos());
+			if (state.contains(MachineBlock.FACING)) target = client.world.getBlockEntity(handler.pos().offset(state.get(MachineBlock.FACING)))
+					instanceof net.minecraft.inventory.Inventory;
+		}
+		String headline = !target ? "Not facing a machine or container" : !samples ? "Put samples of what to send in the slots below"
+				: "Keeping the block in front stocked from storage";
+		wrappedClamped(context, Text.literal(headline), 8, 30, 160, 2, !target ? WARN : !samples ? MUTED : GOOD);
+		lineFit(context, "Sent so far: " + stat(Stat.ITEMS_MADE), 8, 56, 160, TEXT);
+		wrapped(context, Text.literal("On an Item Pipe to storage, it tops the block it faces up to a stack of each sample, once a second. Samples stay."),
+				8, 68, 160, MUTED);
+		line(context, "Samples", 8, 105, MUTED);
 	}
 
 	/** The belt a loader or arm faces, or null. */

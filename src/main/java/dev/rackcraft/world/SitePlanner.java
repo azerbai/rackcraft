@@ -111,7 +111,9 @@ public final class SitePlanner {
 	public static final int R_TERRAFORMERS_OUT = 13;
 	public static final int R_RUNNING = 14;
 	public static final int R_HAS_BLOCKED = 15;
-	public static final int READINGS = 16;
+	public static final int R_BUYING = 16;
+	public static final int R_SPENT = 17;
+	public static final int READINGS = 18;
 
 	/** What a drone does at one stop. */
 	public enum Action { CLEAR, DIG, FILL, PLACE, ARRAY, CABLE }
@@ -212,6 +214,19 @@ public final class SitePlanner {
 		return "Layout: " + next.label;
 	}
 
+	public static boolean buying(MachineBlockEntity planner) {
+		return planner.site().getBoolean("Buy");
+	}
+
+	/** Turns buying on or off: whatever the slots and storage can't supply, the planner buys at Exchange prices. */
+	public static String toggleBuying(MachineBlockEntity planner) {
+		boolean buy = !buying(planner);
+		planner.site().putBoolean("Buy", buy);
+		planner.markDirty();
+		return buy ? "Buying from the Crypto Exchange: anything it sells that the site needs is paid for in RackCoin"
+				: "No longer buying from the Exchange";
+	}
+
 	public static String toggleRunning(MachineBlockEntity planner) {
 		if (site(planner) == null) return "Mark a site first: two corners with a Survey Stake, then use the stake on the planner";
 		boolean running = !running(planner);
@@ -249,6 +264,8 @@ public final class SitePlanner {
 		boolean running = running(planner);
 		planner.setSiteReading(R_LAYOUT, layout.ordinal());
 		planner.setSiteReading(R_RUNNING, running ? 1 : 0);
+		planner.setSiteReading(R_BUYING, buying(planner) ? 1 : 0);
+		planner.setSiteReading(R_SPENT, (int) Math.min(Integer.MAX_VALUE, planner.site().getLong("Spent")));
 		List<ConstructionDroneEntity> out = drones(world, planner.getPos());
 		int builders = (int) out.stream().filter(drone -> !drone.terraformer()).count();
 		int terraformers = out.size() - builders;
@@ -490,12 +507,20 @@ public final class SitePlanner {
 		return network.isEmpty() ? null : network;
 	}
 
-	/** How many of this item the planner can get: its material slots and its storage. */
+	/** How many of this item the planner can get: its material slots, its storage, and what the Exchange can sell it. */
 	private static long available(MachineBlockEntity planner, StorageNetwork storage, Item item) {
 		long count = 0;
 		for (int slot = FIRST_MATERIAL; slot < planner.size(); slot++) if (planner.getStack(slot).isOf(item)) count += planner.getStack(slot).getCount();
 		if (storage != null) count += storage.count(ItemKey.of(item), true);
-		return count;
+		return count + affordable(planner, item);
+	}
+
+	/** How many of this item the RackCoin balance buys at the Exchange, if the planner is buying and the Exchange sells it. */
+	private static long affordable(MachineBlockEntity planner, Item item) {
+		if (!buying(planner) || !(planner.getWorld() instanceof ServerWorld world)) return 0;
+		Long price = dev.rackcraft.ExchangeCatalog.price(item);
+		if (price == null || price <= 0) return 0;
+		return FacilityManager.get(world).credits() / price;
 	}
 
 	/** Takes up to this many of an item, slots first; returns them as stacks. */
@@ -511,15 +536,28 @@ public final class SitePlanner {
 		}
 		if (left > 0 && storage != null) {
 			long got = storage.extract(ItemKey.of(item), left, true, false);
-			ItemKey key = ItemKey.of(item);
-			while (got > 0) {
-				int stack = (int) Math.min(got, item.getMaxCount());
-				taken.add(key.toStack(stack));
-				got -= stack;
+			left -= (int) got;
+			addStacks(taken, item, got);
+		}
+		// Whatever is still short comes straight from the Crypto Exchange, at its prices.
+		long buy = Math.min(left, affordable(planner, item));
+		if (buy > 0 && planner.getWorld() instanceof ServerWorld world) {
+			long cost = buy * dev.rackcraft.ExchangeCatalog.price(item);
+			if (FacilityManager.get(world).spendCredits(cost)) {
+				planner.site().putLong("Spent", planner.site().getLong("Spent") + cost);
+				addStacks(taken, item, buy);
 			}
 		}
 		planner.markDirty();
 		return taken;
+	}
+
+	private static void addStacks(List<ItemStack> taken, Item item, long count) {
+		while (count > 0) {
+			int stack = (int) Math.min(count, item.getMaxCount());
+			taken.add(new ItemStack(item, stack));
+			count -= stack;
+		}
 	}
 
 	// ---------------------------------------------------------------- clearing

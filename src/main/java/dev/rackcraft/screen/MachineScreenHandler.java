@@ -105,7 +105,8 @@ public final class MachineScreenHandler extends ScreenHandler {
 		} else if (mode == Mode.WORKCELL) {
 			// Assembly Robots and Drone Docks keep their parts in a row of nine; welding and riveting robots have none.
 			String id = net.minecraft.registry.Registries.BLOCK.getId(playerInventory.player.getWorld().getBlockState(pos).getBlock()).getPath();
-			if (id.equals("assembly_arm") || id.equals("drone_dock") || id.equals("belt_unloader")) {
+			if (id.equals("assembly_arm") || id.equals("drone_dock") || id.equals("belt_unloader")
+					|| id.equals("storage_exporter")) {
 				for (int index = 0; index < 9; index++) addSlot(new MachineSlot(machineInventory, index, 8 + index * 18, 116));
 			} else if (id.equals("belt_loader")) {
 				addSlot(new MachineSlot(machineInventory, 0, 80, 116));
@@ -113,8 +114,8 @@ public final class MachineScreenHandler extends ScreenHandler {
 			addPlayerInventory(playerInventory, 8, 152);
 		} else if (mode == Mode.SITE) {
 			// Drones, terraformers and hydrogen, then six material slots, in one row under the readouts.
-			for (int index = 0; index < 9; index++) addSlot(new MachineSlot(machineInventory, index, 8 + index * 18, 134));
-			addPlayerInventory(playerInventory, 8, 170);
+			for (int index = 0; index < 9; index++) addSlot(new MachineSlot(machineInventory, index, 8 + index * 18, 146));
+			addPlayerInventory(playerInventory, 8, 182);
 		} else if (mode == Mode.LAUNCH) {
 			// Three stage slots, the payload, and hydrogen in.
 			// A wider panel than most (230), so the readouts fit; the player's inventory sits in the middle of it.
@@ -174,6 +175,8 @@ public final class MachineScreenHandler extends ScreenHandler {
 	/** Buttons 2 and 3 on a Site Planner: the next layout, and start or pause. */
 	public static final int LAYOUT_BUTTON = 2;
 	public static final int START_BUTTON = 3;
+	/** Button 4 on a Site Planner: buy what's missing from the Crypto Exchange, or stop. */
+	public static final int BUY_BUTTON = 4;
 
 	@Override
 	public boolean onButtonClick(PlayerEntity player, int id) {
@@ -181,8 +184,10 @@ public final class MachineScreenHandler extends ScreenHandler {
 			player.sendMessage(net.minecraft.text.Text.literal(dev.rackcraft.world.LaunchPads.launch(launchWorld, machine)), true);
 			return true;
 		}
-		if ((id == LAYOUT_BUTTON || id == START_BUTTON) && mode == Mode.SITE && machine != null && machine.getWorld() instanceof ServerWorld siteWorld) {
+		if ((id == LAYOUT_BUTTON || id == START_BUTTON || id == BUY_BUTTON) && mode == Mode.SITE && machine != null
+				&& machine.getWorld() instanceof ServerWorld siteWorld) {
 			player.sendMessage(net.minecraft.text.Text.literal(id == LAYOUT_BUTTON ? dev.rackcraft.world.SitePlanner.cycleLayout(machine)
+					: id == BUY_BUTTON ? dev.rackcraft.world.SitePlanner.toggleBuying(machine)
 					: dev.rackcraft.world.SitePlanner.toggleRunning(machine)), true);
 			dev.rackcraft.world.SitePlanner.scanNow(siteWorld);
 			return true;

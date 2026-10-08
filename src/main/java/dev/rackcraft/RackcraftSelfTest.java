@@ -38,7 +38,7 @@ public final class RackcraftSelfTest {
 		RackcraftConfig.values.events.enabled = false;
 		dev.rackcraft.compute.ResearchLab.get(server.getOverworld()).reset();
 		dev.rackcraft.world.OrbitState.get(server.getOverworld()).reset();
-		check("S0.a", RcBlocks.BLOCKS.size() == 74 && RcItems.ITEMS.size() == 69,
+		check("S0.a", RcBlocks.BLOCKS.size() == 75 && RcItems.ITEMS.size() == 69,
 				"blocks=" + RcBlocks.BLOCKS.size() + " items=" + RcItems.ITEMS.size(), failures);
 		ServerWorld world = server.getOverworld();
 		BlockPos generatorPos = new BlockPos(0, 80, 0);
@@ -73,6 +73,15 @@ public final class RackcraftSelfTest {
 						&& server.getRecipeManager().get(Rackcraft.id("field_manual")).isPresent(),
 				"rackcraft recipes=" + server.getRecipeManager().values().stream()
 						.filter(recipe -> recipe.getId().getNamespace().equals(Rackcraft.MOD_ID)).count(), failures);
+		// Some things only come out of machines: no crafting recipe may make them (a stale one once made Fuel Cells
+		// from glowstone and amethyst).
+		java.util.Set<net.minecraft.item.Item> madeOnly = new java.util.HashSet<>(java.util.List.of(RcItems.ITEMS.get("fuel_cell"),
+				RcItems.ITEMS.get("hydrogen_canister"), RcItems.ITEMS.get("wafer_scale_engine"), RcItems.ITEMS.get("enriched_uranium")));
+		dev.rackcraft.world.AssemblyLine.recipes().forEach(recipe -> madeOnly.add(recipe.product()));
+		List<String> shortcuts = server.getRecipeManager().values().stream()
+				.filter(recipe -> madeOnly.contains(recipe.getOutput(server.getRegistryManager()).getItem()))
+				.map(recipe -> recipe.getId().toString()).toList();
+		check("S5.d", shortcuts.isEmpty(), "recipesForMachineOnlyItems=" + shortcuts, failures);
 		var cableState = world.getBlockState(cablePos);
 		check("S6.a", cableState.get(ConnectingBlock.FACING_PROPERTIES.get(Direction.WEST))
 						&& cableState.get(ConnectingBlock.FACING_PROPERTIES.get(Direction.EAST))
@@ -1444,6 +1453,24 @@ public final class RackcraftSelfTest {
 						&& dock.getStack(0).getCount() == 1,
 				"slot5=" + rack.getStack(5) + " dockSpare=" + dock.getStack(2) + " deadStored=" + deadStored
 						+ " drones=" + dock.getStack(0).getCount(), failures);
+
+		// A Storage Exporter on the pipe stocks a Site Planner that isn't: a stack of cable and the drones.
+		MachineBlockEntity exporter = place(world, origin.add(12, 1, 0), "storage_exporter", Direction.EAST);
+		MachineBlockEntity planner = place(world, origin.add(13, 1, 0), "site_planner", Direction.NORTH);
+		exporter.setStack(0, new ItemStack(RcBlocks.get("power_cable")));
+		exporter.setStack(1, new ItemStack(RcItems.ITEMS.get("construction_drone")));
+		var cable = dev.rackcraft.storage.ItemKey.of(RcBlocks.get("power_cable").asItem());
+		storage.insert(cable, 100, false);
+		storage.insert(dev.rackcraft.storage.ItemKey.of(RcItems.ITEMS.get("construction_drone")), 3, false);
+		SimTicker.stepNow(world);
+		dev.rackcraft.world.ItemPipes.step(world, SimTicker.machines(world));
+		dev.rackcraft.world.ItemPipes.step(world, SimTicker.machines(world));
+		int plannerCable = 0;
+		for (int slot = 3; slot < 9; slot++) if (planner.getStack(slot).isOf(RcBlocks.get("power_cable").asItem())) plannerCable += planner.getStack(slot).getCount();
+		check("SL3.a", plannerCable == 64 && planner.getStack(0).getCount() == 3 && storage.count(cable, true) == 36
+						&& exporter.getStack(0).getCount() == 1,
+				"plannerCable=" + plannerCable + " drones=" + planner.getStack(0) + " stored=" + storage.count(cable, true), failures);
+		storage.extract(cable, 36, true, false);
 		array.setStack(0, ItemStack.EMPTY);
 		clearArea(world, origin, 20, 6, 12);
 	}
@@ -1484,7 +1511,9 @@ public final class RackcraftSelfTest {
 		planner.setStack(1, new ItemStack(RcItems.ITEMS.get("terraforming_drone"), 2));
 		planner.setStack(2, new ItemStack(RcItems.ITEMS.get("hydrogen_canister"), 4));
 		planner.setStack(3, new ItemStack(RcBlocks.get("solar_array"), 9));
-		planner.setStack(4, new ItemStack(RcBlocks.get("power_cable"), 16));
+		// No cable in the planner or its storage: with buying on, it comes from the Crypto Exchange.
+		dev.rackcraft.world.SitePlanner.toggleBuying(planner);
+		FacilityManager.get(world).addCredits(1_000_000);
 		dev.rackcraft.world.SitePlanner.toggleRunning(planner);
 		List<Integer> phases = runSite(world, planner);
 		boolean arrays = true;
@@ -1506,9 +1535,12 @@ public final class RackcraftSelfTest {
 				"arrays=" + arrays + " cleared=" + cleared + " levelled=" + levelled + " arraysLeft=" + planner.getStack(3), failures);
 		var grid = dev.rackcraft.world.NetworkManager.get(world).component(plannerPos, dev.rackcraft.sim.NetKind.POWER);
 		check("SC1.c", world.getBlockState(plannerPos.east()).isOf(RcBlocks.get("power_cable")) && grid.contains(origin.add(8, 1, 3))
-						&& planner.getStack(0).getCount() == 4 && planner.getStack(1).getCount() == 2 && planner.getStack(4).getCount() == 15,
+						&& planner.getStack(0).getCount() == 4 && planner.getStack(1).getCount() == 2
+						&& planner.site().getLong("Spent") == ExchangeCatalog.price(RcBlocks.get("power_cable").asItem()),
 				"cable=" + world.getBlockState(plannerPos.east()) + " gridHasFarArray=" + grid.contains(origin.add(8, 1, 3))
-						+ " drones=" + planner.getStack(0).getCount() + "/" + planner.getStack(1).getCount() + " cables=" + planner.getStack(4), failures);
+						+ " drones=" + planner.getStack(0).getCount() + "/" + planner.getStack(1).getCount() + " spent=" + planner.site().getLong("Spent")
+						+ " cablePrice=" + ExchangeCatalog.price(RcBlocks.get("power_cable").asItem()), failures);
+		dev.rackcraft.world.SitePlanner.toggleBuying(planner);
 
 		// A wind farm on the same ground, now level: two towers six apart, one nacelle short at first.
 		for (BlockPos pos : BlockPos.iterate(origin.add(-2, 1, -2), origin.add(14, 4, 10))) {
@@ -1718,6 +1750,21 @@ public final class RackcraftSelfTest {
 						+ " stoneBricks=" + bricks + " stairs=" + stairs + " buildingRule=" + building
 						+ " netheriteIngot=" + ExchangeCatalog.price(Items.NETHERITE_INGOT) + " scrap=" + ExchangeCatalog.price(Items.NETHERITE_SCRAP)
 						+ " netheriteBlock=" + ExchangeCatalog.price(Items.NETHERITE_BLOCK) + " gold=" + ExchangeCatalog.price(Items.GOLD_INGOT), failures);
+		StringBuilder sample = new StringBuilder();
+		for (String id : List.of("steel_ingot", "silicon", "copper_wire", "circuit_board", "cpu_chip", "gpu_chip", "electric_motor", "pi_node",
+				"server_1u", "gpu_blade", "quantum_core", "drive_64k", "power_cable", "server_rack", "pdu", "crac_unit", "chiller", "solar_panel",
+				"wind_turbine", "battery_bank", "core_router", "storage_array", "modular_reactor", "welding_arm", "crypto_exchange", "site_planner")) {
+			sample.append(id).append('=').append(ExchangeCatalog.price(item(id))).append(' ');
+		}
+		Rackcraft.LOGGER.info("RACKCRAFT_SELFTEST prices {}", sample);
+		// Hardware pays its premium on top of the material one; plain materials don't.
+		check("E1.b", ExchangeCatalog.hardwarePremium(item("server_rack")) == RackcraftConfig.values.exchange.machinePremium
+						&& ExchangeCatalog.hardwarePremium(item("gpu_blade")) == RackcraftConfig.values.exchange.componentPremium
+						&& ExchangeCatalog.hardwarePremium(item("steel_ingot")) == 1 && ExchangeCatalog.hardwarePremium(Items.FURNACE) == 1
+						&& ExchangeOffers.all().values().stream().allMatch(offer -> ExchangeCatalog.price(offer.item()) == null
+								|| offer.price() == ExchangeCatalog.price(offer.item()) * offer.count()),
+				"rack=" + ExchangeCatalog.price(item("server_rack")) + " gpuBlade=" + ExchangeCatalog.price(item("gpu_blade"))
+						+ " gpuOffer=" + ExchangeOffers.all().get("gpu_blade").price(), failures);
 	}
 
 	private static net.minecraft.item.Item item(String id) {

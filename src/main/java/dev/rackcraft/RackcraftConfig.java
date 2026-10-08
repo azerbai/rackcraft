@@ -46,6 +46,7 @@ public final class RackcraftConfig {
 		public Hud hud = new Hud();
 		public Renewables renewables = new Renewables();
 		public Construction construction = new Construction();
+		public Exchange exchange = new Exchange();
 
 		private Values withDefaults() {
 			Values defaults = new Values();
@@ -56,6 +57,7 @@ public final class RackcraftConfig {
 			if (hud == null) hud = defaults.hud;
 			if (renewables == null) renewables = defaults.renewables;
 			if (construction == null) construction = defaults.construction;
+			if (exchange == null) exchange = defaults.exchange;
 			if (sim.stepTicks <= 0) sim.stepTicks = defaults.sim.stepTicks;
 			if (thermal.cellCapacityKjPerK <= 0) thermal.cellCapacityKjPerK = defaults.thermal.cellCapacityKjPerK;
 			if (thermal.maxActiveCells <= 0) thermal.maxActiveCells = defaults.thermal.maxActiveCells;
@@ -120,6 +122,16 @@ public final class RackcraftConfig {
 		public int terraformBlocks = 5;
 		public int tripsPerCanister = 16;
 		public int windFarmNacelleY = 130;
+	}
+	/**
+	 * Crypto Exchange prices for Rackcraft's own hardware, on top of the premium every non-building item pays:
+	 * components (chips, boards, modules, drives, motors, frames, tools) cost {@code componentPremium} times as much,
+	 * machines {@code machinePremium} times. Materials, fuels and vanilla items are unaffected. Applied when the catalog
+	 * is rebuilt (server start, /reload).
+	 */
+	public static final class Exchange {
+		public double componentPremium = 4;
+		public double machinePremium = 6;
 	}
 	/** Client-side: the RackCoin balance shown near racks or while holding a Rackcraft tool. */
 	public static final class Hud { public boolean enabled = true; }

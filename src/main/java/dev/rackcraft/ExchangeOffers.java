@@ -14,8 +14,24 @@ import net.minecraft.item.Items;
 public final class ExchangeOffers {
 	public enum Category { RESOURCES, RARE, PARTS }
 
-	public record Offer(String id, Category category, Item item, int count, long price) {
+	/**
+	 * A curated bundle. It costs what the same items cost in the All Items tab, so the two never disagree (an offer
+	 * cheaper per item than the catalog was a free discount); {@code listed} is only the fallback for an item the
+	 * catalog doesn't price.
+	 */
+	public record Offer(String id, Category category, Item item, int count, long listed) {
 		public ItemStack stack() { return new ItemStack(item, count); }
+
+		/** The price on the server, from the live catalog. */
+		public long price() {
+			return price(ExchangeCatalog::price);
+		}
+
+		/** The price from a given unit price list, e.g. the copy of the catalog a client was sent. */
+		public long price(java.util.function.Function<Item, Long> unitPrice) {
+			Long unit = unitPrice.apply(item);
+			return unit != null ? unit * count : listed;
+		}
 	}
 
 	private static Map<String, Offer> offers;
@@ -62,7 +78,7 @@ public final class ExchangeOffers {
 			"repair_kit", "suppression_canister", "pi_node", "server_1u", "asic_miner", "gpu_blade");
 
 	private static void add(Map<String, Offer> map, String id, Category category, Item item, int count, long price) {
-		// Every curated offer is a material or a part, so it carries the catalog's premium.
-		map.put(id, new Offer(id, category, item, count, price * ExchangeCatalog.MATERIAL_PREMIUM));
+		// Every curated offer is a material or a part, so it carries the catalog's premium, and hardware its own on top.
+		map.put(id, new Offer(id, category, item, count, Math.round(price * ExchangeCatalog.MATERIAL_PREMIUM * ExchangeCatalog.hardwarePremium(item))));
 	}
 }

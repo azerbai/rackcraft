@@ -121,6 +121,8 @@ public final class ItemPipes {
 					machine.setItemsMade(machine.itemsMade() + 1);
 				}
 			}
+			// A Storage Exporter keeps the block it faces stocked with a stack of each of its samples.
+			case "storage_exporter" -> export(machine, items);
 			// A Belt Unloader files everything the line hands it.
 			case "belt_unloader" -> {
 				for (int slot = 0; slot < machine.size(); slot++) store(machine, slot, items);
@@ -160,6 +162,38 @@ public final class ItemPipes {
 		else {
 			stack.increment((int) got);
 			machine.markDirty();
+		}
+	}
+
+	/**
+	 * A Storage Exporter: for each sample in its slots, tops the inventory in front of it up to one stack of that item
+	 * from storage, through the face it touches (so a machine only takes what its slots accept). Whatever won't go in
+	 * goes back to storage.
+	 */
+	private static void export(MachineBlockEntity exporter, StorageNetwork items) {
+		if (!(exporter.getWorld() instanceof net.minecraft.server.world.ServerWorld world)) return;
+		net.minecraft.util.math.Direction facing = exporter.getCachedState().get(dev.rackcraft.block.MachineBlock.FACING);
+		BlockPos front = exporter.getPos().offset(facing);
+		net.minecraft.inventory.Inventory target = net.minecraft.block.entity.HopperBlockEntity.getInventoryAt(world, front);
+		if (target == null) return;
+		java.util.Set<Item> done = new java.util.HashSet<>();
+		for (int slot = 0; slot < exporter.size(); slot++) {
+			ItemStack sample = exporter.getStack(slot);
+			if (sample.isEmpty() || !done.add(sample.getItem())) continue;
+			ItemKey key = ItemKey.of(sample);
+			int present = 0;
+			for (int index = 0; index < target.size(); index++) if (key.matches(target.getStack(index))) present += target.getStack(index).getCount();
+			int want = key.maxStackSize() - present;
+			if (want <= 0) continue;
+			long got = items.extract(key, want, true, false);
+			if (got <= 0) continue;
+			ItemStack left = net.minecraft.block.entity.HopperBlockEntity.transfer(null, target, key.toStack(got), facing.getOpposite());
+			if (!left.isEmpty()) items.insert(key, left.getCount(), false);
+			int moved = (int) got - left.getCount();
+			if (moved > 0) {
+				exporter.setItemsMade(exporter.itemsMade() + moved);
+				target.markDirty();
+			}
 		}
 	}
 

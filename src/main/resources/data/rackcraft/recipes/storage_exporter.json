@@ -1,0 +1,26 @@
+{
+  "key": {
+    "C": {
+      "item": "rackcraft:circuit_board"
+    },
+    "H": {
+      "item": "minecraft:hopper"
+    },
+    "P": {
+      "item": "rackcraft:item_pipe"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    }
+  },
+  "pattern": [
+    "SPS",
+    "CHC",
+    "SSS"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:storage_exporter"
+  },
+  "type": "minecraft:crafting_shaped"
+}

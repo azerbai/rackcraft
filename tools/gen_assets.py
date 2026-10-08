@@ -814,6 +814,11 @@ def remove_stale_textures(blocks):
         for path in stale:
             if path.exists():
                 path.unlink()
+    # A recipe dropped from the catalog must leave the game too: an old file kept a cheap Fuel Cell recipe alive.
+    wanted = {recipe["id"] for recipe in CONTENT["recipes"]}
+    for path in (RESOURCES / "data/rackcraft/recipes").glob("*.json"):
+        if path.stem not in wanted:
+            path.unlink()
 
 
 if __name__ == "__main__":

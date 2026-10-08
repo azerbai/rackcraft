@@ -21,9 +21,10 @@ public final class SiteScreen extends RackcraftHandledScreen {
 	private static final String[] UNITS = {"arrays", "tracking arrays", "towers"};
 	private ButtonWidget start;
 	private ButtonWidget layout;
+	private ButtonWidget buy;
 
 	public SiteScreen(MachineScreenHandler handler, PlayerInventory inventory, Text title) {
-		super(handler, inventory, title, WIDTH, 252);
+		super(handler, inventory, title, WIDTH, 264);
 	}
 
 	@Override
@@ -33,6 +34,8 @@ public final class SiteScreen extends RackcraftHandledScreen {
 				.dimensions(x + WIDTH - 60, y + 27, 52, 14).build());
 		layout = addDrawableChild(ButtonWidget.builder(Text.literal("Layout"), button -> click(MachineScreenHandler.LAYOUT_BUTTON))
 				.dimensions(x + WIDTH - 60, y + 43, 52, 14).build());
+		buy = addDrawableChild(ButtonWidget.builder(Text.literal("Buy"), button -> click(MachineScreenHandler.BUY_BUTTON))
+				.dimensions(x + WIDTH - 60, y + 59, 52, 14).build());
 	}
 
 	private void click(int button) {
@@ -53,6 +56,10 @@ public final class SiteScreen extends RackcraftHandledScreen {
 		start.setMessage(Text.literal(running ? "Pause" : "Start"));
 		start.active = hasSite && phase != SitePlanner.Phase.DONE || running;
 		layout.active = !running;
+		boolean buying = site(SitePlanner.R_BUYING) != 0;
+		buy.setMessage(Text.literal(buying ? "Buy: On" : "Buy: Off"));
+		buy.setTooltip(net.minecraft.client.gui.tooltip.Tooltip.of(Text.literal(
+				"When on, whatever the slots and storage can't supply is bought from the Crypto Exchange with RackCoin.")));
 
 		String headline = switch (status) {
 			case NO_AREA -> "No site yet: mark two corners with a Survey Stake, then use it on this";
@@ -85,12 +92,12 @@ public final class SiteScreen extends RackcraftHandledScreen {
 		if (hasSite) {
 			String level = site(SitePlanner.R_LEVEL) != 0 || phase.ordinal() >= SitePlanner.Phase.LEVEL.ordinal()
 					? ", level Y " + site(SitePlanner.R_LEVEL) : "";
-			lineFit(context, "Site " + site(SitePlanner.R_WIDTH) + " x " + site(SitePlanner.R_DEPTH) + level, 8, 62, 160, TEXT);
+			lineFit(context, "Site " + site(SitePlanner.R_WIDTH) + " x " + site(SitePlanner.R_DEPTH) + level, 8, 76, 160, TEXT);
 		} else {
 			lineFit(context, "Up to " + RackcraftConfig.values.construction.maxSide + " x " + RackcraftConfig.values.construction.maxSide
-					+ ", within " + RackcraftConfig.values.construction.maxDistance + " blocks", 8, 62, 160, MUTED);
+					+ ", within " + RackcraftConfig.values.construction.maxDistance + " blocks", 8, 76, 160, MUTED);
 		}
-		lineFit(context, "Layout: " + chosen.label + (total > 0 ? " (" + total + " " + UNITS[chosen.ordinal()] + ")" : ""), 8, 73, 160, TEXT);
+		lineFit(context, "Layout: " + chosen.label + (total > 0 ? " (" + total + " " + UNITS[chosen.ordinal()] + ")" : ""), 8, 87, 160, TEXT);
 
 		int left = site(SitePlanner.R_LEFT);
 		int built = site(SitePlanner.R_BUILT);
@@ -102,22 +109,24 @@ public final class SiteScreen extends RackcraftHandledScreen {
 			case DONE -> "All " + total + " " + UNITS[chosen.ordinal()] + " built and wired";
 			case NONE -> "";
 		};
-		lineFit(context, progress, 8, 84, 160, MUTED);
-		if (phase == SitePlanner.Phase.BUILD || phase == SitePlanner.Phase.DONE) bar(context, 8, 95, 160, total > 0 ? built / (double) total : 0, GOOD);
+		lineFit(context, progress, 8, 98, 160, MUTED);
+		if (phase == SitePlanner.Phase.BUILD || phase == SitePlanner.Phase.DONE) bar(context, 8, 108, 160, total > 0 ? built / (double) total : 0, GOOD);
 
 		int need = site(SitePlanner.R_NEED_ITEM);
 		if (need > 0) {
 			String name = new ItemStack(Registries.ITEM.get(need - 1)).getName().getString();
-			lineFit(context, "Needs " + String.format(Locale.ROOT, "%,d", site(SitePlanner.R_NEED_COUNT)) + " more " + name, 8, 104, 160, WARN);
+			lineFit(context, "Needs " + String.format(Locale.ROOT, "%,d", site(SitePlanner.R_NEED_COUNT)) + " more " + name, 8, 117, 160, WARN);
 		} else if (site(SitePlanner.R_HAS_BLOCKED) != 0) {
 			lineFit(context, "In the way at " + site(SitePlanner.R_BLOCKED_X) + ", " + site(SitePlanner.R_BLOCKED_Y) + ", "
-					+ site(SitePlanner.R_BLOCKED_Z), 8, 104, 160, WARN);
+					+ site(SitePlanner.R_BLOCKED_Z), 8, 117, 160, WARN);
+		} else if (site(SitePlanner.R_SPENT) > 0) {
+			lineFit(context, "Bought from the Exchange: " + String.format(Locale.ROOT, "%,d", site(SitePlanner.R_SPENT)) + " RC", 8, 117, 160, MUTED);
 		}
 		int canisters = handler.getSlot(SitePlanner.FUEL_SLOT).getStack().getCount();
 		int trips = stat(Stat.TOOL_USES) + canisters * RackcraftConfig.values.construction.tripsPerCanister;
 		lineFit(context, "Out: " + stat(Stat.WORKERS) + " building, " + site(SitePlanner.R_TERRAFORMERS_OUT) + " levelling.  Fuel: "
-				+ trips + (trips == 1 ? " trip" : " trips"), 8, 114, 160, TEXT);
-		lineFit(context, "Drones, terraformers, hydrogen, materials", 8, 124, 160, MUTED);
+				+ trips + (trips == 1 ? " trip" : " trips"), 8, 127, 160, TEXT);
+		lineFit(context, "Drones, terraformers, hydrogen, materials", 8, 137, 160, MUTED);
 	}
 
 	private static <E> E enumAt(E[] values, int index) {
