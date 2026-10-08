@@ -2791,3 +2791,120 @@ def _arrow_face(base, key, on, into):
 
 FRONT_STYLES["loader"] = lambda base, key, on: _arrow_face(base, key, on, False)
 FRONT_STYLES["unloader"] = lambda base, key, on: _arrow_face(base, key, on, True)
+
+
+# ---------------------------------------------------------------- site construction
+
+def planner_face(base, key, on):
+    """A blueprint screen: a grid, a site outlined in white with rows of arrays on it, and a drone dot moving over it."""
+    frames = []
+    for frame in range(4 if on else 1):
+        canvas = plate(base, key + ":planner")
+        canvas.inset(1, 2, 14, 13, (26, 64, 118), lighten(base, 0.1), darken(base, 0.6))
+        grid = (44, 92, 150)
+        for i in range(3, 14, 3):
+            canvas.vline(i, 3, 12, grid)
+        for i in range(4, 13, 3):
+            canvas.hline(2, 13, i, grid)
+        canvas.frame(4, 5, 11, 10, (220, 232, 245))
+        for y in (6, 8):
+            canvas.hline(5, 10, y, (110, 170, 230) if on else (80, 120, 160))
+        if on:
+            dx, dy = [(5, 6), (8, 6), (8, 8), (5, 8)][frame]
+            canvas.set(dx, dy, YELLOW)
+        canvas.hline(2, 13, 14, LED_GREEN if on else LED_OFF)
+        frames.append(canvas)
+    return frames
+
+
+def item_stake(base, key):
+    """A wooden stake with an orange survey flag."""
+    canvas = Canvas()
+    wood = (150, 110, 60)
+    for i in range(10):
+        canvas.set(4 + i // 2, 14 - i, wood)
+        canvas.set(5 + i // 2, 14 - i, darken(wood, 0.25))
+    canvas.set(4, 15, darken(wood, 0.4))
+    canvas.poly([(9, 1), (15, 3), (9, 6)], base)
+    canvas.line(9, 1, 9, 6, darken(base, 0.35))
+    canvas.set(10, 3, lighten(base, 0.3))
+    return canvas
+
+
+def item_heavy_drone_frame(base, key):
+    """A double-boomed X with a big centre plate and lifting hooks."""
+    canvas = Canvas()
+    for offset in (0, 1):
+        canvas.line(1 + offset, 1, 14, 14 - offset, base)
+        canvas.line(14 - offset, 1, 1, 14 - offset, darken(base, 0.25))
+    canvas.rect(5, 5, 10, 10, darken(base, 0.15))
+    canvas.frame(5, 5, 10, 10, darken(base, 0.5))
+    canvas.rect(7, 7, 8, 8, darken(base, 0.45))
+    for x, y in ((1, 1), (14, 1), (1, 14), (14, 14)):
+        canvas.set(x, y, lighten(base, 0.35))
+    return canvas
+
+
+def _site_drone_icon(base, key, tool):
+    """A big quadcopter seen from above, with something hanging off it (a gripper or a scoop)."""
+    canvas = Canvas()
+    canvas.line(2, 2, 13, 13, (70, 74, 80))
+    canvas.line(13, 2, 2, 13, (70, 74, 80))
+    for cx, cy in ((2, 2), (13, 2), (2, 13), (13, 13)):
+        canvas.disc(cx + 0.5, cy + 0.5, 2.6, (190, 198, 208))
+        canvas.set(cx, cy, BLACK)
+    canvas.rect(4, 4, 11, 11, base)
+    for i in range(4, 12):
+        if (i // 2) % 2 == 0:
+            canvas.set(i, 4, BLACK)
+            canvas.set(i, 11, BLACK)
+    canvas.frame(4, 4, 11, 11, darken(base, 0.45))
+    if tool == "gripper":
+        canvas.rect(6, 6, 9, 9, (60, 64, 70))
+        canvas.set(6, 9, STEEL)
+        canvas.set(9, 9, STEEL)
+    else:
+        canvas.rect(6, 6, 9, 9, (120, 90, 50))
+        canvas.hline(6, 9, 6, (170, 176, 184))
+    canvas.set(4, 5, LED_GREEN)
+    canvas.set(11, 5, LED_RED)
+    return canvas
+
+
+def site_drone_parts(shell, key, scoop):
+    """Tiles for a site drone: 0 striped body, 1 boom, 2 rotor blur, 3 the gripper or scoop."""
+    body = plate(shell, key + ":body")
+    for y in range(SIZE):
+        for x in range(SIZE):
+            if (x + y) // 3 % 2 == 0 and (y < 4 or y > 11):
+                body.set(x, y, (30, 30, 34) if not scoop else darken(shell, 0.45))
+    body.rect(5, 5, 10, 10, darken(shell, 0.35))
+    body.rect(6, 6, 9, 9, (40, 120, 200))
+    body.set(2, 6, LED_GREEN)
+    body.set(13, 6, LED_RED)
+    boom = plate((70, 74, 80), key + ":boom")
+    boom.hline(0, 15, 8, (110, 116, 124))
+    rotor = Canvas()
+    for y in range(SIZE):
+        for x in range(SIZE):
+            distance = math.hypot(x + 0.5 - 8, y + 0.5 - 8)
+            if distance <= 7.5:
+                rotor.set(x, y, (200, 206, 214, 70) if distance > 1.6 else (60, 60, 64, 255))
+    rotor.line(2, 8, 13, 8, (190, 196, 204, 200))
+    tool = plate((120, 90, 50) if scoop else (60, 64, 70), key + ":tool")
+    if scoop:
+        for x in range(SIZE):
+            tool.set(x, 0, (180, 186, 194))
+            tool.set(x, 15, (180, 186, 194))
+    else:
+        tool.hline(0, 15, 8, STEEL)
+    return _strip([body, boom, rotor, tool])
+
+
+FRONT_STYLES["planner"] = planner_face
+ITEM_STYLES.update({
+    "stake": item_stake,
+    "heavy_drone_frame": item_heavy_drone_frame,
+    "construction_drone": lambda base, key: _site_drone_icon(base, key, "gripper"),
+    "terraformer": lambda base, key: _site_drone_icon(base, key, "scoop"),
+})

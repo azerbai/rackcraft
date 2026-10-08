@@ -1,0 +1,23 @@
+{
+  "key": {
+    "A": {
+      "item": "rackcraft:aluminum_ingot"
+    },
+    "D": {
+      "item": "rackcraft:drone_frame"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    }
+  },
+  "pattern": [
+    "SAS",
+    "ADA",
+    "SAS"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:heavy_drone_frame"
+  },
+  "type": "minecraft:crafting_shaped"
+}

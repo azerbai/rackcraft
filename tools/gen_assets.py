@@ -713,6 +713,7 @@ def main():
         "effect.rackcraft.coughing": "Smoker's Cough",
         "effect.rackcraft.radiation": "Radiation Sickness",
         "entity.rackcraft.maintenance_drone": "Maintenance Drone",
+        "entity.rackcraft.construction_drone": "Construction Drone",
         "entity.rackcraft.rocket": "Rocket",
         "screen.rackcraft.workcell": "Robot",
     })
@@ -789,6 +790,8 @@ def main():
     (entity_textures / "maintenance_drone.png").write_bytes(textures.drone_parts())
     (entity_textures / "rocket.png").write_bytes(textures.rocket_parts())
     (entity_textures / "wind_rotor.png").write_bytes(textures.rotor_parts())
+    (entity_textures / "construction_drone.png").write_bytes(textures.site_drone_parts((232, 192, 48), "construction_drone", False))
+    (entity_textures / "terraforming_drone.png").write_bytes(textures.site_drone_parts((122, 106, 72), "terraforming_drone", True))
     (entity_textures / "rocket_first_stage.png").write_bytes(textures.rocket_first_stage())
     (entity_textures / "rocket_second_stage.png").write_bytes(textures.rocket_second_stage())
     (entity_textures / "rocket_third_stage.png").write_bytes(textures.rocket_third_stage())

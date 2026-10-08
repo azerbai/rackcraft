@@ -109,6 +109,8 @@ public class MachineBlock extends BlockWithEntity {
 	@Override
 	public ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand,
 			BlockHitResult hit) {
+		// A Survey Stake hands its site to a Site Planner (SurveyStakeItem) rather than opening the screen.
+		if (player.getStackInHand(hand).isOf(dev.rackcraft.RcItems.ITEMS.get("survey_stake"))) return ActionResult.PASS;
 		if (!world.isClient && world.getBlockEntity(pos) instanceof MachineBlockEntity machine) {
 			if (machine.blockId().equals("server_rack")
 					&& player.getStackInHand(hand).isOf(dev.rackcraft.RcItems.ITEMS.get("thermal_scanner"))) {

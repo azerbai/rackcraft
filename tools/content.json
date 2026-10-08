@@ -108,6 +108,8 @@
      "desc":"Feeds an Assembly Line straight from storage. Put it on an Item Pipe that reaches a Storage Array, face it at the first Conveyor Belt, and put one of the item you want in its slot (that one is only a sample and stays put). Whenever the belt in front is empty it takes another from storage and puts it on, up to one a second. Needs no power."},
     {"id":"belt_unloader","name":"Belt Unloader","color":"7A5A4A","front":"unloader","side":"panel","top":"plate","machine":true,
      "desc":"Files whatever comes off the end of an Assembly Line into storage. Point the last Conveyor Belt into it and put it on an Item Pipe that reaches a Storage Array: finished drones, arrays, nacelles and the rest land in its nine-slot buffer and go into storage once a second. Hoppers can empty it too. Needs no power."},
+    {"id":"site_planner","name":"Site Planner","color":"3A5878","front":"planner","side":"panel","top":"helipad","machine":true,
+     "desc":"Builds whole power plants while you do something else. Mark a site with a Survey Stake (up to 48 x 48, within 96 blocks), use the stake on the planner, pick a layout (Solar Field, Tracking Solar Field or Wind Farm) and press Start. Construction Drones clear the site first: grass, flowers, snow, leaves and entire trees go into storage. Terraforming Drones then level it to its median height, five blocks a trip, and dock once it is even. Then the Construction Drones build: arrays packed edge to edge, or Wind Towers six blocks apart with their nacelles at Y 130. Last, they lay Power Cable between the towers and back to the planner, so put the planner on the grid you want the site on. Slots: Construction Drones, Terraforming Drones, Hydrogen Canisters, then six for materials; on an Item Pipe it takes all of these from storage too. Each trip burns a sixteenth of a canister. Draws 5 kW. Inside the site it moves anything without a block entity, so don't mark out your house; outside it, the cable only digs through earth and rock."},
     {"id":"waste_cask","name":"Sealed Waste Cask","color":"7A8288","pattern":"cask",
      "desc":"Four Spent Fuel rods sealed behind steel and depleted uranium. Completely safe to carry, stack and store: line them up on a concrete pad somewhere and try not to think about the next ten thousand years."},
     {"id":"monitoring_wall","name":"Monitoring Wall","color":"45637B","front":"monitor","side":"bezel","top":"plate","machine":true,
@@ -277,7 +279,15 @@
     {"id":"nacelle_frame","name":"Nacelle Frame","color":"D0D4D6","pattern":"nacelle_frame",
      "desc":"The empty shell of a Wind Tower Nacelle. On an Assembly Line it gets 8 Electric Motors (the generator), 4 Circuit Boards, a weld, 16 Copper Wire and rivets."},
     {"id":"tower_frame","name":"Tower Frame","color":"C8CAC8","pattern":"tower_frame",
-     "desc":"A ring of steel for a Wind Tower. A Welding Robot and a Riveting Robot turn it into a Tower Section."}
+     "desc":"A ring of steel for a Wind Tower. A Welding Robot and a Riveting Robot turn it into a Tower Section."},
+    {"id":"survey_stake","name":"Survey Stake","color":"E07020","pattern":"stake",
+     "desc":"A stick with a flag on it, for telling a Site Planner where to build. Use it on the ground at one corner of the site and then at the opposite corner; while you hold it the site is outlined. Use it on a Site Planner to hand the site over. Sneak-use to start again."},
+    {"id":"heavy_drone_frame","name":"Heavy Drone Frame","color":"8C949C","pattern":"heavy_drone_frame",
+     "desc":"A bigger airframe for drones that lift things. What it becomes depends on the first part an Assembly Robot fits: two Sticky Pistons make a Construction Drone, a Diamond Shovel a Terraforming Drone. Either way it then gets four Electric Motors, two Circuit Boards, a weld and rivets."},
+    {"id":"construction_drone","name":"Construction Drone","color":"E8C030","pattern":"construction_drone",
+     "desc":"A heavy-lift quadcopter in hazard stripes. Load it into a Site Planner and it clears sites, places Solar Arrays and Wind Towers, and lays cable, carrying its materials out from storage and bringing back whatever it cleared. Built on the Assembly Line from a Heavy Drone Frame."},
+    {"id":"terraforming_drone","name":"Terraforming Drone","color":"7A6A48","pattern":"terraformer",
+     "desc":"A quadcopter with a scoop. Load it into a Site Planner and it levels the site: it digs up to five blocks off the high spots each trip and drops them into the low ones, takes spare earth home to storage, and brings dirt or cobblestone from storage when there is more hole than hill. When the ground is even it docks and waits. Built on the Assembly Line from a Heavy Drone Frame."}
   ],
   "fuelNotes": "Each tick of furnace burn time gives one tick of 40 kW, and fuel only burns while the generator is supplying power. Coal runs 80 s, a coal block 800 s and a lava bucket 1000 s (the bucket stays in the slot).",
   "guide": [
@@ -323,6 +333,9 @@
     {"id":"industry","title":"Industry and Drones","icon":"welding_arm",
      "intro":"Once RackCoin stops mattering, power is what's left to spend. The Electrolyser turns hundreds of megawatts into Hydrogen Canisters, and the Assembly Line turns parts into machines no crafting table can make: lay Conveyor Belts past a row of robot arms (Welding, Riveting and Assembly Robots, each facing the belt) and each arm does its step as a workpiece passes. A Drone Frame goes in one end and a Maintenance Drone comes out the other. Drones live in a Drone Dock and fix failed modules, cut cables and tripped breakers by themselves.",
      "entries":["electrolyser","hydrogen_canister","conveyor_belt","belt_loader","belt_unloader","welding_arm","riveting_arm","assembly_arm","electric_motor","drone_frame","maintenance_drone","drone_dock"]},
+    {"id":"construction","title":"Site Construction","icon":"site_planner",
+     "intro":"Placing a hundred Solar Arrays by hand is a job for drones. Mark out a site with a Survey Stake, hand it to a Site Planner on your grid, choose a Solar Field, a Tracking Solar Field or a Wind Farm, and press Start. The work always goes in the same order: Construction Drones clear everything soft off the site, Terraforming Drones level it (five blocks a trip) and dock once it is even, then Construction Drones build the layout and wire it back to the planner. Materials, drones and hydrogen come from the planner's slots or from storage on its Item Pipe, and its screen says what it is waiting for.",
+     "entries":["survey_stake","site_planner","heavy_drone_frame","construction_drone","terraforming_drone"]},
     {"id":"space","title":"The Launch Programme","icon":"launch_control",
      "intro":"Hydrogen's real job. Build Rocket Stages and payloads on the Assembly Line, fill a Launch Control's tank with Hydrogen Canisters, and put things in orbit. Comms Satellites speed up the Darknet and add lease slots, Survey Satellites find a Hyperscale Campus for you, Orbital Data Centers add compute to every rack, and Dyson Mirrors beam power back down to Rectennas. The last two have no limit.",
      "entries":["launch_pad","launch_tower","launch_control","stage_frame","rocket_stage","satellite_bus","comms_satellite","survey_satellite","orbital_datacenter","dyson_mirror","rectenna"]},
@@ -442,6 +455,9 @@
     {"id":"nacelle_frame","kind":"shaped","result":"nacelle_frame","pattern":["SSS","AMA","SSS"],"key":{"S":"rackcraft:steel_ingot","A":"rackcraft:aluminum_ingot","M":"rackcraft:electric_motor"}},
     {"id":"tower_frame","kind":"shaped","result":"tower_frame","count":4,"pattern":["S S","SBS","S S"],"key":{"S":"rackcraft:steel_ingot","B":"minecraft:iron_bars"}},
     {"id":"belt_loader","kind":"shaped","result":"belt_loader","pattern":["SHS","PMP","SCS"],"key":{"S":"rackcraft:steel_ingot","H":"minecraft:hopper","P":"rackcraft:item_pipe","M":"rackcraft:electric_motor","C":"rackcraft:circuit_board"}},
-    {"id":"belt_unloader","kind":"shaped","result":"belt_unloader","pattern":["SCS","PHP","SSS"],"key":{"S":"rackcraft:steel_ingot","H":"minecraft:hopper","P":"rackcraft:item_pipe","C":"rackcraft:circuit_board"}}
+    {"id":"belt_unloader","kind":"shaped","result":"belt_unloader","pattern":["SCS","PHP","SSS"],"key":{"S":"rackcraft:steel_ingot","H":"minecraft:hopper","P":"rackcraft:item_pipe","C":"rackcraft:circuit_board"}},
+    {"id":"site_planner","kind":"shaped","result":"site_planner","pattern":["SMS","CTC","SPS"],"key":{"S":"rackcraft:steel_ingot","M":"minecraft:map","C":"rackcraft:circuit_board","T":"minecraft:cartography_table","P":"rackcraft:pdu"}},
+    {"id":"survey_stake","kind":"shaped","result":"survey_stake","pattern":[" W"," S"," S"],"key":{"W":"minecraft:orange_wool","S":"minecraft:stick"}},
+    {"id":"heavy_drone_frame","kind":"shaped","result":"heavy_drone_frame","pattern":["SAS","ADA","SAS"],"key":{"S":"rackcraft:steel_ingot","A":"rackcraft:aluminum_ingot","D":"rackcraft:drone_frame"}}
   ]
 }

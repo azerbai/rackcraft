@@ -25,6 +25,7 @@ public final class RackcraftClient implements ClientModInitializer {
 		ShackleChains.register();
 		DizzyView.register();
 		FaultOverlay.register();
+		SurveyOutline.register();
 		ScreenRegistry.register(RcScreenHandlers.RACK, RackScreen::new);
 		ScreenRegistry.register(RcScreenHandlers.SINGLE_SLOT, SingleSlotScreen::new);
 		ScreenRegistry.register(RcScreenHandlers.MACHINE_STATUS, MachineStatusScreen::new);
@@ -43,6 +44,7 @@ public final class RackcraftClient implements ClientModInitializer {
 		ScreenRegistry.register(RcScreenHandlers.DARKNET, dev.rackcraft.client.screen.DarknetScreen::new);
 		ScreenRegistry.register(RcScreenHandlers.WORKCELL, dev.rackcraft.client.screen.WorkcellScreen::new);
 		ScreenRegistry.register(RcScreenHandlers.LAUNCH, dev.rackcraft.client.screen.LaunchScreen::new);
+		ScreenRegistry.register(RcScreenHandlers.SITE, dev.rackcraft.client.screen.SiteScreen::new);
 		net.fabricmc.fabric.api.blockrenderlayer.v1.BlockRenderLayerMap.INSTANCE.putBlock(dev.rackcraft.RcBlocks.get("launch_tower"),
 				net.minecraft.client.render.RenderLayer.getCutout());
 		net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry.register(dev.rackcraft.entity.RcEntities.ROCKET,
@@ -52,7 +54,9 @@ public final class RackcraftClient implements ClientModInitializer {
 		net.minecraft.client.render.block.entity.BlockEntityRendererFactories.register(dev.rackcraft.RcBlocks.MACHINE_ENTITY,
 				dev.rackcraft.client.render.RobotArmRenderer::new);
 		net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry.register(dev.rackcraft.entity.RcEntities.MAINTENANCE_DRONE,
-				dev.rackcraft.client.render.DroneRenderer::new);
+				dev.rackcraft.client.render.DroneRenderer::maintenance);
+		net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry.register(dev.rackcraft.entity.RcEntities.CONSTRUCTION_DRONE,
+				dev.rackcraft.client.render.DroneRenderer::construction);
 		net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.registerGlobalReceiver(
 				dev.rackcraft.darknet.DarknetScreenHandler.SYNC, (client, handler, buf, responseSender) -> {
 					int syncId = buf.readVarInt();

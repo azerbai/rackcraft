@@ -212,6 +212,7 @@ public final class SimTicker {
 		NuclearProcessing.step(world, arrays, satisfaction, dt, research);
 		AssemblyLine.step(world, machines, satisfaction, dt);
 		DroneDocks.step(world, machines, satisfaction);
+		SitePlanner.step(world, machines, satisfaction);
 		LaunchPads.step(world, machines, satisfaction);
 		for (ReactorArrays.Array array : new HashSet<>(arrays.values())) {
 			if (array.controller().blockId().equals("grid_substation")) UtilityPlants.sellPower(world, array, exported.getOrDefault(array, 0.0), dt);
@@ -595,6 +596,7 @@ public final class SimTicker {
 					"electrolyser" -> NuclearProcessing.demandKw(machine);
 			case "welding_arm", "riveting_arm", "assembly_arm" -> AssemblyLine.demandKw(machine);
 			case "drone_dock" -> DroneDocks.DOCK_KW;
+			case "site_planner" -> SitePlanner.PLANNER_KW;
 			case "launch_control" -> LaunchPads.CONTROL_KW;
 			case "cdu" -> 0.5;
 			case "desalination_plant" -> UtilityPlants.desalinationKw(machine);

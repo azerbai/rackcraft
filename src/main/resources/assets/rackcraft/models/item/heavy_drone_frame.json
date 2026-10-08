@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "rackcraft:item/heavy_drone_frame"
+  }
+}

@@ -138,6 +138,15 @@ public final class FaultFinder {
 					else if (status == DroneDocks.Status.NO_DRONES.ordinal()) faults.add(new Fault(pos, 1, "Drone Dock: every drone is out"));
 					else if (status == DroneDocks.Status.NO_SPARES.ordinal()) faults.add(new Fault(pos, 1, "Drone Dock: needs spares (in it or in its storage)"));
 				}
+				case "site_planner" -> {
+					int status = machine.processStatus();
+					if (status == SitePlanner.Status.NO_POWER.ordinal()) faults.add(new Fault(pos, 2, "Site Planner: no power"));
+					else if (status == SitePlanner.Status.NO_FUEL.ordinal()) faults.add(new Fault(pos, 2, "Site Planner: out of hydrogen"));
+					else if (status == SitePlanner.Status.NO_DRONES.ordinal()) faults.add(new Fault(pos, 1, "Site Planner: needs Construction Drones"));
+					else if (status == SitePlanner.Status.NO_TERRAFORMERS.ordinal()) faults.add(new Fault(pos, 1, "Site Planner: needs Terraforming Drones"));
+					else if (status == SitePlanner.Status.NEEDS_MATERIALS.ordinal()) faults.add(new Fault(pos, 1, "Site Planner: waiting for materials"));
+					else if (status == SitePlanner.Status.BLOCKED.ordinal()) faults.add(new Fault(pos, 1, "Site Planner: something on the site is in the way"));
+				}
 				case "desalination_plant" -> {
 					int status = machine.pumpStatus();
 					if (machine.reactorArraySize() < 2) faults.add(new Fault(pos, 1, notWhole(machine)));

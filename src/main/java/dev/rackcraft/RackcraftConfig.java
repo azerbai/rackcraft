@@ -45,6 +45,7 @@ public final class RackcraftConfig {
 		public HeatOverlay heatOverlay = new HeatOverlay();
 		public Hud hud = new Hud();
 		public Renewables renewables = new Renewables();
+		public Construction construction = new Construction();
 
 		private Values withDefaults() {
 			Values defaults = new Values();
@@ -54,6 +55,7 @@ public final class RackcraftConfig {
 			if (heatOverlay == null) heatOverlay = defaults.heatOverlay;
 			if (hud == null) hud = defaults.hud;
 			if (renewables == null) renewables = defaults.renewables;
+			if (construction == null) construction = defaults.construction;
 			if (sim.stepTicks <= 0) sim.stepTicks = defaults.sim.stepTicks;
 			if (thermal.cellCapacityKjPerK <= 0) thermal.cellCapacityKjPerK = defaults.thermal.cellCapacityKjPerK;
 			if (thermal.maxActiveCells <= 0) thermal.maxActiveCells = defaults.thermal.maxActiveCells;
@@ -106,6 +108,18 @@ public final class RackcraftConfig {
 		public int windTowerMinSections = 10;
 		public double wearDays = 2;
 		public double wearLoss = 0.3;
+	}
+	/**
+	 * Site Planners and their drones: the biggest site one planner takes ({@code maxSide} blocks a side), how far the
+	 * site may be from it, how many blocks a Terraforming Drone moves a trip, trips per Hydrogen Canister, and the height
+	 * a Wind Farm's nacelles are built up to.
+	 */
+	public static final class Construction {
+		public int maxSide = 48;
+		public int maxDistance = 96;
+		public int terraformBlocks = 5;
+		public int tripsPerCanister = 16;
+		public int windFarmNacelleY = 130;
 	}
 	/** Client-side: the RackCoin balance shown near racks or while holding a Rackcraft tool. */
 	public static final class Hud { public boolean enabled = true; }

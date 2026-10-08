@@ -312,6 +312,17 @@ A **Modular Reactor** runs on its own too: 500 kW, one Fuel Cell per 30 minutes 
 
 The wind is one for the whole world: it rises and falls by up to a quarter over a few minutes, for every turbine and tower at once, so a battery bank evens out a wind farm. Solar Arrays and Wind Towers wear: over two days of running they lose up to 30% of their output, until a **Maintenance Drone** from a Drone Dock within 32 blocks services them (the dock sends one at 25% wear). The basic panel and turbine never wear, so an early setup never depends on drones. Every number here is in the `renewables` section of the config.
 
+## Site Construction
+
+A **Site Planner** builds a whole solar field or wind farm with drones. Mark the site with a **Survey Stake** (use it on the ground at two opposite corners; the area is outlined while you hold it), then use the stake on the planner. Sites can be up to 48 x 48 and within 96 blocks of the planner. Choose a layout (**Solar Field**, **Tracking Solar Field** or **Wind Farm**) and press Start. The work always runs in this order:
+
+1. **Clear**: Construction Drones take everything soft off the site (grass, flowers, snow, leaves, whole trees, bee nests), 16 blocks a trip, into storage.
+2. **Level**: Terraforming Drones bring the site to its median height, digging up to 5 blocks off the high spots each trip and dropping them into the low ones. Spare earth goes into storage; when there is more hole than hill they fill from storage (dirt, cobblestone and other plain stone). Once the ground is even they dock.
+3. **Build**: Construction Drones place arrays packed edge to edge (so they share power with no cables), or Wind Towers six blocks apart with their nacelles at Y 130.
+4. **Wire**: they lay Power Cable between the towers and from the site back to the planner, so the site joins whatever grid the planner is on.
+
+The planner holds Construction Drones, Terraforming Drones, Hydrogen Canisters and six slots of materials. On an Item Pipe it also takes all of these from storage. Each trip burns a sixteenth of a canister, and the planner draws 5 kW. Its screen shows the phase, the progress, what it is short of and anything in the way. Inside the site it moves anything without a block entity, so don't mark out your house. Outside the site, the cable only digs through earth and rock. Both drones are built on the Assembly Line from a **Heavy Drone Frame**: two Sticky Pistons first make a Construction Drone, a Diamond Shovel first makes a Terraforming Drone, then four Electric Motors, two Circuit Boards, a weld and rivets. The numbers are in the `construction` section of the config.
+
 ## Grid-Scale Batteries
 
 A Battery Bank stores 3,000 kJ, charges at 15 kW and discharges at 60 kW, losing 10% each way. Build Battery Banks into a solid cube, 2x2x2 up to 5x5x5, and they become one **Grid-Scale Battery**: one store with every bank's charge and rates, 10% more capacity per bank for each step up in size (40% more in a 5-cube), and smaller losses: 8% each way for a 2-cube down to 2% for a 5-cube. The casing changes when it forms, and its screen and the Multimeter show its size, capacity and efficiency.

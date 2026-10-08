@@ -24,6 +24,7 @@ public final class RcScreenHandlers {
 	public static final ScreenHandlerType<MachineScreenHandler> PROCESSOR = register("processor", MachineScreenHandler.Mode.PROCESSOR);
 	public static final ScreenHandlerType<MachineScreenHandler> WORKCELL = register("workcell", MachineScreenHandler.Mode.WORKCELL);
 	public static final ScreenHandlerType<MachineScreenHandler> LAUNCH = register("launch", MachineScreenHandler.Mode.LAUNCH);
+	public static final ScreenHandlerType<MachineScreenHandler> SITE = register("site", MachineScreenHandler.Mode.SITE);
 	public static final ScreenHandlerType<dev.rackcraft.compute.OpsScreenHandler> OPERATIONS = Registry.register(
 			Registries.SCREEN_HANDLER, Rackcraft.id("operations"), new ExtendedScreenHandlerType<>((syncId, inventory, buf) ->
 					new dev.rackcraft.compute.OpsScreenHandler(syncId, inventory, buf.readBlockPos())));
@@ -65,6 +66,7 @@ public final class RcScreenHandlers {
 			case PROCESSOR -> PROCESSOR;
 			case WORKCELL -> WORKCELL;
 			case LAUNCH -> LAUNCH;
+			case SITE -> SITE;
 		};
 	}
 }

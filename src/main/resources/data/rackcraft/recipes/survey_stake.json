@@ -1,0 +1,20 @@
+{
+  "key": {
+    "S": {
+      "item": "minecraft:stick"
+    },
+    "W": {
+      "item": "minecraft:orange_wool"
+    }
+  },
+  "pattern": [
+    " W",
+    " S",
+    " S"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:survey_stake"
+  },
+  "type": "minecraft:crafting_shaped"
+}

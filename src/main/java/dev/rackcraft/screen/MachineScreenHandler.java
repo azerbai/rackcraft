@@ -111,6 +111,10 @@ public final class MachineScreenHandler extends ScreenHandler {
 				addSlot(new MachineSlot(machineInventory, 0, 80, 116));
 			}
 			addPlayerInventory(playerInventory, 8, 152);
+		} else if (mode == Mode.SITE) {
+			// Drones, terraformers and hydrogen, then six material slots, in one row under the readouts.
+			for (int index = 0; index < 9; index++) addSlot(new MachineSlot(machineInventory, index, 8 + index * 18, 134));
+			addPlayerInventory(playerInventory, 8, 170);
 		} else if (mode == Mode.LAUNCH) {
 			// Three stage slots, the payload, and hydrogen in.
 			// A wider panel than most (230), so the readouts fit; the player's inventory sits in the middle of it.
@@ -167,11 +171,20 @@ public final class MachineScreenHandler extends ScreenHandler {
 	public static final int COLLECT_BUTTON = 0;
 	/** Button 1 on a Launch Control: launch. */
 	public static final int LAUNCH_BUTTON = 1;
+	/** Buttons 2 and 3 on a Site Planner: the next layout, and start or pause. */
+	public static final int LAYOUT_BUTTON = 2;
+	public static final int START_BUTTON = 3;
 
 	@Override
 	public boolean onButtonClick(PlayerEntity player, int id) {
 		if (id == LAUNCH_BUTTON && mode == Mode.LAUNCH && machine != null && machine.getWorld() instanceof ServerWorld launchWorld) {
 			player.sendMessage(net.minecraft.text.Text.literal(dev.rackcraft.world.LaunchPads.launch(launchWorld, machine)), true);
+			return true;
+		}
+		if ((id == LAYOUT_BUTTON || id == START_BUTTON) && mode == Mode.SITE && machine != null && machine.getWorld() instanceof ServerWorld siteWorld) {
+			player.sendMessage(net.minecraft.text.Text.literal(id == LAYOUT_BUTTON ? dev.rackcraft.world.SitePlanner.cycleLayout(machine)
+					: dev.rackcraft.world.SitePlanner.toggleRunning(machine)), true);
+			dev.rackcraft.world.SitePlanner.scanNow(siteWorld);
 			return true;
 		}
 		if (id != COLLECT_BUTTON || machine == null || !(machine.getWorld() instanceof ServerWorld world)
@@ -268,7 +281,7 @@ public final class MachineScreenHandler extends ScreenHandler {
 					default -> orbit.launches();
 				};
 			}
-			default -> 0;
+			default -> stat >= Stat.SITE && stat < Stat.SITE + dev.rackcraft.world.SitePlanner.READINGS ? machine.siteReading(stat - Stat.SITE) : 0;
 		};
 	}
 
@@ -340,7 +353,8 @@ public final class MachineScreenHandler extends ScreenHandler {
 		public static final int ORBIT_LAUNCHES = 59;
 		public static final int LOCKED_CUBE = 60;     // edge of a whole cube too big for the research done, else 0
 		public static final int WEAR = 61;            // percent an array or tower has worn
-		static final int COUNT = 62;
+		public static final int SITE = 62;            // first of a Site Planner's readings (SitePlanner.R_*)
+		static final int COUNT = SITE + dev.rackcraft.world.SitePlanner.READINGS;
 
 		private Stat() {}
 	}
@@ -348,5 +362,5 @@ public final class MachineScreenHandler extends ScreenHandler {
 	public String activeEvent() { return activeEvent; }
 
 	public enum Mode { RACK, SINGLE_SLOT, MACHINE_STATUS, CONTROLLER, MONITOR_WALL, EXCHANGE, CREATIVE,
-		STORAGE_ARRAY, TAPE_LIBRARY, TRANSMITTER, WORKSTATION, REACTOR, PROCESSOR, WORKCELL, LAUNCH }
+		STORAGE_ARRAY, TAPE_LIBRARY, TRANSMITTER, WORKSTATION, REACTOR, PROCESSOR, WORKCELL, LAUNCH, SITE }
 }

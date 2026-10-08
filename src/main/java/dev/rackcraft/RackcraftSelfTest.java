@@ -38,7 +38,7 @@ public final class RackcraftSelfTest {
 		RackcraftConfig.values.events.enabled = false;
 		dev.rackcraft.compute.ResearchLab.get(server.getOverworld()).reset();
 		dev.rackcraft.world.OrbitState.get(server.getOverworld()).reset();
-		check("S0.a", RcBlocks.BLOCKS.size() == 73 && RcItems.ITEMS.size() == 65,
+		check("S0.a", RcBlocks.BLOCKS.size() == 74 && RcItems.ITEMS.size() == 69,
 				"blocks=" + RcBlocks.BLOCKS.size() + " items=" + RcItems.ITEMS.size(), failures);
 		ServerWorld world = server.getOverworld();
 		BlockPos generatorPos = new BlockPos(0, 80, 0);
@@ -126,6 +126,7 @@ public final class RackcraftSelfTest {
 		checkMegastructures(world, failures);
 		checkRenewables(world, failures);
 		checkStorageLogistics(world, failures);
+		checkSiteConstruction(world, failures);
 		checkStructures(world, failures);
 		check("S0.b", SimTicker.failedSteps() == 0, "simulation steps that threw=" + SimTicker.failedSteps(), failures);
 		Rackcraft.LOGGER.info("RACKCRAFT_SELFTEST DONE failures={}", failures[0]);
@@ -1445,6 +1446,137 @@ public final class RackcraftSelfTest {
 						+ " drones=" + dock.getStack(0).getCount(), failures);
 		array.setStack(0, ItemStack.EMPTY);
 		clearArea(world, origin, 20, 6, 12);
+	}
+
+	/**
+	 * Site construction, end to end. A 9 x 6 solar site with a tuft of grass, a flower, a little tree, a two-block hump
+	 * and a hole: the planner clears it, levels it (cut earth fills the hole and the rest comes home), places nine
+	 * arrays and lays the one cable to itself, in that order. Then a wind farm of two towers, which waits for a missing
+	 * nacelle and then builds both to Y 130 with a cable between them.
+	 */
+	private static void checkSiteConstruction(ServerWorld world, int[] failures) {
+		BlockPos origin = clearArea(world, new BlockPos(-2600, 100, -1536), 16, 40, 12);
+		for (int cx = (origin.getX() - 4) >> 4; cx <= (origin.getX() + 16) >> 4; cx++) {
+			for (int cz = (origin.getZ() - 4) >> 4; cz <= (origin.getZ() + 12) >> 4; cz++) world.setChunkForced(cx, cz, true);
+		}
+		for (BlockPos pos : BlockPos.iterate(origin.add(-2, -1, -2), origin.add(14, 0, 10))) world.setBlockState(pos, Blocks.DIRT.getDefaultState());
+		world.setBlockState(origin.add(4, 1, 4), Blocks.DIRT.getDefaultState());
+		world.setBlockState(origin.add(5, 1, 4), Blocks.DIRT.getDefaultState());
+		world.setBlockState(origin.add(5, 2, 4), Blocks.DIRT.getDefaultState());
+		world.setBlockState(origin.add(8, 0, 6), Blocks.AIR.getDefaultState());
+		world.setBlockState(origin.add(3, 1, 3), Blocks.GRASS.getDefaultState());
+		world.setBlockState(origin.add(6, 1, 6), Blocks.DANDELION.getDefaultState());
+		world.setBlockState(origin.add(9, 1, 3), Blocks.OAK_LOG.getDefaultState());
+		world.setBlockState(origin.add(9, 2, 3), Blocks.OAK_LOG.getDefaultState());
+		for (BlockPos leaf : List.of(origin.add(9, 3, 3), origin.add(8, 2, 3), origin.add(10, 2, 3))) {
+			world.setBlockState(leaf, Blocks.OAK_LEAVES.getDefaultState().with(net.minecraft.block.LeavesBlock.PERSISTENT, true));
+		}
+		BlockPos plannerPos = origin.add(0, 1, 4);
+		MachineBlockEntity planner = place(world, plannerPos, "site_planner", Direction.NORTH);
+		world.setBlockState(plannerPos.north(), RcBlocks.get("creative_power").getDefaultState());
+		String inside = dev.rackcraft.world.SitePlanner.setArea(planner, plannerPos.add(-1, 0, -1), plannerPos.add(4, 0, 2));
+		String tooBig = dev.rackcraft.world.SitePlanner.setArea(planner, origin, origin.add(60, 0, 3));
+		dev.rackcraft.world.SitePlanner.setArea(planner, origin.add(2, 0, 2), origin.add(10, 0, 7));
+		check("SC0.a", inside.contains("inside") && tooBig.startsWith("Too big") && dev.rackcraft.world.SitePlanner.site(planner) != null
+						&& dev.rackcraft.world.SitePlanner.site(planner).width() == 9,
+				"inside=" + inside + " tooBig=" + tooBig, failures);
+		planner.setStack(0, new ItemStack(RcItems.ITEMS.get("construction_drone"), 4));
+		planner.setStack(1, new ItemStack(RcItems.ITEMS.get("terraforming_drone"), 2));
+		planner.setStack(2, new ItemStack(RcItems.ITEMS.get("hydrogen_canister"), 4));
+		planner.setStack(3, new ItemStack(RcBlocks.get("solar_array"), 9));
+		planner.setStack(4, new ItemStack(RcBlocks.get("power_cable"), 16));
+		dev.rackcraft.world.SitePlanner.toggleRunning(planner);
+		List<Integer> phases = runSite(world, planner);
+		boolean arrays = true;
+		for (int x = 2; x <= 8; x += 3) {
+			for (int z = 7; z >= 3; z -= 2) {
+				for (int part = 0; part < 6; part++) {
+					var state = world.getBlockState(origin.add(x, 1, z).add(dev.rackcraft.block.SolarArrayBlock.offset(Direction.NORTH, part)));
+					arrays &= state.isOf(RcBlocks.get("solar_array")) && state.get(dev.rackcraft.block.SolarArrayBlock.PART) == part;
+				}
+			}
+		}
+		boolean cleared = world.getBlockState(origin.add(9, 2, 3)).isAir() && world.getBlockState(origin.add(9, 3, 3)).isAir()
+				&& world.getBlockState(origin.add(5, 2, 4)).isAir();
+		boolean levelled = world.getBlockState(origin.add(8, 0, 6)).isOpaqueFullCube(world, origin.add(8, 0, 6));
+		check("SC1.a", phases.indexOf(1) >= 0 && phases.indexOf(1) < phases.indexOf(2) && phases.indexOf(2) < phases.indexOf(3)
+						&& phases.indexOf(3) < phases.indexOf(4) && phases.get(phases.size() - 1) == 5,
+				"phases=" + phases, failures);
+		check("SC1.b", arrays && cleared && levelled && planner.getStack(3).isEmpty(),
+				"arrays=" + arrays + " cleared=" + cleared + " levelled=" + levelled + " arraysLeft=" + planner.getStack(3), failures);
+		var grid = dev.rackcraft.world.NetworkManager.get(world).component(plannerPos, dev.rackcraft.sim.NetKind.POWER);
+		check("SC1.c", world.getBlockState(plannerPos.east()).isOf(RcBlocks.get("power_cable")) && grid.contains(origin.add(8, 1, 3))
+						&& planner.getStack(0).getCount() == 4 && planner.getStack(1).getCount() == 2 && planner.getStack(4).getCount() == 15,
+				"cable=" + world.getBlockState(plannerPos.east()) + " gridHasFarArray=" + grid.contains(origin.add(8, 1, 3))
+						+ " drones=" + planner.getStack(0).getCount() + "/" + planner.getStack(1).getCount() + " cables=" + planner.getStack(4), failures);
+
+		// A wind farm on the same ground, now level: two towers six apart, one nacelle short at first.
+		for (BlockPos pos : BlockPos.iterate(origin.add(-2, 1, -2), origin.add(14, 4, 10))) {
+			if (!world.getBlockState(pos).isAir() && !pos.equals(plannerPos) && !pos.equals(plannerPos.north())) world.setBlockState(pos, Blocks.AIR.getDefaultState());
+		}
+		world.setBlockState(origin.add(8, 0, 6), Blocks.DIRT.getDefaultState());
+		for (int slot = 3; slot < 9; slot++) planner.setStack(slot, ItemStack.EMPTY);
+		dev.rackcraft.world.SitePlanner.toggleRunning(planner);
+		dev.rackcraft.world.SitePlanner.cycleLayout(planner);
+		dev.rackcraft.world.SitePlanner.cycleLayout(planner);
+		dev.rackcraft.world.SitePlanner.setArea(planner, origin.add(2, 0, 2), origin.add(12, 0, 6));
+		int sections = dev.rackcraft.world.SitePlanner.nacelleY(origin.getY()) - origin.getY() - 1;
+		planner.setStack(3, new ItemStack(RcBlocks.get("tower_section"), 64));
+		planner.setStack(4, new ItemStack(RcBlocks.get("tower_section"), Math.max(1, sections * 2 - 64)));
+		planner.setStack(5, new ItemStack(RcBlocks.get("wind_nacelle"), 1));
+		planner.setStack(6, new ItemStack(RcBlocks.get("power_cable"), 16));
+		dev.rackcraft.world.SitePlanner.toggleRunning(planner);
+		runSite(world, planner);
+		int waiting = planner.processStatus();
+		int needItem = planner.siteReading(dev.rackcraft.world.SitePlanner.R_NEED_ITEM) - 1;
+		planner.setStack(5, new ItemStack(RcBlocks.get("wind_nacelle"), 1));
+		runSite(world, planner);
+		for (int step = 0; step < 2; step++) SimTicker.stepNow(world);
+		int top = dev.rackcraft.world.SitePlanner.nacelleY(origin.getY());
+		boolean towers = true;
+		for (int x : new int[] {4, 10}) {
+			BlockPos nacelle = new BlockPos(origin.getX() + x, top, origin.getZ() + 4);
+			towers &= world.getBlockEntity(nacelle) instanceof MachineBlockEntity machine && machine.blockId().equals("wind_nacelle")
+					&& dev.rackcraft.world.Renewables.sections(world, nacelle) == top - origin.getY() - 1
+					&& dev.rackcraft.world.Renewables.towerStatus(world, machine) == dev.rackcraft.world.Renewables.TowerStatus.RUNNING;
+		}
+		boolean linked = true;
+		for (int x = 5; x <= 9; x++) linked &= world.getBlockState(origin.add(x, 1, 4)).isOf(RcBlocks.get("power_cable"));
+		check("SC2.a", waiting == dev.rackcraft.world.SitePlanner.Status.NEEDS_MATERIALS.ordinal()
+						&& needItem == net.minecraft.registry.Registries.ITEM.getRawId(RcBlocks.get("wind_nacelle").asItem()),
+				"status=" + waiting + " need=" + needItem, failures);
+		check("SC2.b", towers && linked && top == 130 && planner.processStatus() == dev.rackcraft.world.SitePlanner.Status.DONE.ordinal(),
+				"towers=" + towers + " linked=" + linked + " top=" + top + " status=" + planner.processStatus(), failures);
+
+		world.getEntitiesByClass(net.minecraft.entity.ItemEntity.class, new net.minecraft.util.math.Box(origin).expand(60), item -> true)
+				.forEach(net.minecraft.entity.Entity::discard);
+		for (BlockPos pos : BlockPos.iterate(origin.add(-2, -1, -2), origin.add(14, 0, 10))) world.setBlockState(pos, Blocks.AIR.getDefaultState());
+		clearArea(world, origin, 16, 40, 12);
+		for (int cx = (origin.getX() - 4) >> 4; cx <= (origin.getX() + 16) >> 4; cx++) {
+			for (int cz = (origin.getZ() - 4) >> 4; cz <= (origin.getZ() + 12) >> 4; cz++) world.setChunkForced(cx, cz, false);
+		}
+	}
+
+	/**
+	 * Runs a Site Planner until it is done or stuck: plan, fly every drone it sent home, repeat. Returns the phases it
+	 * went through, in order.
+	 */
+	private static List<Integer> runSite(ServerWorld world, MachineBlockEntity planner) {
+		List<Integer> phases = new java.util.ArrayList<>();
+		for (int round = 0; round < 60; round++) {
+			SimTicker.stepNow(world);
+			dev.rackcraft.world.SitePlanner.scanNow(world);
+			int phase = planner.siteReading(dev.rackcraft.world.SitePlanner.R_PHASE);
+			if (phases.isEmpty() || phases.get(phases.size() - 1) != phase) phases.add(phase);
+			List<dev.rackcraft.entity.ConstructionDroneEntity> flying = dev.rackcraft.world.SitePlanner.drones(world, planner.getPos());
+			if (flying.isEmpty() && (phase == dev.rackcraft.world.SitePlanner.Phase.DONE.ordinal()
+					|| planner.processStatus() != dev.rackcraft.world.SitePlanner.Status.WORKING.ordinal())) break;
+			for (int tick = 0; tick < 4000 && !flying.isEmpty(); tick++) {
+				flying.forEach(dev.rackcraft.entity.ConstructionDroneEntity::serverTick);
+				flying = flying.stream().filter(net.minecraft.entity.Entity::isAlive).toList();
+			}
+		}
+		return phases;
 	}
 
 	/** Steps the simulation through a launch's countdown and flight. */

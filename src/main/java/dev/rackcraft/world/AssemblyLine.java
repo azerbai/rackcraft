@@ -77,6 +77,19 @@ public final class AssemblyLine {
 						new Step(Kind.INSTALL, item("circuit_board"), 2),
 						new Step(Kind.INSTALL, item("hydrogen_canister"), 1),
 						new Step(Kind.RIVET, null, 0)), item("maintenance_drone")),
+				// Site drones share the Heavy Drone Frame: grippers make a builder, a shovel a terraformer.
+				new Recipe("construction_drone", item("heavy_drone_frame"), List.of(
+						new Step(Kind.INSTALL, Items.STICKY_PISTON, 2),
+						new Step(Kind.INSTALL, item("electric_motor"), 4),
+						new Step(Kind.INSTALL, item("circuit_board"), 2),
+						new Step(Kind.WELD, null, 0),
+						new Step(Kind.RIVET, null, 0)), item("construction_drone")),
+				new Recipe("terraforming_drone", item("heavy_drone_frame"), List.of(
+						new Step(Kind.INSTALL, Items.DIAMOND_SHOVEL, 1),
+						new Step(Kind.INSTALL, item("electric_motor"), 4),
+						new Step(Kind.INSTALL, item("circuit_board"), 2),
+						new Step(Kind.WELD, null, 0),
+						new Step(Kind.RIVET, null, 0)), item("terraforming_drone")),
 				new Recipe("rocket_stage", item("stage_frame"), List.of(
 						new Step(Kind.WELD, null, 0),
 						new Step(Kind.INSTALL, item("electric_motor"), 4),

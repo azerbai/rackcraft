@@ -37,7 +37,7 @@ public final class RcBlocks {
 				case "launch_tower" -> new Block(settings.nonOpaque());
 				case "solar_array", "solar_array_tracking" -> new dev.rackcraft.block.SolarArrayBlock(settings.nonOpaque());
 				case "tower_section" -> new dev.rackcraft.block.TowerSectionBlock(settings.nonOpaque());
-				case "belt_loader" -> new dev.rackcraft.block.DirectedMachineBlock(settings);
+				case "belt_loader", "site_planner" -> new dev.rackcraft.block.DirectedMachineBlock(settings);
 				case "conveyor_belt" -> new dev.rackcraft.block.ConveyorBeltBlock(settings.strength(1.5f, 6.0f).nonOpaque());
 				case "welding_arm", "riveting_arm", "assembly_arm" -> new dev.rackcraft.block.RobotArmBlock(settings.nonOpaque());
 				default -> ContentIds.ARRAY_IDS.contains(id) ? new dev.rackcraft.block.ArrayMachineBlock(settings)

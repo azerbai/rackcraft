@@ -72,6 +72,14 @@ public final class SolarArrayBlock extends MachineBlock {
 		}
 	}
 
+	/** Places a whole array from part 0 without a player, as a Construction Drone does. */
+	public void placeAll(World world, BlockPos origin, Direction facing) {
+		BlockState state = getDefaultState().with(FACING, facing);
+		for (int part = 0; part < WIDTH * DEPTH; part++) {
+			world.setBlockState(origin.add(offset(facing, part)), state.with(PART, part), Block.NOTIFY_ALL);
+		}
+	}
+
 	/** In creative, breaking a part takes the array away without dropping it, as for any block. */
 	@Override
 	public void onBreak(World world, BlockPos pos, BlockState state, PlayerEntity player) {
