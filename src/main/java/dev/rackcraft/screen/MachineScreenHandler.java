@@ -77,7 +77,7 @@ public final class MachineScreenHandler extends ScreenHandler {
 		if (mode == Mode.RACK) {
 			// Two columns of four bays, below the header.
 			for (int index = 0; index < 8; index++) addSlot(new MachineSlot(machineInventory, index, 13 + (index % 2) * 20, 46 + (index / 2) * 20));
-			addPlayerInventory(playerInventory, 13, 180);
+			addPlayerInventory(playerInventory, 13, 190);
 		} else if (mode == Mode.STORAGE_ARRAY) {
 			for (int index = 0; index < 8; index++) addSlot(new MachineSlot(machineInventory, index, 8 + (index % 4) * 22, 30 + (index / 4) * 22));
 			addPlayerInventory(playerInventory, 8, 102);
@@ -91,17 +91,24 @@ public final class MachineScreenHandler extends ScreenHandler {
 			addPlayerInventory(playerInventory, 8, 102);
 		} else if (mode == Mode.SINGLE_SLOT) {
 			addSlot(new MachineSlot(machineInventory, 0, 80, 46));
-			addPlayerInventory(playerInventory, 8, 108);
+			addPlayerInventory(playerInventory, 8, 132);
 		} else if (mode == Mode.REACTOR) {
 			addSlot(new MachineSlot(machineInventory, 0, 17, 56));
 			addSlot(new MachineSlot(machineInventory, 1, 45, 56));
-			addPlayerInventory(playerInventory, 8, 148);
+			addPlayerInventory(playerInventory, 8, 160);
 		} else if (mode == Mode.PROCESSOR) {
 			addSlot(new MachineSlot(machineInventory, 0, 17, 62));
 			addSlot(new MachineSlot(machineInventory, 1, 39, 62));
 			addSlot(new MachineSlot(machineInventory, 2, 117, 62));
 			addSlot(new MachineSlot(machineInventory, 3, 139, 62));
-			addPlayerInventory(playerInventory, 8, 148);
+			addPlayerInventory(playerInventory, 8, 160);
+		} else if (mode == Mode.WORKCELL) {
+			// Assembly Robots and Drone Docks keep their parts in a row of nine; welding and riveting robots have none.
+			String id = net.minecraft.registry.Registries.BLOCK.getId(playerInventory.player.getWorld().getBlockState(pos).getBlock()).getPath();
+			if (id.equals("assembly_arm") || id.equals("drone_dock")) {
+				for (int index = 0; index < 9; index++) addSlot(new MachineSlot(machineInventory, index, 8 + index * 18, 116));
+			}
+			addPlayerInventory(playerInventory, 8, 152);
 		}
 		addProperties(properties);
 	}
@@ -162,6 +169,11 @@ public final class MachineScreenHandler extends ScreenHandler {
 		return true;
 	}
 
+	/** The RackCoin balance, which outgrows one int stat in the late game. */
+	public long balance() {
+		return ((long) stat(Stat.BALANCE_HIGH) << 31) | (stat(Stat.BALANCE) & 0x7FFFFFFFL);
+	}
+
 	public int stat(int stat) {
 		return (properties.get(stat * 2) & 0xFFFF) | (properties.get(stat * 2 + 1) << 16);
 	}
@@ -176,7 +188,9 @@ public final class MachineScreenHandler extends ScreenHandler {
 			case Stat.LOAD -> (int) Math.round(machine.load() * 100);
 			case Stat.THERMAL -> (int) Math.round(machine.thermalFactor() * 100);
 			case Stat.SATISFACTION -> (int) Math.round(machine.powerSatisfaction() * 100);
-			case Stat.BALANCE -> facility != null && facilityScreen ? (int) Math.min(Integer.MAX_VALUE, facility.credits()) : 0;
+			case Stat.BALANCE -> facility != null && facilityScreen ? (int) (facility.credits() & 0x7FFFFFFFL) : 0;
+			case Stat.INCOME -> tenths(machine.income());
+			case Stat.BALANCE_HIGH -> facility != null && facilityScreen ? (int) (facility.credits() >>> 31) : 0;
 			case Stat.AVAILABILITY -> facility != null && facilityScreen ? (int) Math.round(facility.availability().stream()
 					.mapToDouble(Double::doubleValue).average().orElse(1) * 100) : 0;
 			case Stat.FUEL -> machine.blockId().equals("modular_reactor") ? machine.arrayFuelTicks() : machine.fuelBurnTicks();
@@ -224,6 +238,7 @@ public final class MachineScreenHandler extends ScreenHandler {
 			case Stat.CUBE_OUTPUT -> machine.cubeOutput();
 			case Stat.CUBE_BYPRODUCT -> machine.cubeByproduct();
 			case Stat.CUBE_DEMAND -> tenths(machine.cubeDemandKw());
+			case Stat.DOCK_JOBS -> machine.dockJobs();
 			default -> 0;
 		};
 	}
@@ -240,7 +255,7 @@ public final class MachineScreenHandler extends ScreenHandler {
 		public static final int LOAD = 3;               // percent
 		public static final int THERMAL = 4;            // percent
 		public static final int SATISFACTION = 5;       // percent
-		public static final int BALANCE = 6;            // RackCoin
+		public static final int BALANCE = 6;            // RackCoin, low 31 bits (see balance())
 		public static final int AVAILABILITY = 7;       // percent
 		public static final int FUEL = 8;               // ticks left on the current fuel item
 		public static final int RACK_STATUS = 9;        // RackStatus ordinal
@@ -284,7 +299,10 @@ public final class MachineScreenHandler extends ScreenHandler {
 		public static final int CUBE_OUTPUT = 47;       // products (or a reactor's Spent Fuel) in the whole cube
 		public static final int CUBE_BYPRODUCT = 48;    // by-products in the whole cube
 		public static final int CUBE_DEMAND = 49;       // tenths of kW the whole cube draws while working
-		static final int COUNT = 50;
+		public static final int BALANCE_HIGH = 50;      // RackCoin above 2^31, so balances past 2.1 billion show
+		public static final int INCOME = 51;            // tenths of RC/s a utility plant earns
+		public static final int DOCK_JOBS = 52;        // jobs a Drone Dock can see right now
+		static final int COUNT = 53;
 
 		private Stat() {}
 	}
@@ -292,5 +310,5 @@ public final class MachineScreenHandler extends ScreenHandler {
 	public String activeEvent() { return activeEvent; }
 
 	public enum Mode { RACK, SINGLE_SLOT, MACHINE_STATUS, CONTROLLER, MONITOR_WALL, EXCHANGE, CREATIVE,
-		STORAGE_ARRAY, TAPE_LIBRARY, TRANSMITTER, WORKSTATION, REACTOR, PROCESSOR }
+		STORAGE_ARRAY, TAPE_LIBRARY, TRANSMITTER, WORKSTATION, REACTOR, PROCESSOR, WORKCELL }
 }

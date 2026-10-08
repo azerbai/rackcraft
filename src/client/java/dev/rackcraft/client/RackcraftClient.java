@@ -41,6 +41,13 @@ public final class RackcraftClient implements ClientModInitializer {
 		ScreenRegistry.register(RcScreenHandlers.PROCESSOR, dev.rackcraft.client.screen.ProcessorScreen::new);
 		ScreenRegistry.register(RcScreenHandlers.OPERATIONS, dev.rackcraft.client.screen.OpsScreen::new);
 		ScreenRegistry.register(RcScreenHandlers.DARKNET, dev.rackcraft.client.screen.DarknetScreen::new);
+		ScreenRegistry.register(RcScreenHandlers.WORKCELL, dev.rackcraft.client.screen.WorkcellScreen::new);
+		net.minecraft.client.render.block.entity.BlockEntityRendererFactories.register(dev.rackcraft.RcBlocks.BELT_ENTITY,
+				dev.rackcraft.client.render.BeltRenderer::new);
+		net.minecraft.client.render.block.entity.BlockEntityRendererFactories.register(dev.rackcraft.RcBlocks.MACHINE_ENTITY,
+				dev.rackcraft.client.render.RobotArmRenderer::new);
+		net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry.register(dev.rackcraft.entity.RcEntities.MAINTENANCE_DRONE,
+				dev.rackcraft.client.render.DroneRenderer::new);
 		net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.registerGlobalReceiver(
 				dev.rackcraft.darknet.DarknetScreenHandler.SYNC, (client, handler, buf, responseSender) -> {
 					int syncId = buf.readVarInt();
@@ -78,6 +85,8 @@ public final class RackcraftClient implements ClientModInitializer {
 		ItemTooltipCallback.EVENT.register((stack, context, lines) -> {
 			var id = Registries.ITEM.getId(stack.getItem());
 			if (!id.getNamespace().equals("rackcraft")) return;
+			// A half-built workpiece says how far along the Assembly Line it got and what it needs next.
+			for (String line : dev.rackcraft.world.AssemblyLine.describe(stack)) lines.add(Text.literal(line).formatted(Formatting.AQUA));
 			Integer burnTicks = ContentIds.FUEL_TICKS.get(id.getPath());
 			if (burnTicks != null) {
 				lines.add(Text.translatable("tooltip.rackcraft.fuel", burnTicks / 20).formatted(Formatting.GOLD));

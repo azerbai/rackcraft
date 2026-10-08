@@ -9,7 +9,7 @@ import net.minecraft.text.Text;
 /** Diesel generator, modular reactor and fire suppression tank: one input slot plus a live dashboard. */
 public final class SingleSlotScreen extends RackcraftHandledScreen {
 	public SingleSlotScreen(MachineScreenHandler handler, PlayerInventory inventory, Text title) {
-		super(handler, inventory, title, 176, 200);
+		super(handler, inventory, title, 176, 222);
 	}
 
 	@Override
@@ -42,7 +42,7 @@ public final class SingleSlotScreen extends RackcraftHandledScreen {
 			state = Text.translatable("generator.rackcraft.standby");
 			color = MUTED;
 		}
-		context.drawText(textRenderer, state, 8, 30, color, false);
+		wrappedClamped(context, state, 8, 30, 160, 1, color);
 
 		line(context, "Output", 8, 44, MUTED);
 		bar(context, 8, 54, 64, output / (double) capacityTenths, GOOD);
@@ -60,9 +60,11 @@ public final class SingleSlotScreen extends RackcraftHandledScreen {
 			line(context, edge > 1 ? "Array " + edge + "x" + edge + "x" + edge : "Single core", 104, 76, edge > 1 ? GOOD : MUTED);
 			if (edge > 1) line(context, (100 - Math.round(5 * (edge - 1))) + "% fuel/core", 104, 87, MUTED);
 		}
+		// The grid lines run full width below both columns, so long figures can't run into the bars.
 		int delivered = stat(Stat.NETWORK_DELIVERED);
 		int demand = stat(Stat.NETWORK_DEMAND);
-		line(context, "Grid " + kw(delivered) + " / " + kw(demand), 8, 76, TEXT);
-		line(context, "Capacity " + kw(stat(Stat.NETWORK_CAPACITY)), 8, 87, MUTED);
+		context.fill(8, 100, 168, 101, 0xFF3A525C);
+		lineFit(context, "Grid: delivering " + kw(delivered) + " of " + kw(demand), 8, 104, 160, TEXT);
+		lineFit(context, "Generating capacity " + kw(stat(Stat.NETWORK_CAPACITY)), 8, 115, 160, MUTED);
 	}
 }

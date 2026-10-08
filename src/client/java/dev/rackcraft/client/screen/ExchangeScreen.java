@@ -102,13 +102,16 @@ public final class ExchangeScreen extends RackcraftHandledScreen {
 
 	@Override
 	protected void drawDashboard(DrawContext context) {
-		int balance = stat(Stat.BALANCE);
+		long balance = handler.balance();
 		int rate = stat(Stat.MINING_RATE);
-		context.drawText(textRenderer, Text.translatable("exchange.rackcraft.balance", String.format(Locale.ROOT, "%,d", balance)),
-				8, 24, GOOD, false);
-		Text mining = rate > 0
-				? Text.translatable("exchange.rackcraft.mining", coins(rate), stat(Stat.MINING_RACKS), stat(Stat.TOTAL_RACKS))
-				: Text.translatable("exchange.rackcraft.not_mining");
+		Text balanceText = Text.translatable("exchange.rackcraft.balance", String.format(Locale.ROOT, "%,d", balance));
+		context.drawText(textRenderer, balanceText, 8, 24, GOOD, false);
+		// The mining rate takes whatever room the balance leaves, so a big balance can't run into it.
+		String mining = rate > 0
+				? Text.translatable("exchange.rackcraft.mining", compactCoins(rate / 100.0), stat(Stat.MINING_RACKS), stat(Stat.TOTAL_RACKS)).getString()
+				: Text.translatable("exchange.rackcraft.not_mining").getString();
+		int room = backgroundWidth - 16 - textRenderer.getWidth(balanceText) - 10;
+		if (textRenderer.getWidth(mining) > room) mining = textRenderer.trimToWidth(mining, room - textRenderer.getWidth("...")).trim() + "...";
 		context.drawText(textRenderer, mining, backgroundWidth - 8 - textRenderer.getWidth(mining), 24, rate > 0 ? TEXT : WARN, false);
 
 		if (tab == null) drawCatalog(context, balance);
@@ -117,7 +120,14 @@ public final class ExchangeScreen extends RackcraftHandledScreen {
 				8, backgroundHeight - 26, backgroundWidth - 16, MUTED);
 	}
 
-	private void drawCurated(DrawContext context, int balance) {
+	/** 155150.3 as "155k"; small rates keep a decimal. */
+	private static String compactCoins(double perSecond) {
+		if (perSecond >= 1_000_000) return String.format(Locale.ROOT, "%.2fM", perSecond / 1e6);
+		if (perSecond >= 10_000) return String.format(Locale.ROOT, "%.0fk", perSecond / 1e3);
+		return String.format(Locale.ROOT, "%,.1f", perSecond);
+	}
+
+	private void drawCurated(DrawContext context, long balance) {
 		List<Offer> offers = curatedOffers();
 		for (int index = 0; index < offers.size(); index++) {
 			Offer offer = offers.get(index);
@@ -135,7 +145,7 @@ public final class ExchangeScreen extends RackcraftHandledScreen {
 		}
 	}
 
-	private void drawCatalog(DrawContext context, int balance) {
+	private void drawCatalog(DrawContext context, long balance) {
 		String count = String.format(Locale.ROOT, "%,d items", filtered.size());
 		context.drawText(textRenderer, count, backgroundWidth - 8 - textRenderer.getWidth(count), 63, MUTED, false);
 		for (int slot = 0; slot < COLUMNS * ROWS; slot++) {
@@ -177,7 +187,7 @@ public final class ExchangeScreen extends RackcraftHandledScreen {
 		List<Text> tooltip = new ArrayList<>(Screen.getTooltipFromItem(client, stack));
 		tooltip.add(Text.translatable(tab == null ? "exchange.rackcraft.price_each" : "exchange.rackcraft.price",
 				String.format(Locale.ROOT, "%,d", price)).formatted(Formatting.GREEN));
-		int balance = stat(Stat.BALANCE);
+		long balance = handler.balance();
 		int rate = stat(Stat.MINING_RATE);
 		if (balance < price && rate > 0) {
 			long seconds = (long) Math.ceil((price - balance) / (rate / 100.0));

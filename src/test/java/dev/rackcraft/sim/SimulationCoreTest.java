@@ -29,6 +29,31 @@ final class SimulationCoreTest {
 	}
 
 	@Test
+	void exportOnlySellsSpareRenewableAndReactorPower() {
+		PowerSolver.Source solar = new PowerSolver.Source("solar", PowerSolver.SourceKind.SOLAR, 10);
+		PowerSolver.Source utility = new PowerSolver.Source("utility", PowerSolver.SourceKind.UTILITY, 100);
+		PowerSolver.Source battery = new PowerSolver.Source("battery", PowerSolver.SourceKind.BATTERY, 0, 100, 100, 15, 60);
+		PowerSolver.Result result = PowerSolver.solve(List.of(
+				new PowerSolver.Sink("rack", 1, 4),
+				new PowerSolver.Sink("substation", 3, 1000, true)),
+				List.of(solar, utility, battery), 0.5);
+		assertEquals(1.0, result.satisfaction().get("rack"));
+		// The rack takes 4 of the solar's 10 kW; the battery is full, so the other 6 kW sell. The utility's 100 kW never do.
+		assertEquals(0.006, result.satisfaction().get("substation"), 1e-9);
+		assertEquals(100, battery.chargeKws(), 1e-9);
+		assertEquals(4, result.demandKw(), 1e-9);
+	}
+
+	@Test
+	void exportNeverDrainsABattery() {
+		PowerSolver.Source battery = new PowerSolver.Source("battery", PowerSolver.SourceKind.BATTERY, 0, 100, 100, 15, 60);
+		PowerSolver.Result result = PowerSolver.solve(List.of(new PowerSolver.Sink("substation", 3, 1000, true)),
+				List.of(battery), 0.5);
+		assertEquals(0.0, result.satisfaction().get("substation"));
+		assertEquals(100, battery.chargeKws(), 1e-9);
+	}
+
+	@Test
 	void batteryBridgesDieselSpinup() {
 		PowerSolver.Source battery = new PowerSolver.Source("battery", PowerSolver.SourceKind.BATTERY,
 				0, 100, 100, 15, 60);

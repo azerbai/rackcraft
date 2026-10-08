@@ -1,0 +1,107 @@
+{
+  "elements": [
+    {
+      "faces": {
+        "down": {
+          "texture": "#column"
+        },
+        "east": {
+          "texture": "#column"
+        },
+        "north": {
+          "texture": "#column"
+        },
+        "south": {
+          "texture": "#column"
+        },
+        "up": {
+          "texture": "#base"
+        },
+        "west": {
+          "texture": "#column"
+        }
+      },
+      "from": [
+        2,
+        0,
+        2
+      ],
+      "to": [
+        14,
+        3,
+        14
+      ]
+    },
+    {
+      "faces": {
+        "down": {
+          "texture": "#column"
+        },
+        "east": {
+          "texture": "#column"
+        },
+        "north": {
+          "texture": "#column"
+        },
+        "south": {
+          "texture": "#column"
+        },
+        "up": {
+          "texture": "#column"
+        },
+        "west": {
+          "texture": "#column"
+        }
+      },
+      "from": [
+        4,
+        3,
+        4
+      ],
+      "to": [
+        12,
+        10,
+        12
+      ]
+    },
+    {
+      "faces": {
+        "down": {
+          "texture": "#light"
+        },
+        "east": {
+          "texture": "#light"
+        },
+        "north": {
+          "texture": "#light"
+        },
+        "south": {
+          "texture": "#light"
+        },
+        "up": {
+          "texture": "#light"
+        },
+        "west": {
+          "texture": "#light"
+        }
+      },
+      "from": [
+        11,
+        3,
+        11
+      ],
+      "to": [
+        13,
+        6,
+        13
+      ]
+    }
+  ],
+  "parent": "minecraft:block/block",
+  "textures": {
+    "base": "rackcraft:block/assembly_arm_base",
+    "column": "rackcraft:block/assembly_arm_column",
+    "light": "rackcraft:block/assembly_arm_light",
+    "particle": "rackcraft:block/assembly_arm_column"
+  }
+}

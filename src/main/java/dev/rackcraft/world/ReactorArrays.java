@@ -193,9 +193,9 @@ public final class ReactorArrays {
 		return true;
 	}
 
-	/** Cubes that make items have a port; Grid-Scale Batteries don't. */
+	/** Cubes that make items have a port: reactors and the processing cubes, not batteries or utility plants. */
 	public static boolean hasPort(String id) {
-		return !id.equals("battery_bank");
+		return id.equals("modular_reactor") || NuclearProcessing.recipe(id) != null;
 	}
 
 	/**

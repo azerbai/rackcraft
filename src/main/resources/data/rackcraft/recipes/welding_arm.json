@@ -1,0 +1,26 @@
+{
+  "key": {
+    "B": {
+      "item": "minecraft:blaze_rod"
+    },
+    "C": {
+      "item": "rackcraft:circuit_board"
+    },
+    "M": {
+      "item": "rackcraft:electric_motor"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    }
+  },
+  "pattern": [
+    " B ",
+    " M ",
+    "SCS"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:welding_arm"
+  },
+  "type": "minecraft:crafting_shaped"
+}

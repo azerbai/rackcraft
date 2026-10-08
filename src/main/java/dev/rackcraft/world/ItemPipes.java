@@ -37,6 +37,7 @@ public final class ItemPipes {
 	public static final int FUEL_CELL_STOCK = 4;
 	/** Input kept in each core of a nuclear processing cube. */
 	public static final int PROCESS_STOCK = 8;
+	public static final int PART_STOCK = 16;
 
 	private ItemPipes() {}
 
@@ -93,14 +94,27 @@ public final class ItemPipes {
 				stock(machine, ReactorArrays.FUEL_SLOT, ItemKey.of(RcItems.ITEMS.get("fuel_cell")), FUEL_CELL_STOCK, items);
 				store(machine, ReactorArrays.WASTE_SLOT, items);
 			}
-			case "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer", "wafer_fab", "silicon_foundry", "ewaste_recycler" -> {
+			// An Assembly Robot keeps each of its slots topped up with whatever part is already in it.
+			case "assembly_arm" -> {
+				for (int slot = 0; slot < machine.size(); slot++) {
+					if (!machine.getStack(slot).isEmpty()) stock(machine, slot, ItemKey.of(machine.getStack(slot)), PART_STOCK, items);
+				}
+			}
+			// A Drone Dock takes hydrogen from storage and sends the dead modules its drones bring home back to it.
+			case "drone_dock" -> {
+				stock(machine, DroneDocks.FUEL_SLOT, ItemKey.of(RcItems.ITEMS.get("hydrogen_canister")), FUEL_CELL_STOCK, items);
+				for (int slot = DroneDocks.FIRST_SPARE; slot < machine.size(); slot++) {
+					if (machine.getStack(slot).isOf(RcItems.ITEMS.get("failed_module"))) store(machine, slot, items);
+				}
+			}
+			default -> {
 				NuclearProcessing.Recipe recipe = NuclearProcessing.recipe(machine.blockId());
+				if (recipe == null) return;
 				stock(machine, 0, ItemKey.of(recipe.inputA()), Math.max(PROCESS_STOCK, recipe.countA() * 4), items);
 				if (recipe.inputB() != null) stock(machine, 1, ItemKey.of(recipe.inputB()), Math.max(PROCESS_STOCK, recipe.countB() * 4), items);
 				store(machine, NuclearProcessing.OUTPUT_SLOT, items);
 				store(machine, NuclearProcessing.BYPRODUCT_SLOT, items);
 			}
-			default -> {}
 		}
 	}
 

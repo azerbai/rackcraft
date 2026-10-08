@@ -67,7 +67,22 @@ abstract class RackcraftHandledScreen extends HandledScreen<MachineScreenHandler
 
 	protected String celsius(int tenths) { return String.format(java.util.Locale.ROOT, "%.1f C", tenths / 10.0); }
 
-	protected static String kw(int tenths) { return String.format(java.util.Locale.ROOT, "%.1f kW", tenths / 10.0); }
+	/** Power from tenths of a kilowatt, scaled so big grids stay readable: 12.5 kW, 4,800 kW, 41.1 MW, 1.20 GW. */
+	protected static String kw(int tenths) {
+		double kw = tenths / 10.0;
+		double size = Math.abs(kw);
+		if (size >= 1_000_000) return String.format(java.util.Locale.ROOT, "%.2f GW", kw / 1_000_000);
+		if (size >= 10_000) return String.format(java.util.Locale.ROOT, "%.1f MW", kw / 1_000);
+		if (size >= 1_000) return String.format(java.util.Locale.ROOT, "%,.0f kW", kw);
+		return String.format(java.util.Locale.ROOT, "%.1f kW", kw);
+	}
+
+	/** A single line cut to fit {@code width}, ending in "..." when it doesn't. */
+	protected void lineFit(DrawContext context, String text, int x, int y, int width, int color) {
+		String shown = textRenderer.getWidth(text) <= width ? text
+				: textRenderer.trimToWidth(text, width - textRenderer.getWidth("...")).trim() + "...";
+		context.drawText(textRenderer, Text.literal(shown), x, y, color, false);
+	}
 
 	protected static String coins(int hundredthsPerSecond) {
 		return String.format(java.util.Locale.ROOT, "%.1f", hundredthsPerSecond / 100.0);
@@ -105,13 +120,18 @@ abstract class RackcraftHandledScreen extends HandledScreen<MachineScreenHandler
 		java.util.List<net.minecraft.text.OrderedText> rows = textRenderer.wrapLines(text, width);
 		boolean cut = rows.size() > maxLines;
 		if (cut) {
-			// Re-wrap all but the last visible line, then squeeze the rest of the text into it.
+			// Find where the visible lines end in the text itself (the wrap drops the spaces it breaks at, so counting
+			// characters would repeat a word), then squeeze the rest into the last line.
 			String plain = text.getString();
 			java.util.List<net.minecraft.text.StringVisitable> parts = textRenderer.getTextHandler()
 					.wrapLines(plain, width, net.minecraft.text.Style.EMPTY);
-			StringBuilder shown = new StringBuilder();
-			for (int index = 0; index < maxLines - 1; index++) shown.append(parts.get(index).getString());
-			String rest = plain.substring(Math.min(plain.length(), shown.length())).trim();
+			int consumed = 0;
+			for (int index = 0; index < maxLines - 1; index++) {
+				String part = parts.get(index).getString().trim();
+				int at = plain.indexOf(part, consumed);
+				consumed = at < 0 ? consumed + part.length() : at + part.length();
+			}
+			String rest = plain.substring(Math.min(plain.length(), consumed)).trim();
 			String last = textRenderer.trimToWidth(rest, width - textRenderer.getWidth("...")).trim() + "...";
 			for (int index = 0; index < maxLines - 1; index++) {
 				context.drawText(textRenderer, rows.get(index), x, y + index * 10, color, false);

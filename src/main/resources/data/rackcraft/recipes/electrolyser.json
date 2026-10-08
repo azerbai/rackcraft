@@ -1,0 +1,26 @@
+{
+  "key": {
+    "C": {
+      "item": "rackcraft:circuit_board"
+    },
+    "K": {
+      "item": "minecraft:copper_block"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    },
+    "W": {
+      "item": "minecraft:water_bucket"
+    }
+  },
+  "pattern": [
+    "SKS",
+    "CWC",
+    "SKS"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:electrolyser"
+  },
+  "type": "minecraft:crafting_shaped"
+}

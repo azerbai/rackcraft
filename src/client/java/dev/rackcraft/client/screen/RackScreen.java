@@ -20,7 +20,7 @@ public final class RackScreen extends RackcraftHandledScreen {
 	private static final int RIGHT = 60;
 	private static final int RIGHT_WIDTH = 188;
 	private static final int HINT_TOP = 103;
-	private static final int HINT_LINES = 4;
+	private static final int HINT_LINES = 5;
 	private static final int[] LIMITS = {25, 50, 75, 100};
 	private final List<ButtonWidget> limitButtons = new ArrayList<>();
 	private boolean hintCut;
@@ -29,7 +29,7 @@ public final class RackScreen extends RackcraftHandledScreen {
 	private record Reading(String label, String value, int color, String help) {}
 
 	public RackScreen(MachineScreenHandler handler, PlayerInventory inventory, Text title) {
-		super(handler, inventory, title, 256, 262);
+		super(handler, inventory, title, 256, 272);
 	}
 
 	@Override
@@ -42,7 +42,7 @@ public final class RackScreen extends RackcraftHandledScreen {
 			int limit = LIMITS[index];
 			limitButtons.add(addDrawableChild(ButtonWidget.builder(Text.literal(limit + "%"), button ->
 					ClientNet.setLoadLimit(handler.pos(), limit))
-					.dimensions(left + 92 + index * 39, top + 146, 36, 16).build()));
+					.dimensions(left + 92 + index * 39, top + 157, 36, 16).build()));
 		}
 	}
 
@@ -92,17 +92,18 @@ public final class RackScreen extends RackcraftHandledScreen {
 						"Share of the rack's demand the power network delivers. Under 50% trips the breaker."),
 				new Reading("To loop", kw(stat(Stat.HEAT_TO_LOOP)), stat(Stat.HEAT_TO_LOOP) > 0 ? GOOD : MUTED,
 						"Heat carried off by Coolant Pipe: 85% of what liquid-cooled modules make, plus what a Rear-Door Cooler"
-								+ " on the back catches. Sinks on the loop (towers, coolers, chillers) take it away."),
+								+ " or CDU on the back catches. Sinks on the loop (towers, coolers, chillers) take it away."),
 				new Reading("To air", kw(stat(Stat.HEAT_TO_AIR)), stat(Stat.HEAT_TO_AIR) > 50 ? WARN : TEXT,
 						"Heat blown out of the back into the room. It spreads and slowly leaks away; if it reaches the intakes,"
-								+ " racks slow down. Catch it with a Rear-Door Cooler, CRAC unit or exhaust fan."));
+								+ " racks slow down. Catch it with a Rear-Door Cooler or CDU on the back, a CRAC unit or an exhaust fan."));
 	}
 
 	@Override
 	protected void drawDashboard(DrawContext context) {
 		int used = 0;
 		for (int slot = 0; slot < 8; slot++) if (!handler.getSlot(slot).getStack().isEmpty()) used++;
-		line(context, "Bays " + used + "/8", 12, 32, used == 8 ? WARN : MUTED);
+		// Under the bays, so it can't run into the status headline.
+		line(context, "Bays " + used + "/8", 13, 128, used == 8 ? WARN : MUTED);
 
 		RackStatus status = RackStatus.byOrdinal(stat(Stat.RACK_STATUS));
 		int color = status == RackStatus.MINING || status == RackStatus.GENERATING || status == RackStatus.LEASED ? GOOD
@@ -123,6 +124,6 @@ public final class RackScreen extends RackcraftHandledScreen {
 
 		context.fill(RIGHT, HINT_TOP - 5, RIGHT + RIGHT_WIDTH, HINT_TOP - 4, 0xFF3A525C);
 		hintCut = wrappedClamped(context, Text.translatable(status.hintKey()), RIGHT, HINT_TOP, RIGHT_WIDTH, HINT_LINES, MUTED);
-		line(context, "Limit", RIGHT, 150, MUTED);
+		line(context, "Limit", RIGHT, 161, MUTED);
 	}
 }

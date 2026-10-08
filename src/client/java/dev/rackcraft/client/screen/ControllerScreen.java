@@ -40,7 +40,7 @@ public final class ControllerScreen extends RackcraftHandledScreen {
 	@Override
 	protected void drawDashboard(DrawContext context) {
 		line(context, "Overview     Contracts     Procurement", 12, 29, 0xFF62C5A0);
-		line(context, String.format(java.util.Locale.ROOT, "RackCoin %,d", stat(MachineScreenHandler.Stat.BALANCE)), 12, 55, 0xFF62C5A0);
+		line(context, String.format(java.util.Locale.ROOT, "RackCoin %,d", handler.balance()), 12, 55, 0xFF62C5A0);
 		line(context, "Mining " + coins(stat(MachineScreenHandler.Stat.MINING_RATE)) + " RC/s", 140, 55, 0xFFE5ECEB);
 		line(context, "Availability " + stat(MachineScreenHandler.Stat.AVAILABILITY) + "%", 12, 73, 0xFFE5ECEB);
 		line(context, "Contract " + handler.activeContract(), 12, 91, 0xFFE5ECEB);

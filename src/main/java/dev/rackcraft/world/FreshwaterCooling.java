@@ -56,7 +56,8 @@ public final class FreshwaterCooling {
 			if (pump.pumpStatus() != PumpStatus.PUMPING.ordinal()) continue;
 			double share = units * pump.pumpUnits() / available;
 			pump.setPumpUsed(share);
-			drain(world, pump, share * dt);
+			// A Desalination Plant makes its water; only a Freshwater Pump drinks a lake.
+			if (pump.blockId().equals("freshwater_pump")) drain(world, pump, share * dt);
 		}
 	}
 

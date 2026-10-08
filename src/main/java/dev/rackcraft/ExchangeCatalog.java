@@ -54,7 +54,9 @@ public final class ExchangeCatalog {
 			"suspicious_sand", "suspicious_gravel", "player_head", "chorus_plant", "bundle", "recipe_pattern",
 			// Training data and AI work have to be earned, and nuclear waste has to be made (and dealt with).
 			"art_aggregate", "text_corpus", "generated_image", "generated_document", "spent_fuel", "waste_cask",
-			"wafer_scale_engine", "agi_weights");
+			"wafer_scale_engine", "agi_weights",
+			// Hydrogen and drones are what spare power is for: buying them with RackCoin would skip the point.
+			"hydrogen_canister", "maintenance_drone");
 
 	private static volatile Map<Item, Long> prices = Map.of();
 

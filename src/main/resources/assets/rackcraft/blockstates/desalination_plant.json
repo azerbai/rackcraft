@@ -1,0 +1,116 @@
+{
+  "variants": {
+    "facing=east,lit=false,formed=false,port=false": {
+      "model": "rackcraft:block/desalination_plant",
+      "y": 90
+    },
+    "facing=east,lit=false,formed=false,port=true": {
+      "model": "rackcraft:block/desalination_plant",
+      "y": 90
+    },
+    "facing=east,lit=false,formed=true,port=false": {
+      "model": "rackcraft:block/desalination_plant_formed"
+    },
+    "facing=east,lit=false,formed=true,port=true": {
+      "model": "rackcraft:block/desalination_plant_formed"
+    },
+    "facing=east,lit=true,formed=false,port=false": {
+      "model": "rackcraft:block/desalination_plant_on",
+      "y": 90
+    },
+    "facing=east,lit=true,formed=false,port=true": {
+      "model": "rackcraft:block/desalination_plant_on",
+      "y": 90
+    },
+    "facing=east,lit=true,formed=true,port=false": {
+      "model": "rackcraft:block/desalination_plant_formed_on"
+    },
+    "facing=east,lit=true,formed=true,port=true": {
+      "model": "rackcraft:block/desalination_plant_formed_on"
+    },
+    "facing=north,lit=false,formed=false,port=false": {
+      "model": "rackcraft:block/desalination_plant",
+      "y": 0
+    },
+    "facing=north,lit=false,formed=false,port=true": {
+      "model": "rackcraft:block/desalination_plant",
+      "y": 0
+    },
+    "facing=north,lit=false,formed=true,port=false": {
+      "model": "rackcraft:block/desalination_plant_formed"
+    },
+    "facing=north,lit=false,formed=true,port=true": {
+      "model": "rackcraft:block/desalination_plant_formed"
+    },
+    "facing=north,lit=true,formed=false,port=false": {
+      "model": "rackcraft:block/desalination_plant_on",
+      "y": 0
+    },
+    "facing=north,lit=true,formed=false,port=true": {
+      "model": "rackcraft:block/desalination_plant_on",
+      "y": 0
+    },
+    "facing=north,lit=true,formed=true,port=false": {
+      "model": "rackcraft:block/desalination_plant_formed_on"
+    },
+    "facing=north,lit=true,formed=true,port=true": {
+      "model": "rackcraft:block/desalination_plant_formed_on"
+    },
+    "facing=south,lit=false,formed=false,port=false": {
+      "model": "rackcraft:block/desalination_plant",
+      "y": 180
+    },
+    "facing=south,lit=false,formed=false,port=true": {
+      "model": "rackcraft:block/desalination_plant",
+      "y": 180
+    },
+    "facing=south,lit=false,formed=true,port=false": {
+      "model": "rackcraft:block/desalination_plant_formed"
+    },
+    "facing=south,lit=false,formed=true,port=true": {
+      "model": "rackcraft:block/desalination_plant_formed"
+    },
+    "facing=south,lit=true,formed=false,port=false": {
+      "model": "rackcraft:block/desalination_plant_on",
+      "y": 180
+    },
+    "facing=south,lit=true,formed=false,port=true": {
+      "model": "rackcraft:block/desalination_plant_on",
+      "y": 180
+    },
+    "facing=south,lit=true,formed=true,port=false": {
+      "model": "rackcraft:block/desalination_plant_formed_on"
+    },
+    "facing=south,lit=true,formed=true,port=true": {
+      "model": "rackcraft:block/desalination_plant_formed_on"
+    },
+    "facing=west,lit=false,formed=false,port=false": {
+      "model": "rackcraft:block/desalination_plant",
+      "y": 270
+    },
+    "facing=west,lit=false,formed=false,port=true": {
+      "model": "rackcraft:block/desalination_plant",
+      "y": 270
+    },
+    "facing=west,lit=false,formed=true,port=false": {
+      "model": "rackcraft:block/desalination_plant_formed"
+    },
+    "facing=west,lit=false,formed=true,port=true": {
+      "model": "rackcraft:block/desalination_plant_formed"
+    },
+    "facing=west,lit=true,formed=false,port=false": {
+      "model": "rackcraft:block/desalination_plant_on",
+      "y": 270
+    },
+    "facing=west,lit=true,formed=false,port=true": {
+      "model": "rackcraft:block/desalination_plant_on",
+      "y": 270
+    },
+    "facing=west,lit=true,formed=true,port=false": {
+      "model": "rackcraft:block/desalination_plant_formed_on"
+    },
+    "facing=west,lit=true,formed=true,port=true": {
+      "model": "rackcraft:block/desalination_plant_formed_on"
+    }
+  }
+}

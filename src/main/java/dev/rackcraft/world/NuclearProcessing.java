@@ -25,6 +25,8 @@ import net.minecraft.item.Items;
  *   <li>E-Waste Recycler: a Failed Module to three Silicon and a Copper Wire (15 s, 10 kW).</li>
  *   <li>Wafer Fab: sixteen Silicon and four GPU Chips to a Wafer-Scale Engine (5 min, 400 kW). It only runs once
  *       Extreme UV Lithography is researched; until then it reports {@link Status#LOCKED}.</li>
+ *   <li>Electrolyser: an Aluminium Ingot to a Hydrogen Canister (30 s, 4,000 kW). It also needs water against the
+ *       outside of the cube, or it reports {@link Status#NO_WATER}.</li>
  * </ul>
  */
 public final class NuclearProcessing {
@@ -34,7 +36,7 @@ public final class NuclearProcessing {
 	private static final double IDLE_KW = 0.1;
 
 	/** LOW_POWER: running, but slower, because the grid covers only part of what the cube needs. */
-	public enum Status { RUNNING, NOT_FORMED, NO_INPUT, OUTPUT_FULL, NO_POWER, LOCKED, LOW_POWER }
+	public enum Status { RUNNING, NOT_FORMED, NO_INPUT, OUTPUT_FULL, NO_POWER, LOCKED, LOW_POWER, NO_WATER }
 
 	/** Below this share of its power a cube stops; above it, it works at the share it gets. */
 	public static final double MIN_POWER = 0.1;
@@ -55,6 +57,7 @@ public final class NuclearProcessing {
 			case "wafer_fab" -> new Recipe(item("silicon"), 16, item("gpu_chip"), 4, item("wafer_scale_engine"), 1, null, 0, 300, 400);
 			case "silicon_foundry" -> new Recipe(Items.QUARTZ, 2, Items.SAND, 4, item("silicon"), 8, null, 0, 20, 40);
 			case "ewaste_recycler" -> new Recipe(item("failed_module"), 1, null, 0, item("silicon"), 3, item("copper_wire"), 1, 15, 10);
+			case "electrolyser" -> new Recipe(item("aluminum_ingot"), 1, null, 0, item("hydrogen_canister"), 1, null, 0, 30, 4000);
 			default -> null;
 		};
 	}
@@ -74,8 +77,8 @@ public final class NuclearProcessing {
 	}
 
 	/** One step for every processing cube: pool inputs, check power, inputs and room, and make what it can. */
-	public static void step(Map<MachineBlockEntity, ReactorArrays.Array> arrays, Map<MachineBlockEntity, Double> satisfaction, double dt,
-			dev.rackcraft.compute.Research.Effects research) {
+	public static void step(net.minecraft.server.world.ServerWorld world, Map<MachineBlockEntity, ReactorArrays.Array> arrays,
+			Map<MachineBlockEntity, Double> satisfaction, double dt, dev.rackcraft.compute.Research.Effects research) {
 		for (ReactorArrays.Array array : new HashSet<>(arrays.values())) {
 			Recipe recipe = recipe(array.controller().blockId());
 			if (recipe == null) continue;
@@ -94,6 +97,9 @@ public final class NuclearProcessing {
 				active = ready;
 				if (array.controller().blockId().equals("wafer_fab") && !research.lithography()) {
 					status = Status.LOCKED;
+					active = false;
+				} else if (array.controller().blockId().equals("electrolyser") && UtilityPlants.waterTouching(world, array) == 0) {
+					status = Status.NO_WATER;
 					active = false;
 				} else if (!ready) {
 					status = hasInputs(members, recipe) ? Status.OUTPUT_FULL : Status.NO_INPUT;

@@ -12,6 +12,8 @@ CONTENT = json.loads((ROOT / "tools/content.json").read_text(encoding="utf-8"))
 MACHINE_IDS = {entry["id"] for entry in CONTENT["blocks"] if entry.get("machine")}
 AIRFLOW_BLOCKING = {entry["id"] for entry in CONTENT["blocks"] if entry.get("blocksAirflow")}
 CABLE_IDS = {"power_cable", "coolant_pipe", "fiber_cable", "item_pipe"}
+# Cubes that make no items, so they have no port core.
+NO_PORT = ("battery_bank", "desalination_plant", "grid_substation", "heat_recovery_plant")
 ANIMATION_FRAMETIME = 4
 
 
@@ -99,6 +101,51 @@ def machine_model(identifier, front):
         "top": texture("top"), "bottom": texture("bottom"), "particle": texture("side"),
     }, "elements": [{"from": [0, 0, 0], "to": [16, 16, 16], "faces": {
         face: {"texture": ref, "cullface": face} for face, ref in faces.items()}}]}
+
+
+def belt_model(identifier):
+    """A low belt between two rails, facing north (items run toward the north edge); blockstates rotate it."""
+    texture = lambda suffix: f"rackcraft:block/{identifier}_{suffix}"
+    side = {"texture": "#side", "uv": [0, 11, 16, 15]}
+    rail = {face: {"texture": "#side", "uv": [0, 10, 16, 11]} for face in ("north", "south", "east", "west", "up")}
+    return {"parent": "minecraft:block/block", "textures": {
+        "top": texture("top"), "side": texture("side"), "bottom": texture("bottom"), "particle": texture("side")},
+        "elements": [
+            {"from": [0, 0, 0], "to": [16, 4, 16], "faces": {
+                "up": {"texture": "#top", "uv": [0, 0, 16, 16]},
+                "down": {"texture": "#bottom", "cullface": "down"},
+                "north": dict(side, cullface="north"), "south": dict(side, cullface="south"),
+                "east": dict(side, cullface="east"), "west": dict(side, cullface="west")}},
+            {"from": [0, 4, 0], "to": [1, 5, 16], "faces": rail},
+            {"from": [15, 4, 0], "to": [16, 5, 16], "faces": rail},
+        ],
+        "display": {"gui": {"rotation": [30, 225, 0], "scale": [0.625, 0.625, 0.625]}}}
+
+
+def arm_model(identifier, lit, item=False):
+    """A robot arm's pedestal, facing north: a hazard-striped floor plate, the turret column and a status beacon.
+    The arm itself moves, so the client draws it; the item model adds a folded arm so it reads as a robot."""
+    texture = lambda suffix: f"rackcraft:block/{identifier}_{suffix}"
+    def box(lo, hi, top, sides):
+        faces = {face: {"texture": sides} for face in ("north", "south", "east", "west")}
+        faces["up"] = {"texture": top}
+        faces["down"] = {"texture": sides}
+        return {"from": lo, "to": hi, "faces": faces}
+    elements = [
+        box([2, 0, 2], [14, 3, 14], "#base", "#column"),
+        box([4, 3, 4], [12, 10, 12], "#column", "#column"),
+        box([11, 3, 11], [13, 6, 13], "#light", "#light"),
+    ]
+    if item:
+        elements += [box([6.5, 10, 6.5], [9.5, 18, 9.5], "#column", "#column"),
+                     box([6.5, 16, 3], [9.5, 19, 9.5], "#column", "#column"),
+                     box([7, 13, 3], [9, 16, 5], "#light", "#light")]
+    model = {"parent": "minecraft:block/block", "textures": {
+        "base": texture("base"), "column": texture("column"), "light": texture("light_on" if lit else "light"),
+        "particle": texture("column")}, "elements": elements}
+    if item:
+        model["display"] = {"gui": {"rotation": [30, 225, 0], "scale": [0.55, 0.55, 0.55], "translation": [0, -1.5, 0]}}
+    return model
 
 
 def validate_guide(blocks, items):
@@ -367,6 +414,24 @@ def main():
                 write_json(RESOURCES / f"assets/rackcraft/models/block/{identifier}_core{suffix}.json", cable_core_model(identifier, suffix))
                 write_json(RESOURCES / f"assets/rackcraft/models/block/{identifier}_arm{suffix}.json", cable_arm_model(identifier, suffix))
             model = None
+        elif block.get("model") == "belt":
+            write_texture(block_textures / f"{identifier}_top.png", textures.belt_top(block))
+            # The cleats move a pixel a tick, close to the belt's real speed of a block a second.
+            write_json(block_textures / f"{identifier}_top.png.mcmeta", {"animation": {"frametime": 1}})
+            write_texture(block_textures / f"{identifier}_side.png", textures.belt_side(block))
+            write_texture(block_textures / f"{identifier}_bottom.png", textures.belt_bottom(block))
+            model = belt_model(identifier)
+        elif block.get("model") == "arm":
+            write_texture(block_textures / f"{identifier}_base.png", textures.arm_base(block))
+            write_texture(block_textures / f"{identifier}_column.png", textures.arm_column(block))
+            write_texture(block_textures / f"{identifier}_light.png", textures.arm_light(block, False))
+            write_texture(block_textures / f"{identifier}_light_on.png", textures.arm_light(block, True))
+            entity_texture = RESOURCES / f"assets/rackcraft/textures/entity/{identifier}.png"
+            entity_texture.parent.mkdir(parents=True, exist_ok=True)
+            entity_texture.write_bytes(textures.arm_parts(block))
+            model = arm_model(identifier, False)
+            write_json(RESOURCES / f"assets/rackcraft/models/block/{identifier}_on.json", arm_model(identifier, True))
+            write_json(RESOURCES / f"assets/rackcraft/models/block/{identifier}_item.json", arm_model(identifier, False, item=True))
         elif identifier in MACHINE_IDS:
             for suffix, frames in textures.machine_textures(block).items():
                 write_texture(block_textures / f"{identifier}_{suffix}.png", frames)
@@ -376,7 +441,7 @@ def main():
                 for alert in ("warn", "fault"):
                     write_json(RESOURCES / f"assets/rackcraft/models/block/{identifier}_{alert}.json", machine_model(identifier, f"front_{alert}"))
             if block.get("array"):
-                for suffix in ("formed", "formed_on") + (("port", "port_on") if identifier != "battery_bank" else ()):
+                for suffix in ("formed", "formed_on") + (("port", "port_on") if identifier not in NO_PORT else ()):
                     write_json(RESOURCES / f"assets/rackcraft/models/block/{identifier}_{suffix}.json", {
                         "parent": "minecraft:block/cube_all", "textures": {"all": f"rackcraft:block/{identifier}_{suffix}"}})
         else:
@@ -397,16 +462,20 @@ def main():
                 # products gather) gets the port face; Grid-Scale Batteries make nothing, so they have no port.
                 def formed_model(key, port):
                     lit = "_on" if "lit=true" in key else ""
-                    kind = "port" if port and identifier != "battery_bank" else "formed"
+                    kind = "port" if port and identifier not in NO_PORT else "formed"
                     return {"model": f"rackcraft:block/{identifier}_{kind}{lit}"}
                 variants = {f"{key},formed={str(formed).lower()},port={str(port).lower()}": (
                     formed_model(key, port) if formed else value)
                     for key, value in variants.items() for formed in (False, True) for port in (False, True)}
-            if block.get("front") == "rack":
-                # Health: amber for a slowed rack, red for a stopped one, whether or not it is lit.
+            if identifier == "server_rack":
+                # Health: amber for a slowed rack, red for a stopped one, whether or not it is lit. Only the Server Rack
+                # has the property; the Creative Rack shares its face but not its health.
                 variants = {f"{key},health={health}": (value if health == "ok" else
                     {"model": f"rackcraft:block/{identifier}_{health}", "y": value["y"]})
                     for key, value in variants.items() for health in ("ok", "warn", "fault")}
+        elif block.get("model") == "belt":
+            variants = {f"facing={facing}": {"model": f"rackcraft:block/{identifier}", "y": rotation}
+                        for facing, rotation in {"north": 0, "east": 90, "south": 180, "west": 270}.items()}
         else:
             variants = {"": {"model": f"rackcraft:block/{identifier}"}}
         if identifier in CABLE_IDS:
@@ -415,7 +484,7 @@ def main():
         else:
             write_json(RESOURCES / f"assets/rackcraft/blockstates/{identifier}.json", {"variants": variants})
             write_json(RESOURCES / f"assets/rackcraft/models/item/{identifier}.json", {
-                "parent": f"rackcraft:block/{identifier}"
+                "parent": f"rackcraft:block/{identifier}{'_item' if block.get('model') == 'arm' else ''}"
             })
         drops = block.get("drops", identifier)
         if drops != identifier:
@@ -499,7 +568,7 @@ def main():
         "rack_status.rackcraft.mining": "Mining %s RC/s",
         "rack_status.rackcraft.mining.hint": "Everything is working. RackCoin goes to the shared balance; spend it at a Crypto Exchange.",
         "rack_status.rackcraft.throttled": "Mining %s RC/s (throttled)",
-        "rack_status.rackcraft.throttled.hint": "The intake is above 27 C, so the rack slows down. Check where its heat goes (To loop / To air): put a Rear-Door Cooler on its back, add sinks to its coolant loop, or pull hot air away with a CRAC unit or exhaust fan.",
+        "rack_status.rackcraft.throttled.hint": "The intake is above 27 C, so the rack slows down. Check where its heat goes (To loop / To air): put a Rear-Door Cooler or CDU on its back (either catches the exhaust into the loop), add sinks to its coolant loop, or pull hot air away with a CRAC unit or exhaust fan. A solid block behind a rack pushes its exhaust out sideways, often straight into the next aisle.",
         "rack_status.rackcraft.network_limited": "Mining %s RC/s (bandwidth-limited)",
         "rack_status.rackcraft.network_limited.hint": "The routers on this fiber network can't carry every rack. Add another Uplink Router or a Core Router.",
         "rack_status.rackcraft.empty": "Idle: no modules",
@@ -590,6 +659,8 @@ def main():
         "effect.rackcraft.dizzy": "Smog Dizziness",
         "effect.rackcraft.coughing": "Smoker's Cough",
         "effect.rackcraft.radiation": "Radiation Sickness",
+        "entity.rackcraft.maintenance_drone": "Maintenance Drone",
+        "screen.rackcraft.workcell": "Robot",
     })
     for entry in blocks + items:
         lang[f"guide.rackcraft.entry.{entry['id']}"] = entry["desc"]
@@ -659,6 +730,9 @@ def main():
         "replace": False,
         "values": [f"rackcraft:{identifier}" for identifier in sorted(AIRFLOW_BLOCKING)]
     })
+    entity_textures = RESOURCES / "assets/rackcraft/textures/entity"
+    entity_textures.mkdir(parents=True, exist_ok=True)
+    (entity_textures / "maintenance_drone.png").write_bytes(textures.drone_parts())
     remove_stale_textures(blocks)
     print(f"Generated assets for {len(blocks)} blocks, {len(items)} items, and {len(CONTENT['recipes'])} recipes.")
 

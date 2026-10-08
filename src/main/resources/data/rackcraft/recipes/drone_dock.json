@@ -1,0 +1,29 @@
+{
+  "key": {
+    "A": {
+      "item": "rackcraft:aluminum_ingot"
+    },
+    "C": {
+      "item": "rackcraft:circuit_board"
+    },
+    "H": {
+      "item": "minecraft:hopper"
+    },
+    "P": {
+      "item": "rackcraft:pdu"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    }
+  },
+  "pattern": [
+    "SAS",
+    "CHC",
+    "SPS"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:drone_dock"
+  },
+  "type": "minecraft:crafting_shaped"
+}

@@ -94,13 +94,42 @@ public final class FaultFinder {
 						faults.add(new Fault(pos, 1, "Reactor: out of Fuel Cells"));
 					}
 				}
-				case "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer", "wafer_fab", "silicon_foundry", "ewaste_recycler" -> {
+				case "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer", "wafer_fab", "silicon_foundry", "ewaste_recycler",
+						"electrolyser" -> {
 					int status = machine.processStatus();
 					if (status == NuclearProcessing.Status.NOT_FORMED.ordinal()) faults.add(new Fault(pos, 1, "Not a whole cube"));
 					else if (status == NuclearProcessing.Status.NO_POWER.ordinal()) faults.add(new Fault(pos, 2, "Multiblock: no power"));
 					else if (status == NuclearProcessing.Status.OUTPUT_FULL.ordinal()) faults.add(new Fault(pos, 1, "Multiblock: output full"));
 					else if (status == NuclearProcessing.Status.LOCKED.ordinal()) faults.add(new Fault(pos, 1, "Wafer Fab: needs EUV Lithography research"));
 					else if (status == NuclearProcessing.Status.LOW_POWER.ordinal()) faults.add(new Fault(pos, 1, "Multiblock: short of power, running slowly"));
+					else if (status == NuclearProcessing.Status.NO_WATER.ordinal()) faults.add(new Fault(pos, 2, "Electrolyser: not touching water"));
+				}
+				case "welding_arm", "riveting_arm", "assembly_arm" -> {
+					int status = machine.processStatus();
+					if (status == AssemblyLine.Status.NO_BELT.ordinal()) faults.add(new Fault(pos, 1, "Robot: not facing a Conveyor Belt"));
+					else if (status == AssemblyLine.Status.NO_PARTS.ordinal()) faults.add(new Fault(pos, 2, "Robot: out of parts"));
+					else if (status == AssemblyLine.Status.NO_POWER.ordinal()) faults.add(new Fault(pos, 2, "Robot: no power"));
+					else if (status == AssemblyLine.Status.LOW_POWER.ordinal()) faults.add(new Fault(pos, 1, "Robot: short of power, working slowly"));
+				}
+				case "drone_dock" -> {
+					int status = machine.processStatus();
+					if (status == DroneDocks.Status.NO_POWER.ordinal()) faults.add(new Fault(pos, 2, "Drone Dock: no power"));
+					else if (status == DroneDocks.Status.NO_FUEL.ordinal()) faults.add(new Fault(pos, 2, "Drone Dock: out of hydrogen"));
+					else if (status == DroneDocks.Status.NO_DRONES.ordinal()) faults.add(new Fault(pos, 1, "Drone Dock: every drone is out"));
+					else if (status == DroneDocks.Status.NO_SPARES.ordinal()) faults.add(new Fault(pos, 1, "Drone Dock: needs spare modules or Repair Kits"));
+				}
+				case "desalination_plant" -> {
+					int status = machine.pumpStatus();
+					if (machine.reactorArraySize() < 2) faults.add(new Fault(pos, 1, "Not a whole cube"));
+					else if (status == FreshwaterCooling.PumpStatus.NO_POWER.ordinal()) faults.add(new Fault(pos, 2, "Desalination: no power"));
+					else if (status == FreshwaterCooling.PumpStatus.NO_WATER.ordinal()) faults.add(new Fault(pos, 2, "Desalination: not touching water"));
+				}
+				case "heat_recovery_plant" -> {
+					if (machine.reactorArraySize() < 2) faults.add(new Fault(pos, 1, "Not a whole cube"));
+					else if (machine.coolingDetail() == 0) faults.add(new Fault(pos, 1, "Heat recovery: no villagers nearby"));
+				}
+				case "grid_substation" -> {
+					if (machine.reactorArraySize() < 2) faults.add(new Fault(pos, 1, "Not a whole cube"));
 				}
 				default -> {}
 			}

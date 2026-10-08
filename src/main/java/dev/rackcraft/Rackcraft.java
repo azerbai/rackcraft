@@ -22,6 +22,7 @@ public final class Rackcraft implements ModInitializer {
 		RcBlocks.register();
 		RcItems.register();
 		RcEffects.register();
+		dev.rackcraft.entity.RcEntities.register();
 		dev.rackcraft.screen.RcScreenHandlers.register();
 		ItemGroup group = net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup.builder()
 				.displayName(Text.literal("Rackcraft"))

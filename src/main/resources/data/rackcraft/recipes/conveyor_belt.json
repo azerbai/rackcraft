@@ -1,0 +1,22 @@
+{
+  "key": {
+    "I": {
+      "item": "minecraft:iron_ingot"
+    },
+    "K": {
+      "item": "minecraft:dried_kelp"
+    },
+    "M": {
+      "item": "rackcraft:electric_motor"
+    }
+  },
+  "pattern": [
+    "KKK",
+    "IMI"
+  ],
+  "result": {
+    "count": 8,
+    "item": "rackcraft:conveyor_belt"
+  },
+  "type": "minecraft:crafting_shaped"
+}

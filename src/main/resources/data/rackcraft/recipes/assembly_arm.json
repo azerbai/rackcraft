@@ -1,0 +1,26 @@
+{
+  "key": {
+    "C": {
+      "item": "rackcraft:circuit_board"
+    },
+    "H": {
+      "item": "minecraft:tripwire_hook"
+    },
+    "M": {
+      "item": "rackcraft:electric_motor"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    }
+  },
+  "pattern": [
+    " H ",
+    " M ",
+    "SCS"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:assembly_arm"
+  },
+  "type": "minecraft:crafting_shaped"
+}

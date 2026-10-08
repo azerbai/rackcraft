@@ -10,16 +10,16 @@ import net.minecraft.text.Text;
 /** Modular Reactor: fuel in, Spent Fuel out, and what the whole array is doing. */
 public final class ReactorScreen extends RackcraftHandledScreen {
 	private static final String[] STATES = {"Running: supplying the grid", "No fuel: load Fuel Cells",
-			"Stopped: waste slots full, take out the Spent Fuel", "Standby: nothing is drawing power"};
+			"Stopped: waste full, empty the port", "Standby: no demand on its grid"};
 
 	public ReactorScreen(MachineScreenHandler handler, PlayerInventory inventory, Text title) {
-		super(handler, inventory, title, 176, 240);
+		super(handler, inventory, title, 176, 252);
 	}
 
 	@Override
 	protected void drawDashboard(DrawContext context) {
 		int state = Math.max(0, Math.min(STATES.length - 1, stat(Stat.PROCESS_STATUS)));
-		line(context, STATES[state], 8, 30, state == 0 ? GOOD : state == 2 ? BAD : state == 1 ? WARN : MUTED);
+		lineFit(context, STATES[state], 8, 30, 160, state == 0 ? GOOD : state == 2 ? BAD : state == 1 ? WARN : MUTED);
 		line(context, "Fuel", 15, 45, MUTED);
 		line(context, "Waste", 40, 45, MUTED);
 
@@ -31,12 +31,13 @@ public final class ReactorScreen extends RackcraftHandledScreen {
 		int fuel = stat(Stat.FUEL);
 		line(context, "Current cell", 74, 78, MUTED);
 		bar(context, 74, 88, 94, fuel / (double) Math.max(1, stat(Stat.FUEL_TOTAL)), WARN);
-		line(context, String.format(Locale.ROOT, "%d s at full, %d spare", fuel / 20, stat(Stat.FUEL_CELLS)), 74, 97, TEXT);
+		lineFit(context, String.format(Locale.ROOT, "%d:%02d left at full", fuel / 1200, fuel / 20 % 60), 74, 97, 94, TEXT);
+		lineFit(context, String.format(Locale.ROOT, "%,d cells spare", stat(Stat.FUEL_CELLS)), 74, 108, 94, MUTED);
 
 		int edge = Math.max(1, stat(Stat.ARRAY_EDGE));
 		line(context, edge > 1 ? "Array " + edge + "x" + edge + "x" + edge : "Single core", 8, 80, edge > 1 ? GOOD : MUTED);
-		line(context, edge > 1 ? (100 - 5 * (edge - 1)) + "% fuel/core" : "Cube: 2 to 5", 8, 91, MUTED);
-		CubePort.draw(this, context, 8, 118);
+		line(context, edge > 1 ? "-" + 5 * (edge - 1) + "% fuel" : "Cube: 2 to 5", 8, 91, MUTED);
+		CubePort.draw(this, context, 8, 128);
 	}
 
 	@Override

@@ -17,7 +17,15 @@ def require(path):
 
 for block in CONTENT["blocks"]:
     identifier = block["id"]
-    if not block.get("machine"):
+    if block.get("model") == "belt":
+        for suffix in ("top", "side", "bottom"):
+            require(RESOURCES / f"assets/rackcraft/textures/block/{identifier}_{suffix}.png")
+    elif block.get("model") == "arm":
+        for suffix in ("base", "column", "light", "light_on"):
+            require(RESOURCES / f"assets/rackcraft/textures/block/{identifier}_{suffix}.png")
+        require(RESOURCES / f"assets/rackcraft/textures/entity/{identifier}.png")
+        require(RESOURCES / f"assets/rackcraft/models/block/{identifier}_item.json")
+    elif not block.get("machine"):
         require(RESOURCES / f"assets/rackcraft/textures/block/{identifier}.png")
     if block.get("model") == "pipe":
         for part in ("core", "arm", "core_cut", "arm_cut"):
@@ -46,7 +54,7 @@ require(RESOURCES / "data/rackcraft/tags/blocks/airflow_blocking.json")
 require(ROOT / "src/main/java/dev/rackcraft/generated/ContentIds.java")
 
 for block in CONTENT["blocks"]:
-    if block.get("machine"):
+    if block.get("machine") and block.get("model") != "arm":
         for suffix in ("side", "back", "top", "bottom", "front", "front_on"):
             require(RESOURCES / f"assets/rackcraft/textures/block/{block['id']}_{suffix}.png")
         require(RESOURCES / f"assets/rackcraft/models/block/{block['id']}_on.json")
@@ -60,7 +68,9 @@ for item in CONTENT["items"]:
 for tag in CONTENT["itemTags"]:
     require(RESOURCES / f"data/rackcraft/tags/items/{tag}.json")
 
-if len(CONTENT["blocks"]) != 54 or len(CONTENT["items"]) != 51:
-    raise SystemExit("content catalog must contain exactly 54 blocks and 51 standalone items")
+require(RESOURCES / "assets/rackcraft/textures/entity/maintenance_drone.png")
+
+if len(CONTENT["blocks"]) != 63 or len(CONTENT["items"]) != 55:
+    raise SystemExit("content catalog must contain exactly 63 blocks and 55 standalone items")
 
 print(f"Rackcraft assets ok: {len(CONTENT['blocks'])} blocks, {len(CONTENT['items'])} standalone items, {len(CONTENT['recipes'])} recipes")

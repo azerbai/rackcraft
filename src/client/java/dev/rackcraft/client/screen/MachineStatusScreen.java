@@ -99,6 +99,41 @@ public final class MachineStatusScreen extends RackcraftHandledScreen {
 					: "Idle: the air in front of it is cool", 12, 30, moved > 0 ? GOOD : MUTED);
 			line(context, String.format(java.util.Locale.ROOT, "Smog in this chunk: %.1f", smog), 12, 44,
 					smog >= 55 ? BAD : smog > 30 ? WARN : MUTED);
+		} else if (id.equals("heat_recovery_plant")) {
+			int edge = stat(Stat.ARRAY_EDGE);
+			int moved = stat(Stat.COOLING_KW);
+			int villagers = stat(Stat.COOLING_DETAIL);
+			String state = edge < 2 ? "Not formed: build a solid cube, 2x2x2 to 5x5x5"
+					: moved > 0 ? "Selling " + kw(moved) + " of heat to the village"
+					: villagers == 0 ? "No customers: no villagers within 64 blocks" : "Idle: no heat on its coolant loop";
+			line(context, state, 12, 30, edge < 2 || villagers == 0 ? WARN : moved > 0 ? GOOD : MUTED);
+			line(context, villagers + (villagers == 1 ? " villager takes " : " villagers take ") + kw(stat(Stat.SOURCE_CAPACITY)),
+					12, 44, TEXT);
+			line(context, String.format(java.util.Locale.ROOT, "Earning %,.1f RC/s. Needs no power or water", stat(Stat.INCOME) / 10.0),
+					12, 56, stat(Stat.INCOME) > 0 ? GOOD : MUTED);
+			loopLine(context, 68);
+			return;
+		} else if (id.equals("desalination_plant")) {
+			int edge = stat(Stat.ARRAY_EDGE);
+			int state = stat(Stat.PUMP_STATUS);
+			boolean running = state == dev.rackcraft.world.FreshwaterCooling.PumpStatus.PUMPING.ordinal();
+			String text = edge < 2 ? "Not formed: build a solid cube, 2x2x2 to 5x5x5"
+					: running ? "Making fresh water" : state == dev.rackcraft.world.FreshwaterCooling.PumpStatus.NO_POWER.ordinal()
+					? "No power" : "Not touching water: any water works, the sea too";
+			line(context, text, 12, 30, running ? GOOD : edge < 2 ? WARN : BAD);
+			line(context, String.format(java.util.Locale.ROOT, "Supplies %d units to towers on its loop (4 each)",
+					Math.max(edge, 0) * Math.max(edge, 0) * Math.max(edge, 0) * dev.rackcraft.world.UtilityPlants.DESAL_UNITS_PER_CORE), 12, 44, TEXT);
+			line(context, stat(Stat.PUMP_SOURCES) + " water blocks touching it; it never drains them", 12, 56, MUTED);
+			loopLine(context, 68);
+		} else if (id.equals("grid_substation")) {
+			int edge = stat(Stat.ARRAY_EDGE);
+			int price = stat(Stat.COOLING_DETAIL);
+			line(context, edge < 2 ? "Not formed: build a solid cube, 2x2x2 to 5x5x5" : power > 0 ? "Exporting " + kw(power)
+					: "Idle: no spare solar, wind or reactor power", 12, 30, edge < 2 ? WARN : power > 0 ? GOOD : MUTED);
+			line(context, String.format(java.util.Locale.ROOT, "Sells up to %s. Price x%.1f (%s)", kw(stat(Stat.SOURCE_CAPACITY)),
+					price / 100.0, dev.rackcraft.world.UtilityPlants.priceName(price / 100.0)), 12, 44, TEXT);
+			line(context, String.format(java.util.Locale.ROOT, "Earning %,.1f RC/s", stat(Stat.INCOME) / 10.0), 12, 56,
+					stat(Stat.INCOME) > 0 ? GOOD : MUTED);
 		} else if (!dev.rackcraft.block.MachineBlockEntity.networkKinds(id).contains(dev.rackcraft.sim.NetKind.POWER)) {
 			// Routers run on fiber alone: show what the network carries instead of a power readout.
 			int bandwidth = stat(Stat.DATA_BANDWIDTH);
@@ -120,18 +155,29 @@ public final class MachineStatusScreen extends RackcraftHandledScreen {
 					12, 30, satisfaction >= 100 ? GOOD : satisfaction > 0 ? WARN : BAD);
 			line(context, "Draw " + kw(power) + "  (" + satisfaction + "% supplied)", 12, 44, TEXT);
 		}
-		if (id.equals("cdu")) loopLine(context, 56);
-		line(context, "Power network", 12, 72, MUTED);
-		line(context, "Delivering " + kw(stat(Stat.NETWORK_DELIVERED)) + " of " + kw(stat(Stat.NETWORK_DEMAND)) + " demand",
-				12, 84, TEXT);
-		line(context, "Generating capacity " + kw(stat(Stat.NETWORK_CAPACITY)), 12, 96, TEXT);
+		if (id.equals("cdu")) {
+			int caught = stat(Stat.COOLING_KW);
+			line(context, caught > 0 ? "Catching " + kw(caught) + " of rack exhaust" : "Against a rack's back it catches exhaust",
+					12, 44 + 12, caught > 0 ? GOOD : MUTED);
+			loopLine(context, 68);
+		}
+		int top = id.equals("cdu") || id.equals("desalination_plant") ? 84 : 72;
+		line(context, "Power network", 12, top, MUTED);
+		line(context, "Delivering " + kw(stat(Stat.NETWORK_DELIVERED)) + " of " + kw(stat(Stat.NETWORK_DEMAND)) + " demand", 12, top + 12, TEXT);
+		line(context, "Generating capacity " + kw(stat(Stat.NETWORK_CAPACITY)), 12, top + 24, TEXT);
+	}
+
+	/** Every line on this screen is cut to the panel, so a big grid's figures can't run off the edge. */
+	@Override
+	protected void line(DrawContext context, String text, int x, int y, int color) {
+		lineFit(context, text, x, y, backgroundWidth - x - 12, color);
 	}
 
 	/** The coolant loop's budget: heat put in against what its sinks can take. */
 	private void loopLine(DrawContext context, int y) {
 		int heat = stat(Stat.LOOP_HEAT);
 		int capacity = stat(Stat.LOOP_CAPACITY);
-		line(context, "Loop: " + kw(heat) + " in, sinks can take " + kw(capacity), 12, y,
+		lineFit(context, "Loop: " + kw(heat) + " in, sinks can take " + kw(capacity), 12, y, 206,
 				heat > capacity ? BAD : heat > capacity * 0.8 ? WARN : GOOD);
 	}
 }

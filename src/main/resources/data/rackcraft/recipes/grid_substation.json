@@ -1,0 +1,32 @@
+{
+  "key": {
+    "B": {
+      "item": "rackcraft:steel_block"
+    },
+    "C": {
+      "item": "rackcraft:circuit_board"
+    },
+    "K": {
+      "item": "minecraft:copper_block"
+    },
+    "L": {
+      "item": "minecraft:lightning_rod"
+    },
+    "R": {
+      "item": "minecraft:redstone_block"
+    },
+    "W": {
+      "item": "rackcraft:copper_wire"
+    }
+  },
+  "pattern": [
+    "LWL",
+    "KRK",
+    "BCB"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:grid_substation"
+  },
+  "type": "minecraft:crafting_shaped"
+}

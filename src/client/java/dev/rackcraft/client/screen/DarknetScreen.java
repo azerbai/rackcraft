@@ -163,8 +163,12 @@ public final class DarknetScreen extends HandledScreen<DarknetScreenHandler> {
 			icons.add(new Icon(left, row - 4, parcel.stack()));
 			String line = parcel.ticksLeft() <= 0 ? parcel.stack().getName().getString() + ": arrived"
 					: parcel.stack().getName().getString() + ": arrives in " + time(parcel.ticksLeft()) + " by " + parcel.courier();
-			text(context, textRenderer.trimToWidth(line, right - left - 22), left + 22, row, parcel.ticksLeft() <= 0 ? GOOD : TEXT);
-			row += 18;
+			int textRow = row;
+			for (net.minecraft.text.OrderedText wrapped : textRenderer.wrapLines(Text.literal(line), right - left - 22)) {
+				context.drawText(textRenderer, wrapped, left + 22, textRow, parcel.ticksLeft() <= 0 ? GOOD : TEXT, false);
+				textRow += 10;
+			}
+			row = Math.max(row + 18, textRow + 6);
 		}
 		row += 4;
 		if (snapshot.nextSlotPrice() > 0) {
@@ -182,15 +186,19 @@ public final class DarknetScreen extends HandledScreen<DarknetScreenHandler> {
 			text(context, "Recently closed", left, row, MUTED);
 			row += 11;
 			for (String line : snapshot.history()) {
-				text(context, textRenderer.trimToWidth(line, right - left), left, row, line.contains(" won ") ? GOOD : MUTED);
-				row += 10;
+				for (net.minecraft.text.OrderedText wrapped : textRenderer.wrapLines(Text.literal(line), right - left)) {
+					context.drawText(textRenderer, wrapped, left, row, line.contains(" won ") ? GOOD : MUTED, false);
+					row += 10;
+				}
 			}
 		}
 		row += 2;
-		text(context, textRenderer.trimToWidth("Bids are paid when placed and refunded if you're outbid. One minute after", right - left),
-				left, row, MUTED);
-		text(context, textRenderer.trimToWidth("the first bid, the highest bidder wins. Rivals bid back.", right - left), left, row + 10, MUTED);
-		return row + 22;
+		for (net.minecraft.text.OrderedText wrapped : textRenderer.wrapLines(Text.literal("Bids are paid when placed and refunded if "
+				+ "you're outbid. One minute after the first bid, the highest bidder wins. Rivals bid back."), right - left)) {
+			context.drawText(textRenderer, wrapped, left, row, MUTED, false);
+			row += 10;
+		}
+		return row + 2;
 	}
 
 	/** Matches the server's rounding: three significant figures past 100. */

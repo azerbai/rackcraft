@@ -177,7 +177,7 @@ Events start about three times an hour once a facility has run for a while (`eve
 Every kilowatt a rack draws comes back out as heat, and a rack slows down once the air at its front passes 27 C and stops at 40 C. An unpowered rack makes no heat. Heat leaves a rack two ways, and the rack screen shows both (**To loop** and **To air**):
 
 - **Air.** Out of the back into the room. Air heat spreads block by block and leaks away: slowly through walls, quickly outdoors. Keep it off the intakes with hot and cold aisles, blanking panels and raised floor, or catch it:
-  - **Rear-Door Cooler**: placed against a rack's back face, it catches up to 40 kW of that rack's exhaust into its coolant loop.
+  - **Rear-Door Cooler**: placed against a rack's back face, it catches up to 40 kW of that rack's exhaust into its coolant loop. A **CDU** against a rack's back does the same, so the CDU a Quantum Core rack needs can sit behind it without trapping the exhaust. Any other solid block behind a rack pushes its exhaust out sideways, often into the next aisle.
   - **CRAC unit**: pulls up to 40 kW per face out of the room air into its coolant loop (3 kW).
   - **Exhaust Fan**: vents up to 10 kW from the block in front of it outside (0.2 kW). It only runs, and only makes smog, while that air is at least 1 C above ambient.
 - **Loop.** Each connected run of **Coolant Pipe** is one coolant loop. Liquid-cooled modules (ASIC and up) send 85% of their heat down the pipe, and a rack holding them stops with *Needs liquid cooling* until it is on a loop with at least one heat sink. Rear-Door Coolers, CRACs and Modular Reactors put heat into the same loops. The pipe can run anywhere, so the heat can be dumped far from the racks. **Heat sinks** take it out:
@@ -192,6 +192,32 @@ Every kilowatt a rack draws comes back out as heat, and a rack slows down once t
 If more heat goes into a loop than its sinks can take, every machine feeding it gets the same share of what the loop can take and the rest stays in the air, so racks run hot. The Multimeter shows a loop's budget on any pipe or machine on it: heat in against what its sinks can take. The Operations Terminal flags overloaded loops.
 
 **Freshwater Pumps** supply the towers: touching a lake or river (ocean and beach biomes are salt water and don't count), one unit per three water source blocks within six blocks, up to 16 units, for 1.5 kW. Towers drink the lake: every 240 unit-seconds of water used drains a source block from the shoreline.
+
+## Utility Plants
+
+Three more cube multiblocks (2x2x2 to 5x5x5), each doing something no other machine does. Their casings change when formed; they make no items, so they have no port.
+
+| Plant | What it does | Numbers |
+| --- | --- | --- |
+| **Desalination Plant** | Makes fresh water for Cooling Towers from any water touching the cube, the sea included, and never drains it | 2 units per core (a tower wants 4), 20 kW per core |
+| **Grid-Tie Substation** | Sells spare solar, wind and reactor output to the outside grid for RackCoin, once everything else is powered and batteries are charged. Never drains a battery, runs a diesel or resells the utility feed; exported reactor power still burns fuel | Up to 1 MW per core; 0.05 RC per kJ at night, 60% of that before dusk, 2.5 times as much in the evening peak |
+| **Heat Recovery Plant** | A coolant-loop heat sink that sells the heat to nearby villages as district heating. Needs no power or water, only customers | 50 kW per villager within 64 blocks (half again in cold biomes, less in hot ones), up to 400 kW per core; 0.4 RC per kJ |
+
+## Industry and Drones
+
+Once RackCoin stops mattering, power is what's left to spend.
+
+- **Electrolyser** (cube, 2x2x2 to 5x5x5, with water against its outside): each core turns an Aluminium Ingot into a Hydrogen Canister every 30 seconds at 4,000 kW. A 3x3x3 draws about 100 MW and a 5x5x5 about 400 MW. Canisters gather in the port. Hydrogen can't be bought at the Exchange.
+- **Assembly Line**: Conveyor Belts carry one item each, a block a second, onto the next belt, into a container, or off the end; items dropped on a belt ride it, and so do players. Robots stand beside a belt facing it, stop any workpiece they can work on in the middle of the belt, and do their step:
+
+| Robot | Step | Power while working |
+| --- | --- | --- |
+| **Welding Robot** | Weld, 6 s | 1,500 kW |
+| **Riveting Robot** | Rivet, 4 s | 600 kW |
+| **Assembly Robot** | Install parts from its nine slots, 3 s per step, several steps in a row if they're all installs | 250 kW |
+
+  Arms idle at 1 kW, slow down below full power and stop under 10%. A workpiece remembers its progress (its tooltip says what it needs next), so one that falls off half-built can go round again. The first recipe: a **Drone Frame** gets 4 Electric Motors, a weld, 2 Circuit Boards, a Hydrogen Canister and rivets, and becomes a **Maintenance Drone**.
+- **Drone Dock**: holds up to 8 drones, Hydrogen Canisters and spares (rack modules, Repair Kits). Every two seconds it sends a drone to each job within 32 blocks: swapping a Failed Module out of a rack for a spare (the dead one comes back, and a hopper under the dock can take it away), splicing a cut cable with one of a Repair Kit's repairs, or resetting a tripped PDU breaker. Each trip burns an eighth of a canister; the dock draws 2 kW. Hit a drone and it drops as an item.
 
 ## Smog
 

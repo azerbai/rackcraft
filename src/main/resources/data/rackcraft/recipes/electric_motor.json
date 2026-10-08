@@ -1,0 +1,23 @@
+{
+  "key": {
+    "I": {
+      "item": "minecraft:iron_ingot"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    },
+    "W": {
+      "item": "rackcraft:copper_wire"
+    }
+  },
+  "pattern": [
+    "SWS",
+    "WIW",
+    "SWS"
+  ],
+  "result": {
+    "count": 2,
+    "item": "rackcraft:electric_motor"
+  },
+  "type": "minecraft:crafting_shaped"
+}

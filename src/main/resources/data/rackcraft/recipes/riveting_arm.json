@@ -1,0 +1,26 @@
+{
+  "key": {
+    "C": {
+      "item": "rackcraft:circuit_board"
+    },
+    "M": {
+      "item": "rackcraft:electric_motor"
+    },
+    "P": {
+      "item": "minecraft:piston"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    }
+  },
+  "pattern": [
+    " P ",
+    " M ",
+    "SCS"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:riveting_arm"
+  },
+  "type": "minecraft:crafting_shaped"
+}

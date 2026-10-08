@@ -102,7 +102,8 @@ public final class FaultOverlay {
 		int width = client.getWindow().getScaledWidth();
 		if (FAULTS.isEmpty()) {
 			String clear = "Fault finder: no faults within " + FaultFinder.RANGE + " blocks";
-			context.drawTextWithShadow(client.textRenderer, clear, (width - client.textRenderer.getWidth(clear)) / 2, 4, 0x62C5A0);
+			int x = (width - client.textRenderer.getWidth(clear)) / 2;
+			context.drawTextWithShadow(client.textRenderer, clear, x, top(x), 0x62C5A0);
 			return;
 		}
 		long red = FAULTS.stream().filter(fault -> fault.severity() >= 2).count();
@@ -115,9 +116,16 @@ public final class FaultOverlay {
 		double dz = nearest.pos().getZ() + 0.5 - eye.z;
 		String where = String.format(Locale.ROOT, "Nearest: %s, %d m %s%s", nearest.label(), Math.round(Math.sqrt(dx * dx + dz * dz)),
 				compass(dx, dz), dy > 1 ? ", " + Math.round(dy) + " up" : dy < -1 ? ", " + Math.round(-dy) + " down" : "");
-		context.drawTextWithShadow(client.textRenderer, summary, (width - client.textRenderer.getWidth(summary)) / 2, 4,
+		int left = Math.min((width - client.textRenderer.getWidth(summary)) / 2, (width - client.textRenderer.getWidth(where)) / 2);
+		int top = top(left);
+		context.drawTextWithShadow(client.textRenderer, summary, (width - client.textRenderer.getWidth(summary)) / 2, top,
 				red > 0 ? 0xE0645A : 0xE7A45D);
-		context.drawTextWithShadow(client.textRenderer, where, (width - client.textRenderer.getWidth(where)) / 2, 15, 0xE5ECEB);
+		context.drawTextWithShadow(client.textRenderer, where, (width - client.textRenderer.getWidth(where)) / 2, top + 11, 0xE5ECEB);
+	}
+
+	/** The top line's y: 4, or below the RackCoin balance box when centred text starting at {@code left} would overlap it. */
+	private static int top(int left) {
+		return left < CoinHud.boxRight + 4 && CoinHud.boxBottom > 0 ? CoinHud.boxBottom + 4 : 4;
 	}
 
 	/** Eight-point direction in world terms: north is -z. */

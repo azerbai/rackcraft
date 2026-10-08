@@ -37,7 +37,7 @@ public final class RackcraftSelfTest {
 		// Random events would break modules and reboot racks mid-check; checkResearch fires them on purpose.
 		RackcraftConfig.values.events.enabled = false;
 		dev.rackcraft.compute.ResearchLab.get(server.getOverworld()).reset();
-		check("S0.a", RcBlocks.BLOCKS.size() == 54 && RcItems.ITEMS.size() == 51,
+		check("S0.a", RcBlocks.BLOCKS.size() == 63 && RcItems.ITEMS.size() == 55,
 				"blocks=" + RcBlocks.BLOCKS.size() + " items=" + RcItems.ITEMS.size(), failures);
 		ServerWorld world = server.getOverworld();
 		BlockPos generatorPos = new BlockPos(0, 80, 0);
@@ -119,6 +119,8 @@ public final class RackcraftSelfTest {
 		checkPrices(failures);
 		checkResearch(world, failures);
 		checkDarknet(world, failures);
+		checkUtilities(world, failures);
+		checkIndustry(world, failures);
 		checkStructures(world, failures);
 		check("S0.b", SimTicker.failedSteps() == 0, "simulation steps that threw=" + SimTicker.failedSteps(), failures);
 		Rackcraft.LOGGER.info("RACKCRAFT_SELFTEST DONE failures={}", failures[0]);
@@ -935,6 +937,220 @@ public final class RackcraftSelfTest {
 						&& market.nextSlotPrice() == dev.rackcraft.darknet.DarknetMarket.SLOT_PRICES[1],
 				"idleClosed=" + idleClosed + " slot=" + slot + " slots=" + market.slots(), failures);
 		market.reset(world);
+	}
+
+	/**
+	 * The utility plants and the CDU-behind-a-rack fix: a Desalination Plant waters a tower from sea-or-any water, a
+	 * Substation sells a reactor's spare power without touching a battery (and sells nothing from a creative or
+	 * utility source), a Heat Recovery Plant sells a loop's heat to villagers, and a CDU on a rack's back catches its
+	 * exhaust.
+	 */
+	private static void checkUtilities(ServerWorld world, int[] failures) {
+		FacilityManager facility = FacilityManager.get(world);
+		BlockPos origin = clearArea(world, new BlockPos(-1536, 150, -1536), 40, 8, 12);
+
+		// Desalination: a 2x2x2 touching water supplies 16 units; a tower on the same loop gets its full 4.
+		world.setBlockState(origin.west(), Blocks.WATER.getDefaultState());
+		world.setBlockState(origin.west().south(), Blocks.WATER.getDefaultState());
+		List<MachineBlockEntity> desal = new java.util.ArrayList<>();
+		for (BlockPos pos : BlockPos.iterate(origin, origin.add(1, 1, 1))) desal.add(place(world, pos.toImmutable(), "desalination_plant", Direction.NORTH));
+		world.setBlockState(origin.add(2, 0, 0), RcBlocks.get("creative_power").getDefaultState());
+		MachineBlockEntity tower = place(world, origin.add(0, 0, 2), "cooling_tower", Direction.NORTH);
+		for (int step = 0; step < 4; step++) SimTicker.stepNow(world);
+		MachineBlockEntity controller = machine(world, origin);
+		check("U1.a", controller.pumpUnits() == 16 && controller.pumpStatus() == dev.rackcraft.world.FreshwaterCooling.PumpStatus.PUMPING.ordinal()
+						&& tower.coolingDetail() == 4 && world.getFluidState(origin.west()).isStill(),
+				"units=" + controller.pumpUnits() + " status=" + controller.pumpStatus() + " towerUnits=" + tower.coolingDetail()
+						+ " draw=" + controller.powerKw(), failures);
+
+		// Export: a fuelled 2x2x2 reactor array's spare output sells through a 2x2x2 substation; a battery on the
+		// network keeps its charge.
+		BlockPos grid = origin.east(8);
+		List<MachineBlockEntity> reactor = new java.util.ArrayList<>();
+		for (BlockPos pos : BlockPos.iterate(grid, grid.add(1, 1, 1))) reactor.add(place(world, pos.toImmutable(), "modular_reactor", Direction.NORTH));
+		reactor.forEach(core -> core.setFuelBurnTicks(0));
+		reactor.get(0).setStack(0, new ItemStack(RcItems.ITEMS.get("fuel_cell"), 4));
+		for (BlockPos pos : BlockPos.iterate(grid.add(2, 0, 0), grid.add(3, 1, 1))) place(world, pos.toImmutable(), "grid_substation", Direction.NORTH);
+		MachineBlockEntity battery = place(world, grid.add(0, 0, 2), "battery_bank", Direction.NORTH);
+		battery.setChargeKws(1000);
+		long before = facility.credits();
+		for (int step = 0; step < 4; step++) SimTicker.stepNow(world);
+		MachineBlockEntity substation = machine(world, grid.add(2, 0, 0));
+		check("U2.a", substation.powerKw() > 3900 && substation.income() > 0 && facility.credits() > before
+						&& battery.chargeKws() >= 1000 && reactor.get(0).arrayFuelTicks() > 0,
+				"exported=" + substation.powerKw() + " income=" + substation.income() + " battery=" + battery.chargeKws()
+						+ " reactorOutput=" + reactor.get(0).powerKw(), failures);
+		BlockPos freeGrid = origin.east(16);
+		world.setBlockState(freeGrid, RcBlocks.get("creative_power").getDefaultState());
+		for (BlockPos pos : BlockPos.iterate(freeGrid.east(), freeGrid.add(2, 1, 1))) place(world, pos.toImmutable(), "grid_substation", Direction.NORTH);
+		for (int step = 0; step < 2; step++) SimTicker.stepNow(world);
+		check("U2.b", machine(world, freeGrid.east()).powerKw() == 0, "creative power exported " + machine(world, freeGrid.east()).powerKw(), failures);
+
+		// Heat recovery: four villagers take a GPU rack's loop heat, and pay for it.
+		BlockPos plant = origin.east(24);
+		for (BlockPos pos : BlockPos.iterate(plant, plant.add(1, 1, 1))) place(world, pos.toImmutable(), "heat_recovery_plant", Direction.NORTH);
+		// The rack faces away from the plant, so its intake breathes open air.
+		MachineBlockEntity hot = rack(world, plant.add(0, 0, -1), "gpu_blade");
+		world.setBlockState(plant.add(-1, 0, -1), RcBlocks.get("creative_power").getDefaultState());
+		List<net.minecraft.entity.passive.VillagerEntity> village = new java.util.ArrayList<>();
+		for (int index = 0; index < 4; index++) {
+			var villager = net.minecraft.entity.EntityType.VILLAGER.create(world);
+			villager.refreshPositionAndAngles(plant.getX() + 0.5 + (index % 2), plant.getY() + 3, plant.getZ() + 0.5 + index / 2, 0, 0);
+			villager.setAiDisabled(true);
+			villager.setNoGravity(true);
+			world.spawnEntity(villager);
+			village.add(villager);
+		}
+		long beforeHeat = facility.credits();
+		for (int step = 0; step < 6; step++) SimTicker.stepNow(world);
+		MachineBlockEntity recovery = machine(world, plant);
+		check("U3.a", recovery.coolingDetail() >= 4 && recovery.coolingKw() > 15 && recovery.income() > 0
+						&& hot.rackStatus() != RackStatus.NEEDS_WATER && facility.credits() > beforeHeat,
+				"villagers=" + recovery.coolingDetail() + " moved=" + recovery.coolingKw() + " income=" + recovery.income()
+						+ " rack=" + hot.rackStatus() + " capacity=" + recovery.reactorCapacityKw() + " rackKw=" + hot.powerKw()
+						+ " toLoop=" + hot.heatToLoopKw() + " toAir=" + hot.heatToAirKw() + " load=" + hot.load() + " inlet=" + hot.inletCelsius()
+						+ " loop=" + recovery.loopHeatKw() + "/" + recovery.loopCapacityKw(), failures);
+		village.forEach(net.minecraft.entity.Entity::discard);
+
+		// A CDU on a rack's back catches its exhaust into the loop, like a Rear-Door Cooler.
+		BlockPos hall = origin.east(32);
+		MachineBlockEntity backed = rack(world, hall, "gpu_blade");
+		world.setBlockState(hall.west(), RcBlocks.get("creative_power").getDefaultState());
+		MachineBlockEntity cdu = place(world, hall.south(), "cdu", Direction.NORTH);
+		place(world, hall.south().east(), "chiller", Direction.NORTH);
+		for (int step = 0; step < 4; step++) SimTicker.stepNow(world);
+		check("T2.a", backed.heatToAirKw() < 0.01 && cdu.coolingKw() > 0 && backed.heatToLoopKw() > 20,
+				"toAir=" + backed.heatToAirKw() + " toLoop=" + backed.heatToLoopKw() + " cduCaught=" + cdu.coolingKw(), failures);
+		clearArea(world, origin, 40, 8, 12);
+	}
+
+	/**
+	 * Industry: an Electrolyser cube turns power and aluminium into hydrogen (and stops without water); an Assembly
+	 * Line of belts and robots turns a Drone Frame into a Maintenance Drone; a Drone Dock's drones swap a failed module,
+	 * splice a cut cable and reset a tripped breaker, then come home.
+	 */
+	private static void checkIndustry(ServerWorld world, int[] failures) {
+		BlockPos origin = clearArea(world, new BlockPos(-1700, 150, -1536), 44, 8, 20);
+
+		// Electrolyser: a 2x2x2 touching water makes canisters at about 30 MW; a dry one reports it needs water.
+		world.setBlockState(origin.west(), Blocks.WATER.getDefaultState());
+		for (BlockPos pos : BlockPos.iterate(origin, origin.add(1, 1, 1))) place(world, pos.toImmutable(), "electrolyser", Direction.NORTH);
+		world.setBlockState(origin.add(2, 0, 0), RcBlocks.get("creative_power").getDefaultState());
+		machine(world, origin.add(2, 0, 0)).setCreativeValue(CreativeSettings.OUTPUT_KW, 100_000);
+		MachineBlockEntity cell = machine(world, origin);
+		cell.setStack(0, new ItemStack(RcItems.ITEMS.get("aluminum_ingot"), 16));
+		for (int step = 0; step < 24; step++) SimTicker.stepNow(world);
+		int hydrogen = dev.rackcraft.world.ReactorArrays.count(dev.rackcraft.world.ReactorArrays.arrayOf(world, cell).members(),
+				dev.rackcraft.world.NuclearProcessing.OUTPUT_SLOT, RcItems.ITEMS.get("hydrogen_canister"));
+		check("I1.a", hydrogen >= 2 && cell.powerKw() > 25_000,
+				"canisters=" + hydrogen + " draw=" + cell.powerKw() + " status=" + cell.processStatus(), failures);
+		BlockPos dry = origin.add(5, 0, 0);
+		for (BlockPos pos : BlockPos.iterate(dry, dry.add(1, 1, 1))) place(world, pos.toImmutable(), "electrolyser", Direction.NORTH);
+		world.setBlockState(dry.add(2, 0, 0), RcBlocks.get("creative_power").getDefaultState());
+		machine(world, dry).setStack(0, new ItemStack(RcItems.ITEMS.get("aluminum_ingot"), 4));
+		for (int step = 0; step < 3; step++) SimTicker.stepNow(world);
+		check("I1.b", machine(world, dry).processStatus() == dev.rackcraft.world.NuclearProcessing.Status.NO_WATER.ordinal()
+						&& machine(world, dry).powerKw() < 10,
+				"status=" + machine(world, dry).processStatus() + " draw=" + machine(world, dry).powerKw(), failures);
+
+		// Assembly Line: seven belts running east into a chest, four robots on the north side facing the belts.
+		BlockPos line = origin.add(0, 0, 8);
+		List<dev.rackcraft.block.BeltBlockEntity> belts = new java.util.ArrayList<>();
+		for (int index = 0; index < 7; index++) {
+			world.setBlockState(line.east(index), RcBlocks.get("conveyor_belt").getDefaultState()
+					.with(dev.rackcraft.block.ConveyorBeltBlock.FACING, Direction.EAST));
+			belts.add((dev.rackcraft.block.BeltBlockEntity) world.getBlockEntity(line.east(index)));
+		}
+		world.setBlockState(line.east(7), Blocks.CHEST.getDefaultState());
+		String[] robots = {"assembly_arm", "welding_arm", "assembly_arm", "riveting_arm"};
+		List<MachineBlockEntity> arms = new java.util.ArrayList<>();
+		for (int index = 0; index < robots.length; index++) {
+			BlockPos at = line.east(1 + index).north();
+			arms.add(place(world, at, robots[index], Direction.SOUTH));
+			world.setBlockState(at.north(), RcBlocks.get("creative_power").getDefaultState());
+			machine(world, at.north()).setCreativeValue(CreativeSettings.OUTPUT_KW, 5_000);
+		}
+		arms.get(0).setStack(0, new ItemStack(RcItems.ITEMS.get("electric_motor"), 4));
+		arms.get(2).setStack(0, new ItemStack(RcItems.ITEMS.get("circuit_board"), 2));
+		arms.get(2).setStack(1, new ItemStack(RcItems.ITEMS.get("hydrogen_canister"), 1));
+		for (int step = 0; step < 2; step++) SimTicker.stepNow(world);
+		belts.get(0).accept(new ItemStack(RcItems.ITEMS.get("drone_frame")), 0);
+		double weldPeak = 0;
+		for (int tick = 0; tick < 2000; tick++) {
+			for (var belt : belts) belt.serverTick(world);
+			if (tick % 10 == 9) {
+				SimTicker.stepNow(world);
+				weldPeak = Math.max(weldPeak, arms.get(1).powerKw());
+			}
+		}
+		int drones = 0;
+		if (world.getBlockEntity(line.east(7)) instanceof net.minecraft.block.entity.ChestBlockEntity chest) {
+			for (int slot = 0; slot < chest.size(); slot++) {
+				if (chest.getStack(slot).isOf(RcItems.ITEMS.get("maintenance_drone"))) drones += chest.getStack(slot).getCount();
+			}
+		}
+		check("I2.a", drones == 1 && arms.get(0).getStack(0).isEmpty() && arms.get(2).getStack(0).isEmpty()
+						&& arms.get(2).getStack(1).isEmpty() && weldPeak > 1400 && arms.get(3).itemsMade() == 1,
+				"drones=" + drones + " motorsLeft=" + arms.get(0).getStack(0).getCount() + " boardsLeft=" + arms.get(2).getStack(0).getCount()
+						+ " weldPeak=" + weldPeak + " steps=" + arms.stream().map(arm -> arm.itemsMade() + "").toList()
+						+ " belts=" + belts.stream().map(belt -> belt.stack().getName().getString() + "@" + belt.progress()).toList(), failures);
+		ItemStack half = new ItemStack(RcItems.ITEMS.get("drone_frame"));
+		half.getOrCreateNbt().putInt(dev.rackcraft.world.AssemblyLine.STEPS_KEY, 2);
+		List<String> lines = dev.rackcraft.world.AssemblyLine.describe(half);
+		check("I2.b", lines.size() == 2 && lines.get(1).contains("Circuit Board") && lines.get(1).contains("Assembly Robot"),
+				"tooltip=" + lines, failures);
+		check("I2.c", ExchangeCatalog.price(RcItems.ITEMS.get("hydrogen_canister")) == null
+						&& ExchangeCatalog.price(RcItems.ITEMS.get("maintenance_drone")) == null
+						&& ExchangeCatalog.price(RcItems.ITEMS.get("electric_motor")) != null,
+				"hydrogen=" + ExchangeCatalog.price(RcItems.ITEMS.get("hydrogen_canister")) + " drone="
+						+ ExchangeCatalog.price(RcItems.ITEMS.get("maintenance_drone")), failures);
+
+		// Drone Dock: a failed module, a cut cable and a tripped breaker, with two drones home for three jobs.
+		BlockPos dockPos = origin.add(20, 0, 4);
+		MachineBlockEntity dock = place(world, dockPos, "drone_dock", Direction.NORTH);
+		world.setBlockState(dockPos.west(), RcBlocks.get("creative_power").getDefaultState());
+		dock.setStack(0, new ItemStack(RcItems.ITEMS.get("maintenance_drone"), 2));
+		dock.setStack(1, new ItemStack(RcItems.ITEMS.get("hydrogen_canister"), 1));
+		dock.setStack(2, new ItemStack(RcItems.ITEMS.get("server_1u")));
+		dock.setStack(3, new ItemStack(RcItems.ITEMS.get("repair_kit")));
+		MachineBlockEntity broken = rack(world, dockPos.add(6, 0, 0), "pi_node");
+		broken.setStack(3, new ItemStack(RcItems.ITEMS.get("failed_module")));
+		BlockPos cable = dockPos.add(0, 0, 6);
+		CableBlock cableBlock = (CableBlock) RcBlocks.get("power_cable");
+		world.setBlockState(cable, cableBlock.withConnections(cableBlock.getDefaultState(), world, cable));
+		CableBlock.setCut(world, cable, true);
+		MachineBlockEntity pdu = place(world, dockPos.add(-6, 0, 0), "pdu", Direction.NORTH);
+		pdu.setTripped(true);
+		for (int step = 0; step < 2; step++) SimTicker.stepNow(world);
+		dev.rackcraft.world.DroneDocks.scanNow(world);
+		int launched = 2 - dock.getStack(0).getCount();
+		int waiting = dock.processStatus();
+		flyDrones(world, dockPos);
+		dev.rackcraft.world.DroneDocks.scanNow(world);
+		flyDrones(world, dockPos);
+		boolean spareIn = broken.getStack(3).isOf(RcItems.ITEMS.get("server_1u"));
+		boolean deadBack = false;
+		for (int slot = 2; slot < 9; slot++) deadBack |= dock.getStack(slot).isOf(RcItems.ITEMS.get("failed_module"));
+		check("I3.a", launched == 2 && waiting == dev.rackcraft.world.DroneDocks.Status.NO_DRONES.ordinal() && spareIn && deadBack
+						&& !world.getBlockState(cable).get(CableBlock.CUT) && !pdu.isTripped(),
+				"launched=" + launched + " status=" + waiting + " spareIn=" + spareIn + " deadBack=" + deadBack
+						+ " cableCut=" + world.getBlockState(cable).get(CableBlock.CUT) + " pduTripped=" + pdu.isTripped(), failures);
+		check("I3.b", dock.getStack(0).getCount() == 2 && dock.itemsMade() == 3 && dock.toolUses() == 5
+						&& dock.getStack(1).isEmpty() && dock.getStack(3).getDamage() == 1,
+				"dronesHome=" + dock.getStack(0).getCount() + " fixed=" + dock.itemsMade() + " tripsLeft=" + dock.toolUses()
+						+ " canisters=" + dock.getStack(1).getCount() + " kitDamage=" + dock.getStack(3).getDamage(), failures);
+		clearArea(world, origin, 44, 8, 20);
+	}
+
+	/** Flies every drone near this dock until all are home (or 30 seconds pass). */
+	private static void flyDrones(ServerWorld world, BlockPos dock) {
+		net.minecraft.util.math.Box area = new net.minecraft.util.math.Box(dock).expand(80);
+		for (int tick = 0; tick < 600; tick++) {
+			List<dev.rackcraft.entity.MaintenanceDroneEntity> flying = world.getEntitiesByClass(
+					dev.rackcraft.entity.MaintenanceDroneEntity.class, area, net.minecraft.entity.Entity::isAlive);
+			if (flying.isEmpty()) return;
+			flying.forEach(dev.rackcraft.entity.MaintenanceDroneEntity::serverTick);
+		}
 	}
 
 	private static long failedModules(ServerWorld world) {

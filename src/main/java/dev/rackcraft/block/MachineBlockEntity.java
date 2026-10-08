@@ -95,6 +95,10 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 	private int cubeOutput;
 	private int cubeByproduct;
 	private double cubeDemandKw;
+	// Utility plants: RackCoin per second earned (exported power, sold heat); not saved.
+	private double income;
+	// Drone Docks: jobs within range right now; not saved.
+	private int dockJobs;
 	private int pendingWaste;
 	// Routers: their fiber network's bandwidth, what its racks need, and how many racks; refreshed every step.
 	private double dataBandwidth;
@@ -127,17 +131,21 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 	}
 
 	public static final java.util.Set<String> COOLANT_MACHINES = java.util.Set.of("cooling_tower", "crac_unit", "cdu",
-			"freshwater_pump", "server_rack", "modular_reactor", "rear_door_cooler", "dry_cooler", "chiller", "water_heat_exchanger");
+			"freshwater_pump", "server_rack", "modular_reactor", "rear_door_cooler", "dry_cooler", "chiller", "water_heat_exchanger",
+			"desalination_plant", "heat_recovery_plant");
 	/** Machines an Item Pipe feeds from storage (and empties into it): storage itself, the training stations and generators. */
 	public static final java.util.Set<String> ITEM_MACHINES = java.util.Set.of("storage_array", "tape_library", "art_table",
-			"writing_desk", "diesel_generator", "modular_reactor", "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer", "wafer_fab", "silicon_foundry", "ewaste_recycler");
+			"writing_desk", "diesel_generator", "modular_reactor", "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer", "wafer_fab", "silicon_foundry", "ewaste_recycler",
+			"electrolyser", "assembly_arm", "drone_dock");
 
 	public static java.util.Set<NetKind> networkKinds(String id) {
 		java.util.EnumSet<NetKind> kinds = java.util.EnumSet.noneOf(NetKind.class);
 		if (List.of("diesel_generator", "solar_panel", "wind_turbine", "pdu", "server_rack",
 				"exhaust_fan", "cooling_tower", "crac_unit", "battery_bank", "utility_intake",
 				"facility_controller", "cdu", "modular_reactor", "freshwater_pump", "smog_scrubber",
-				"rear_door_cooler", "dry_cooler", "chiller", "water_heat_exchanger").contains(id)) kinds.add(NetKind.POWER);
+				"rear_door_cooler", "dry_cooler", "chiller", "water_heat_exchanger", "desalination_plant", "grid_substation",
+				"welding_arm", "riveting_arm", "assembly_arm", "drone_dock")
+				.contains(id)) kinds.add(NetKind.POWER);
 		// The coolant loop: racks (liquid-cooled modules) and reactors put heat in; towers, coolers and chillers take it out.
 		if (COOLANT_MACHINES.contains(id)) kinds.add(NetKind.COOLANT);
 		if (ITEM_MACHINES.contains(id)) kinds.add(NetKind.ITEM);
@@ -198,6 +206,9 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 		String id = blockId();
 		if (id.equals("modular_reactor")) return slot == dev.rackcraft.world.ReactorArrays.WASTE_SLOT;
 		if (dev.rackcraft.world.NuclearProcessing.recipe(id) != null) return slot == 2 || slot == 3;
+		// Hoppers under a Drone Dock take away the dead modules its drones bring home, nothing else.
+		if (id.equals("drone_dock")) return stack.isOf(dev.rackcraft.RcItems.ITEMS.get("failed_module"));
+		if (id.equals("assembly_arm")) return false;
 		return !(id.equals("art_table") || id.equals("writing_desk")) || slot == 2;
 	}
 
@@ -225,6 +236,8 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 			return slot < 4 && stack.getItem() instanceof dev.rackcraft.storage.DriveItem drive && drive.cold();
 		}
 		if (blockId.equals("fire_suppression_tank")) return slot == 0;
+		if (blockId.equals("assembly_arm")) return true;
+		if (blockId.equals("drone_dock")) return dev.rackcraft.world.DroneDocks.accepts(slot, stack);
 		if (blockId.equals("art_table") || blockId.equals("writing_desk")) {
 			if (slot == 0) return stack.isOf(net.minecraft.item.Items.PAPER);
 			if (slot == 1) return blockId.equals("art_table") ? stack.isOf(dev.rackcraft.RcItems.ITEMS.get("crayons"))
@@ -346,6 +359,10 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 		arrayFuelTotal = fuelTotal;
 		arrayFuelCells = fuelCells;
 	}
+	public double income() { return income; }
+	public int dockJobs() { return dockJobs; }
+	public void setDockJobs(int value) { dockJobs = value; }
+	public void setIncome(double rcPerSecond) { income = rcPerSecond; }
 	public boolean cubePort() { return cubePort; }
 	public int cubeOutput() { return cubeOutput; }
 	public int cubeByproduct() { return cubeByproduct; }
@@ -433,7 +450,8 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 			case "server_rack" -> MachineScreenHandler.Mode.RACK;
 			case "diesel_generator", "fire_suppression_tank" -> MachineScreenHandler.Mode.SINGLE_SLOT;
 			case "modular_reactor" -> MachineScreenHandler.Mode.REACTOR;
-			case "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer", "wafer_fab", "silicon_foundry", "ewaste_recycler" -> MachineScreenHandler.Mode.PROCESSOR;
+			case "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer", "wafer_fab", "silicon_foundry", "ewaste_recycler", "electrolyser" -> MachineScreenHandler.Mode.PROCESSOR;
+			case "welding_arm", "riveting_arm", "assembly_arm", "drone_dock" -> MachineScreenHandler.Mode.WORKCELL;
 			case "crypto_exchange" -> MachineScreenHandler.Mode.EXCHANGE;
 			case "storage_array" -> MachineScreenHandler.Mode.STORAGE_ARRAY;
 			case "tape_library" -> MachineScreenHandler.Mode.TAPE_LIBRARY;

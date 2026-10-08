@@ -8,16 +8,17 @@ import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.text.Text;
 
 /**
- * The processing cubes (nuclear machines, Wafer Fab, Silicon Foundry, E-Waste Recycler): inputs, outputs, what the
+ * The processing cubes (nuclear machines, Wafer Fab, Silicon Foundry, E-Waste Recycler, Electrolyser): inputs, outputs, what the
  * cube is doing and what it needs, and on the port core, a button that empties every product in the cube.
  */
 public final class ProcessorScreen extends RackcraftHandledScreen {
 	private static final String[] STATES = {"Running", "Not formed: build a solid cube of 2x2x2 to 5x5x5",
 			"Idle: waiting for input", "Stopped: output full, empty the port", "Stopped: not enough power (under 10%)",
-			"Locked: research Extreme UV Lithography at an Operations Terminal (R&D tab)", "Running slowly: short of power"};
+			"Locked: needs EUV Lithography research", "Running slowly: short of power",
+			"Stopped: needs water against the cube"};
 
 	public ProcessorScreen(MachineScreenHandler handler, PlayerInventory inventory, Text title) {
-		super(handler, inventory, title, 176, 240);
+		super(handler, inventory, title, 176, 252);
 	}
 
 	@Override
@@ -37,11 +38,11 @@ public final class ProcessorScreen extends RackcraftHandledScreen {
 		line(context, "Out", 117, 52, MUTED);
 		bar(context, 64, 67, 46, stat(Stat.WORK_PROGRESS) % 100 / 100.0, GOOD);
 		if (edge > 1) {
-			String power = String.format(Locale.ROOT, "Needs %s working; grid covers %d%%", kw(stat(Stat.CUBE_DEMAND)), stat(Stat.SATISFACTION));
-			wrappedClamped(context, Text.literal(power), 8, 84, 160, 1, stat(Stat.SATISFACTION) >= 100 ? MUTED : WARN);
+			String power = String.format(Locale.ROOT, "Needs %s, grid covers %d%%", kw(stat(Stat.CUBE_DEMAND)), stat(Stat.SATISFACTION));
+			lineFit(context, power, 8, 84, 160, stat(Stat.SATISFACTION) >= 100 ? MUTED : WARN);
 		}
-		wrappedClamped(context, Text.literal(recipe(blockId())), 8, 95, 160, 2, MUTED);
-		CubePort.draw(this, context, 8, 118);
+		wrappedClamped(context, Text.literal(recipe(blockId())), 8, 96, 160, 3, MUTED);
+		CubePort.draw(this, context, 8, 128);
 	}
 
 	@Override
@@ -59,6 +60,7 @@ public final class ProcessorScreen extends RackcraftHandledScreen {
 			case "wafer_fab" -> "16 Silicon + 4 GPU Chips -> Wafer-Scale Engine. 5 min per batch per core, 400 kW.";
 			case "silicon_foundry" -> "2 Quartz + 4 Sand -> 8 Silicon. 20 s per batch per core, 40 kW.";
 			case "ewaste_recycler" -> "Failed Module -> 3 Silicon + Copper Wire. 15 s per batch per core, 10 kW.";
+			case "electrolyser" -> "Aluminium Ingot + water -> Hydrogen Canister. 30 s per batch per core, 4,000 kW.";
 			default -> "";
 		};
 	}

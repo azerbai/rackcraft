@@ -112,6 +112,8 @@ public final class SimTicker {
 		}
 		Map<MachineBlockEntity, ReactorArrays.Array> reactors = ReactorArrays.scan(machines);
 		Map<MachineBlockEntity, ReactorArrays.Array> arrays = ReactorArrays.scanAll(machines);
+		Map<String, ReactorArrays.Array> exportSinks = new HashMap<>();
+		Map<ReactorArrays.Array, Double> exported = new HashMap<>();
 
 		for (Set<BlockPos> component : networks.components(NetKind.POWER)) {
 			List<MachineBlockEntity> members = machines.stream()
@@ -133,11 +135,22 @@ public final class SimTicker {
 					sinks.add(new PowerSolver.Sink(sinkId, priority(machine.blockId()), demand));
 					sinkOwners.put(sinkId, machine);
 				}
+				// A Grid-Tie Substation is one export sink on its controller: it only takes spare solar, wind and reactor power.
+				ReactorArrays.Array substation = machine.blockId().equals("grid_substation") ? arrays.get(machine) : null;
+				if (substation != null && substation.controller() == machine && UtilityPlants.exportCapacityKw(substation) > 0) {
+					String sinkId = Long.toString(machine.getPos().asLong());
+					sinks.add(new PowerSolver.Sink(sinkId, 3, UtilityPlants.exportCapacityKw(substation), true));
+					exportSinks.put(sinkId, substation);
+				}
 			}
 			PowerSolver.Result result = PowerSolver.solve(sinks, sources, dt);
 			if (result.suppliedKw() > 0) energized.addAll(members);
-			double delivered = sinks.stream()
+			double delivered = sinks.stream().filter(sink -> !sink.export())
 					.mapToDouble(sink -> sink.demandKw() * result.satisfaction().getOrDefault(sink.id(), 0.0)).sum();
+			for (PowerSolver.Sink sink : sinks) {
+				ReactorArrays.Array substation = exportSinks.get(sink.id());
+				if (substation != null) exported.put(substation, sink.demandKw() * result.satisfaction().getOrDefault(sink.id(), 0.0));
+			}
 			double capacity = sources.stream().filter(source -> source.kind() != PowerSolver.SourceKind.BATTERY)
 					.mapToDouble(PowerSolver.Source::capacityKw).sum();
 			for (MachineBlockEntity machine : members) {
@@ -193,7 +206,12 @@ public final class SimTicker {
 						ReactorArrays.count(array.members(), ReactorArrays.WASTE_SLOT, ReactorArrays.spentFuel()), 0, 0);
 			}
 		}
-		NuclearProcessing.step(arrays, satisfaction, dt, research);
+		NuclearProcessing.step(world, arrays, satisfaction, dt, research);
+		AssemblyLine.step(world, machines, satisfaction, dt);
+		DroneDocks.step(world, machines, satisfaction);
+		for (ReactorArrays.Array array : new HashSet<>(arrays.values())) {
+			if (array.controller().blockId().equals("grid_substation")) UtilityPlants.sellPower(world, array, exported.getOrDefault(array, 0.0), dt);
+		}
 
 		ThermalGrid heat = thermalGrid(world);
 		boolean coolingFailure = FacilityManager.get(world).activeEvent().equals("cooling_failure");
@@ -202,7 +220,9 @@ public final class SimTicker {
 		for (MachineBlockEntity machine : machines) byPos.put(machine.getPos(), machine);
 		Map<MachineBlockEntity, Double> fanHeat = runFans(world, machines, heat, satisfaction, coolingFailure, dt);
 		FreshwaterCooling.scanPumps(world, machines, satisfaction);
-		CoolingLoops loops = CoolingLoops.build(world, machines, satisfaction, coolingFailure, heatWave, research.sinkCapacity());
+		UtilityPlants.scanDesalination(world, arrays, satisfaction);
+		CoolingLoops loops = CoolingLoops.build(world, machines, satisfaction, coolingFailure, heatWave, research.sinkCapacity(),
+				UtilityPlants.heatRecovery(world, arrays));
 		pinCreativeCoolers(world, machines, heat);
 		Map<MachineBlockEntity, ServerModel.RackStep> rackSteps = new HashMap<>();
 		List<RackHeat> rackHeat = new ArrayList<>();
@@ -211,7 +231,9 @@ public final class SimTicker {
 			Direction facing = rack.getCachedState().get(MachineBlock.FACING);
 			BlockPos back = rack.getPos().offset(facing.getOpposite());
 			MachineBlockEntity door = byPos.get(back);
-			if (door != null && !door.blockId().equals("rear_door_cooler")) door = null;
+			// A Rear-Door Cooler, or a CDU (which Quantum Cores need beside them anyway, and which would otherwise block
+			// the exhaust), on the rack's back catches its exhaust into the coolant loop.
+			if (door != null && !door.blockId().equals("rear_door_cooler") && !door.blockId().equals("cdu")) door = null;
 			List<BlockPos> intakeCells = airflowCells(world, rack.getPos().offset(facing), facing, heat);
 			// With a Rear-Door Cooler on the back, whatever it can't catch comes out of the far side of it.
 			List<BlockPos> exhaustCells = airflowCells(world, door == null ? back : back.offset(facing.getOpposite()), facing, heat);
@@ -270,12 +292,16 @@ public final class SimTicker {
 			loops.request(piped.getPos(), reactorHeat);
 			reactorAirHeat.put(array, -reactorHeat);
 		}
-		// Every request is in: each loop now knows what share it can take.
+		// Every request is in: each loop now knows what share it can take. Doors (and CDUs) report what they caught this
+		// step, summed when one sits behind two racks; a door behind no running rack reports nothing.
+		for (MachineBlockEntity machine : machines) {
+			if (machine.blockId().equals("rear_door_cooler") || machine.blockId().equals("cdu")) machine.setCooling(0, 0);
+		}
 		for (RackHeat entry : rackHeat) {
 			MachineBlockEntity rack = entry.rack();
 			double toLoop = entry.liquidKw() * loops.ratio(rack.getPos());
 			double caught = entry.door() == null ? 0 : entry.doorKw() * loops.ratio(entry.door().getPos());
-			if (entry.door() != null) entry.door().setCooling(caught, 0);
+			if (entry.door() != null) entry.door().setCooling(entry.door().coolingKw() + caught, 0);
 			double toAir = Math.max(0, entry.totalKw() - toLoop - caught);
 			// Exhaust with nowhere to go blows back into the intake.
 			depositAcross(heat, entry.exhaustCells().isEmpty() ? entry.intakeCells() : entry.exhaustCells(), toAir, dt);
@@ -297,6 +323,7 @@ public final class SimTicker {
 			depositAcross(heat, aroundArray(world, array, heat), toAir, dt);
 		});
 		loops.finish(world, dt);
+		UtilityPlants.sellHeat(world, arrays, dt);
 
 		updateLitStates(world, machines, satisfaction, sourceOutput, energized, networks, fanHeat);
 		updateFormedStates(world, arrays);
@@ -427,8 +454,8 @@ public final class SimTicker {
 						sourceOutput.getOrDefault(machine, 0.0) > 0;
 				case "battery_bank" -> machine.powerKw() < -0.01;
 				case "modular_reactor" -> machine.powerKw() > 0;
-				case "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer", "wafer_fab", "silicon_foundry", "ewaste_recycler" ->
-						machine.processStatus() == NuclearProcessing.Status.RUNNING.ordinal()
+				case "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer", "wafer_fab", "silicon_foundry", "ewaste_recycler",
+						"electrolyser" -> machine.processStatus() == NuclearProcessing.Status.RUNNING.ordinal()
 								|| machine.processStatus() == NuclearProcessing.Status.LOW_POWER.ordinal();
 				// Fans only spin while they have heat to move; cooling gear shows when it is actually working.
 				case "exhaust_fan" -> fanHeat.containsKey(machine);
@@ -448,7 +475,11 @@ public final class SimTicker {
 						networks.component(machine.getPos(), NetKind.DATA).size() > 1;
 				case "fire_suppression_tank" -> !machine.getStack(0).isEmpty();
 				case "crypto_exchange" -> FacilityManager.get(world).miningRacks() > 0;
-				case "freshwater_pump" -> machine.pumpStatus() == FreshwaterCooling.PumpStatus.PUMPING.ordinal();
+				case "freshwater_pump", "desalination_plant" -> machine.pumpStatus() == FreshwaterCooling.PumpStatus.PUMPING.ordinal();
+				case "grid_substation" -> machine.powerKw() > 0.05;
+				case "heat_recovery_plant" -> machine.coolingKw() > 0.05;
+				// Robot arms light up (and their renderer animates them) only while they work.
+				case "welding_arm", "riveting_arm", "assembly_arm" -> machine.processActive();
 				case "art_table", "writing_desk" -> TrainingStations.active(machine);
 				case "operations_terminal", "darknet_terminal" -> true;
 				default -> satisfaction.getOrDefault(machine, 0.0) > 0;
@@ -535,8 +566,12 @@ public final class SimTicker {
 			case "dry_cooler" -> 2;
 			case "chiller" -> CoolingLoops.CHILLER_BASE_KW + CoolingLoops.CHILLER_KW_PER_KW * machine.coolingKw();
 			case "water_heat_exchanger" -> 0.5;
-			case "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer", "wafer_fab", "silicon_foundry", "ewaste_recycler" -> NuclearProcessing.demandKw(machine);
+			case "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer", "wafer_fab", "silicon_foundry", "ewaste_recycler",
+					"electrolyser" -> NuclearProcessing.demandKw(machine);
+			case "welding_arm", "riveting_arm", "assembly_arm" -> AssemblyLine.demandKw(machine);
+			case "drone_dock" -> DroneDocks.DOCK_KW;
 			case "cdu" -> 0.5;
+			case "desalination_plant" -> UtilityPlants.desalinationKw(machine);
 			case "facility_controller" -> 0.5;
 			case "creative_rack" -> machine.creativeValue(CreativeSettings.DRAW_KW);
 			case "storage_array" -> 0.4 + 0.15 * machine.driveCount();

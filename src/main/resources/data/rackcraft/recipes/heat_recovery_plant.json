@@ -1,0 +1,29 @@
+{
+  "key": {
+    "B": {
+      "item": "minecraft:bricks"
+    },
+    "F": {
+      "item": "minecraft:furnace"
+    },
+    "K": {
+      "item": "minecraft:copper_block"
+    },
+    "P": {
+      "item": "rackcraft:coolant_pipe"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    }
+  },
+  "pattern": [
+    "SKS",
+    "PFP",
+    "SBS"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:heat_recovery_plant"
+  },
+  "type": "minecraft:crafting_shaped"
+}

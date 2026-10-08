@@ -1,0 +1,29 @@
+{
+  "key": {
+    "C": {
+      "item": "rackcraft:circuit_board"
+    },
+    "G": {
+      "item": "minecraft:sponge"
+    },
+    "H": {
+      "item": "minecraft:cauldron"
+    },
+    "P": {
+      "item": "minecraft:piston"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    }
+  },
+  "pattern": [
+    "SGS",
+    "PCP",
+    "SHS"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:desalination_plant"
+  },
+  "type": "minecraft:crafting_shaped"
+}

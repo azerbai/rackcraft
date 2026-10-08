@@ -493,14 +493,18 @@ public final class OpsScreen extends HandledScreen<OpsScreenHandler> {
 			} else if (live) {
 				buttons.add(new Button("Cancel (no pay)", BAD, () -> send(Action.LEASE_CANCEL, id, 0)));
 			}
-			int height = 10 + 11 + guaranteeLines.size() * 10 + (live ? 22 : 0) + (buttons.isEmpty() ? 0 : 15) + 2;
+			// The title wraps beside the pay; the countdown sits under the pay.
+			int payWidth = Math.max(textRenderer.getWidth(pay), textRenderer.getWidth(when));
+			List<OrderedText> titleLines = textRenderer.wrapLines(Text.literal(title), width - payWidth - 8);
+			int header = Math.max(2, titleLines.size()) * 10 + 1;
+			int height = header + guaranteeLines.size() * 10 + (live ? 22 : 0) + (buttons.isEmpty() ? 0 : 15) + 2;
 			context.fill(left - 4, row - 2, right + 4, row + height, state == Lease.State.OFFERED ? 0xFF2A3446 : 0xFF1B272E);
-			int payWidth = textRenderer.getWidth(pay);
-			text(context, textRenderer.trimToWidth(title, width - payWidth - 6), left, row, 0xFFF0C674);
-			text(context, pay, right - payWidth, row, state == Lease.State.BREACHED || state == Lease.State.CANCELLED ? BAD : GOOD);
-			int line = row + 10;
-			text(context, when, right - textRenderer.getWidth(when), line + 1, MUTED);
-			line += 11;
+			for (int index = 0; index < titleLines.size(); index++) {
+				context.drawText(textRenderer, titleLines.get(index), left, row + index * 10, 0xFFF0C674, false);
+			}
+			text(context, pay, right - textRenderer.getWidth(pay), row, state == Lease.State.BREACHED || state == Lease.State.CANCELLED ? BAD : GOOD);
+			text(context, when, right - textRenderer.getWidth(when), row + 10, MUTED);
+			int line = row + header;
 			for (OrderedText guaranteeLine : guaranteeLines) {
 				context.drawText(textRenderer, guaranteeLine, left, line, MUTED, false);
 				line += 10;

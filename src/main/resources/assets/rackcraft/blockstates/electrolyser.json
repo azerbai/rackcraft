@@ -1,0 +1,116 @@
+{
+  "variants": {
+    "facing=east,lit=false,formed=false,port=false": {
+      "model": "rackcraft:block/electrolyser",
+      "y": 90
+    },
+    "facing=east,lit=false,formed=false,port=true": {
+      "model": "rackcraft:block/electrolyser",
+      "y": 90
+    },
+    "facing=east,lit=false,formed=true,port=false": {
+      "model": "rackcraft:block/electrolyser_formed"
+    },
+    "facing=east,lit=false,formed=true,port=true": {
+      "model": "rackcraft:block/electrolyser_port"
+    },
+    "facing=east,lit=true,formed=false,port=false": {
+      "model": "rackcraft:block/electrolyser_on",
+      "y": 90
+    },
+    "facing=east,lit=true,formed=false,port=true": {
+      "model": "rackcraft:block/electrolyser_on",
+      "y": 90
+    },
+    "facing=east,lit=true,formed=true,port=false": {
+      "model": "rackcraft:block/electrolyser_formed_on"
+    },
+    "facing=east,lit=true,formed=true,port=true": {
+      "model": "rackcraft:block/electrolyser_port_on"
+    },
+    "facing=north,lit=false,formed=false,port=false": {
+      "model": "rackcraft:block/electrolyser",
+      "y": 0
+    },
+    "facing=north,lit=false,formed=false,port=true": {
+      "model": "rackcraft:block/electrolyser",
+      "y": 0
+    },
+    "facing=north,lit=false,formed=true,port=false": {
+      "model": "rackcraft:block/electrolyser_formed"
+    },
+    "facing=north,lit=false,formed=true,port=true": {
+      "model": "rackcraft:block/electrolyser_port"
+    },
+    "facing=north,lit=true,formed=false,port=false": {
+      "model": "rackcraft:block/electrolyser_on",
+      "y": 0
+    },
+    "facing=north,lit=true,formed=false,port=true": {
+      "model": "rackcraft:block/electrolyser_on",
+      "y": 0
+    },
+    "facing=north,lit=true,formed=true,port=false": {
+      "model": "rackcraft:block/electrolyser_formed_on"
+    },
+    "facing=north,lit=true,formed=true,port=true": {
+      "model": "rackcraft:block/electrolyser_port_on"
+    },
+    "facing=south,lit=false,formed=false,port=false": {
+      "model": "rackcraft:block/electrolyser",
+      "y": 180
+    },
+    "facing=south,lit=false,formed=false,port=true": {
+      "model": "rackcraft:block/electrolyser",
+      "y": 180
+    },
+    "facing=south,lit=false,formed=true,port=false": {
+      "model": "rackcraft:block/electrolyser_formed"
+    },
+    "facing=south,lit=false,formed=true,port=true": {
+      "model": "rackcraft:block/electrolyser_port"
+    },
+    "facing=south,lit=true,formed=false,port=false": {
+      "model": "rackcraft:block/electrolyser_on",
+      "y": 180
+    },
+    "facing=south,lit=true,formed=false,port=true": {
+      "model": "rackcraft:block/electrolyser_on",
+      "y": 180
+    },
+    "facing=south,lit=true,formed=true,port=false": {
+      "model": "rackcraft:block/electrolyser_formed_on"
+    },
+    "facing=south,lit=true,formed=true,port=true": {
+      "model": "rackcraft:block/electrolyser_port_on"
+    },
+    "facing=west,lit=false,formed=false,port=false": {
+      "model": "rackcraft:block/electrolyser",
+      "y": 270
+    },
+    "facing=west,lit=false,formed=false,port=true": {
+      "model": "rackcraft:block/electrolyser",
+      "y": 270
+    },
+    "facing=west,lit=false,formed=true,port=false": {
+      "model": "rackcraft:block/electrolyser_formed"
+    },
+    "facing=west,lit=false,formed=true,port=true": {
+      "model": "rackcraft:block/electrolyser_port"
+    },
+    "facing=west,lit=true,formed=false,port=false": {
+      "model": "rackcraft:block/electrolyser_on",
+      "y": 270
+    },
+    "facing=west,lit=true,formed=false,port=true": {
+      "model": "rackcraft:block/electrolyser_on",
+      "y": 270
+    },
+    "facing=west,lit=true,formed=true,port=false": {
+      "model": "rackcraft:block/electrolyser_formed_on"
+    },
+    "facing=west,lit=true,formed=true,port=true": {
+      "model": "rackcraft:block/electrolyser_port_on"
+    }
+  }
+}

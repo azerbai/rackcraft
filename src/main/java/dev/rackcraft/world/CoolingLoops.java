@@ -51,7 +51,7 @@ public final class CoolingLoops {
 
 	public static boolean isSink(String id) {
 		return switch (id) {
-			case "cooling_tower", "dry_cooler", "chiller", "water_heat_exchanger" -> true;
+			case "cooling_tower", "dry_cooler", "chiller", "water_heat_exchanger", "heat_recovery_plant" -> true;
 			default -> false;
 		};
 	}
@@ -85,15 +85,17 @@ public final class CoolingLoops {
 	 */
 	public static CoolingLoops build(ServerWorld world, List<MachineBlockEntity> machines,
 			Map<MachineBlockEntity, Double> satisfaction, boolean coolingFailure) {
-		return build(world, machines, satisfaction, coolingFailure, false, 1);
+		return build(world, machines, satisfaction, coolingFailure, false, 1, Map.of());
 	}
 
 	/**
 	 * {@code heatWave}: dry coolers and towers, which reject heat to the outside air, lose
-	 * {@link #HEAT_WAVE_LOSS}. {@code sinkScale}: research's multiplier on every sink.
+	 * {@link #HEAT_WAVE_LOSS}. {@code sinkScale}: research's multiplier on every sink. {@code heatRecovery}: what each Heat
+	 * Recovery Plant core's village will take (see {@link UtilityPlants#heatRecovery}).
 	 */
 	public static CoolingLoops build(ServerWorld world, List<MachineBlockEntity> machines,
-			Map<MachineBlockEntity, Double> satisfaction, boolean coolingFailure, boolean heatWave, double sinkScale) {
+			Map<MachineBlockEntity, Double> satisfaction, boolean coolingFailure, boolean heatWave, double sinkScale,
+			Map<MachineBlockEntity, Double> heatRecovery) {
 		CoolingLoops result = new CoolingLoops();
 		NetworkManager networks = NetworkManager.get(world);
 		for (MachineBlockEntity machine : machines) {
@@ -108,7 +110,7 @@ public final class CoolingLoops {
 			}
 			loop.members.add(machine);
 			if (isSink(machine.blockId())) loop.sinks.add(machine);
-			if (machine.blockId().equals("freshwater_pump")) loop.pumps.add(machine);
+			if (machine.blockId().equals("freshwater_pump") || machine.blockId().equals("desalination_plant")) loop.pumps.add(machine);
 		}
 		for (Loop loop : result.loops) {
 			int water = loop.pumps.stream().filter(pump -> pump.pumpStatus() == FreshwaterCooling.PumpStatus.PUMPING.ordinal())
@@ -132,6 +134,12 @@ public final class CoolingLoops {
 						detail = (int) Math.round(climate * 100);
 					}
 					case "chiller" -> capacity = CHILLER_KW;
+					case "heat_recovery_plant" -> {
+						// Sold to the village as district heating: no power needed, just customers.
+						capacity = heatRecovery.getOrDefault(sink, 0.0);
+						power = 1;
+						detail = sink.coolingDetail();
+					}
 					case "water_heat_exchanger" -> {
 						int blocks = waterAround(world, sink);
 						capacity = Math.min(EXCHANGER_MAX_KW, EXCHANGER_KW_PER_BLOCK * blocks);

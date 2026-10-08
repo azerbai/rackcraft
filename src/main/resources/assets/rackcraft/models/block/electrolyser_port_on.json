@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/cube_all",
+  "textures": {
+    "all": "rackcraft:block/electrolyser_port_on"
+  }
+}

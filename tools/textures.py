@@ -892,7 +892,7 @@ def machine_textures(entry):
     if entry.get("array"):
         faces["formed"] = formed_face(base, key, False)
         faces["formed_on"] = formed_face(base, key, True)
-        if key != "battery_bank":
+        if key not in ("battery_bank", "desalination_plant", "grid_substation", "heat_recovery_plant"):
             faces["port"] = port_face(base, key, False)
             faces["port_on"] = port_face(base, key, True)
     return faces
@@ -1032,7 +1032,48 @@ def _recycler_face(canvas, base, frame, on):
     canvas.poly([(8, 9.6), (10.6, 12.3), (5.4, 12.3)], GLASS_DARK)
 
 
+def _desal_face(canvas, base, frame, on):
+    """Stacked membranes with sea water running through them, and a salt tray at the bottom."""
+    canvas.rect(2, 2, 13, 11, (24, 52, 78))
+    shift = frame if on else 0
+    for row, y in enumerate((3, 6, 9)):
+        for x in range(2, 14):
+            wave = int(round(math.sin((x + shift * 2 + row) * 0.9)))
+            canvas.set(x, y + wave, (90, 170, 230) if on else (60, 110, 150))
+    canvas.rect(2, 12, 13, 13, (226, 226, 220))
+    canvas.set(4, 12, (200, 200, 196))
+    canvas.set(10, 13, (200, 200, 196))
+
+
+def _substation_face(canvas, base, frame, on):
+    """A transformer between two insulator stacks, with a bolt that flickers while it exports."""
+    canvas.rect(4, 4, 11, 13, darken(base, 0.35))
+    for y in range(5, 13, 2):
+        canvas.hline(5, 10, y, lighten(base, 0.15))
+    for x in (2, 13):
+        for y in range(2, 9, 2):
+            canvas.set(x, y, (200, 200, 210))
+            canvas.set(x, y + 1, (120, 90, 60))
+    bolt = (255, 230, 90) if on and frame % 2 == 0 else (190, 160, 60) if on else darken(base, 0.1)
+    canvas.line(9, 4, 7, 8, bolt)
+    canvas.line(7, 8, 9, 8, bolt)
+    canvas.line(9, 8, 6, 12, bolt)
+
+
+def _recovery_face(canvas, base, frame, on):
+    """Radiator fins glowing warm, with a little house that gets the heat."""
+    for x in range(2, 14, 2):
+        warm = mix((120, 60, 50), (240, 120, 60), ((x + frame) % 6) / 5) if on else darken(base, 0.2)
+        canvas.vline(x, 2, 9, warm)
+    canvas.poly([(8, 9), (12.5, 12.2), (3.5, 12.2)], (150, 90, 60))
+    canvas.rect(5, 12, 10, 14, (190, 160, 120))
+    canvas.set(7, 13, (255, 210, 120) if on else (90, 70, 50))
+
+
 FORMED_FACES = {
+    "desalination_plant": _desal_face,
+    "grid_substation": _substation_face,
+    "heat_recovery_plant": _recovery_face,
     "modular_reactor": _reactor_face,
     "battery_bank": _battery_face,
     "uranium_mill": _mill_face,
@@ -2062,3 +2103,263 @@ def respirator_armor_layer():
     pixels[13][11] = dark
     pixels[13][12] = dark
     return png_rgba(64, 32, pixels)
+
+
+# ---------------------------------------------------------------- industry: belts, robot arms, drones, hydrogen
+
+BELT_RUBBER = (40, 42, 46)
+BELT_FRAMES = 4
+
+
+def belt_top(entry):
+    """A rubber belt between steel rails, its cleats sliding toward the front (north, the top of the texture) one
+    pixel a frame, so a placed belt visibly runs the way it faces."""
+    frames = []
+    for frame in range(BELT_FRAMES):
+        canvas = Canvas()
+        for y in range(SIZE):
+            for x in range(2, 14):
+                canvas.set(x, y, BELT_RUBBER if (x + y) % 5 else lighten(BELT_RUBBER, 0.05))
+            # Cleats every four rows, moving up the texture (toward the belt's front) as frames advance.
+            if (y + frame) % 4 == 0:
+                canvas.hline(3, 12, y, lighten(BELT_RUBBER, 0.22))
+        for x in (0, 1, 14, 15):
+            canvas.vline(x, 0, 15, STEEL if x in (0, 15) else darken(STEEL, 0.3))
+        for y in range(1, 16, 4):
+            canvas.set(0, y, lighten(STEEL, 0.3))
+            canvas.set(15, y, lighten(STEEL, 0.3))
+        frames.append(canvas)
+    return frames
+
+
+def belt_side(entry):
+    """The belt's side frame: a steel channel with roller ends showing."""
+    canvas = Canvas()
+    canvas.rect(0, 11, 15, 15, darken(STEEL, 0.25))
+    canvas.hline(0, 15, 11, lighten(STEEL, 0.2))
+    canvas.hline(0, 15, 15, darken(STEEL, 0.5))
+    for x in (2, 7, 12):
+        canvas.rect(x, 12, x + 1, 13, darken(STEEL, 0.55))
+        canvas.set(x, 12, BLACK)
+    canvas.rect(0, 10, 15, 10, BELT_RUBBER)
+    return canvas
+
+
+def belt_bottom(entry):
+    canvas = plate(darken(STEEL, 0.35), entry["id"] + ":bottom")
+    for x in (3, 8, 13):
+        canvas.vline(x, 1, 14, darken(STEEL, 0.55))
+    return canvas
+
+
+def arm_base(entry):
+    """The arm's floor plate: painted steel with a hazard band round the edge, bolted down at the corners."""
+    base = rgb(entry["color"])
+    canvas = plate(darken(STEEL, 0.15), entry["id"] + ":base", rivets=True)
+    for i in range(SIZE):
+        for x, y in ((i, 0), (i, 15), (0, i), (15, i)):
+            canvas.set(x, y, YELLOW if ((x + y) // 2) % 2 == 0 else BLACK)
+    canvas.rect(4, 4, 11, 11, base)
+    canvas.frame(4, 4, 11, 11, darken(base, 0.4))
+    return canvas
+
+
+def arm_column(entry):
+    """The turret column the arm sits on, in the arm's colour with a dark seam."""
+    base = rgb(entry["color"])
+    canvas = plate(base, entry["id"] + ":column")
+    canvas.hline(0, 15, 7, darken(base, 0.45))
+    canvas.rect(6, 10, 9, 12, darken(base, 0.5))
+    return canvas
+
+
+def arm_light(entry, on):
+    """A status beacon: dark when idle, flashing amber while the arm works."""
+    frames = []
+    for frame in range(4 if on else 1):
+        canvas = plate(darken(STEEL, 0.4), entry["id"] + ":light")
+        glow = mix(LED_AMBER, (255, 240, 180), [0.0, 0.6, 1.0, 0.6][frame]) if on else LED_OFF
+        canvas.disc(8, 8, 5, glow)
+        canvas.disc(8, 8, 2, lighten(glow, 0.3))
+        frames.append(canvas)
+    return frames
+
+
+def _strip(canvases):
+    """Several 16x16 tiles side by side, for the parts the client draws as boxes (each face gets a whole tile)."""
+    rows = []
+    for y in range(SIZE):
+        row = []
+        for canvas in canvases:
+            for x in range(SIZE):
+                pixel = canvas.px[y][x]
+                row.append(None if pixel is None else (*pixel[:3], pixel[3] if len(pixel) > 3 else 255))
+        rows.append(row)
+    return png_rgba(SIZE * len(canvases), SIZE, rows)
+
+
+def arm_parts(entry):
+    """Tiles for the moving arm, drawn by the block entity renderer: 0 segment, 1 joint, 2 tool head, 3 accent."""
+    base = rgb(entry["color"])
+    segment = plate(base, entry["id"] + ":segment")
+    segment.hline(0, 15, 4, darken(base, 0.3))
+    segment.hline(0, 15, 11, darken(base, 0.3))
+    for x in (2, 13):
+        segment.set(x, 7, lighten(base, 0.35))
+    joint = plate(darken(STEEL, 0.45), entry["id"] + ":joint")
+    joint.disc(8, 8, 5, darken(STEEL, 0.2))
+    joint.disc(8, 8, 2, lighten(STEEL, 0.2))
+    tool = plate(darken(STEEL, 0.3), entry["id"] + ":tool")
+    if entry["id"] == "welding_arm":
+        tool.rect(5, 0, 10, 15, COPPER)
+        tool.rect(6, 10, 9, 15, (255, 190, 90))
+        tool.rect(7, 13, 8, 15, (255, 250, 220))
+    elif entry["id"] == "riveting_arm":
+        tool.rect(4, 0, 11, 9, darken(STEEL, 0.1))
+        tool.rect(7, 9, 8, 15, lighten(STEEL, 0.35))
+        tool.hline(4, 11, 4, BLACK)
+    else:
+        tool.rect(2, 0, 4, 15, lighten(STEEL, 0.2))
+        tool.rect(11, 0, 13, 15, lighten(STEEL, 0.2))
+        tool.rect(5, 0, 10, 4, darken(STEEL, 0.5))
+    accent = plate(darken(base, 0.35), entry["id"] + ":accent")
+    for i in range(SIZE):
+        accent.set(i, (i * 3) % 16, YELLOW)
+    return _strip([segment, joint, tool, accent])
+
+
+def drone_parts():
+    """Tiles for the Maintenance Drone: 0 body, 1 boom, 2 rotor blur, 3 camera and lights."""
+    shell = (222, 160, 64)
+    body = plate(shell, "drone:body")
+    body.rect(5, 5, 10, 10, darken(shell, 0.35))
+    body.rect(6, 6, 9, 9, (40, 120, 200))
+    body.set(2, 2, LED_GREEN)
+    body.set(13, 2, LED_RED)
+    boom = plate((70, 74, 80), "drone:boom")
+    boom.hline(0, 15, 8, (110, 116, 124))
+    rotor = Canvas()
+    for y in range(SIZE):
+        for x in range(SIZE):
+            distance = math.hypot(x + 0.5 - 8, y + 0.5 - 8)
+            if distance <= 7.5:
+                rotor.set(x, y, (200, 206, 214, 70) if distance > 1.6 else (60, 60, 64, 255))
+    rotor.line(2, 8, 13, 8, (190, 196, 204, 200))
+    camera = plate((34, 36, 40), "drone:camera")
+    camera.disc(8, 8, 4, (16, 18, 22))
+    camera.disc(8, 8, 2, (70, 160, 230))
+    camera.set(7, 7, (230, 245, 255))
+    return _strip([body, boom, rotor, camera])
+
+
+def hatch_face(base, key, on):
+    """The Drone Dock's front: a roller hatch with a status strip that pulses while drones are out."""
+    frames = []
+    for frame in range(4 if on else 1):
+        canvas = plate(base, key + ":hatch")
+        canvas.inset(2, 3, 13, 13, darken(base, 0.4), lighten(base, 0.1), darken(base, 0.6))
+        for y in range(4, 13, 2):
+            canvas.hline(3, 12, y, darken(base, 0.2))
+        light = mix(LED_GREEN, (200, 255, 210), [0.0, 0.6, 1.0, 0.6][frame]) if on else LED_OFF
+        canvas.hline(3, 12, 1, light)
+        frames.append(canvas)
+    return frames
+
+
+def top_helipad(base, key):
+    """A landing pad: a yellow circle with an H."""
+    canvas = plate(darken(base, 0.25), key + ":pad")
+    canvas.disc(8, 8, 7, YELLOW, inner=5.8)
+    for y in range(4, 12):
+        canvas.set(5, y, (236, 236, 230))
+        canvas.set(10, y, (236, 236, 230))
+    canvas.hline(5, 10, 8, (236, 236, 230))
+    return canvas
+
+
+def _electrolyser_face(canvas, base, frame, on):
+    """Two electrodes in a water tank, streams of bubbles rising off them while it runs."""
+    canvas.rect(2, 3, 13, 13, (30, 70, 110))
+    canvas.hline(2, 13, 3, (90, 160, 210))
+    for x in (5, 10):
+        canvas.rect(x, 5, x + 1, 13, (180, 186, 196) if x == 5 else COPPER)
+        canvas.rect(x, 1, x + 1, 2, darken(base, 0.5))
+    if on:
+        for column, x in enumerate((4, 7, 9, 12)):
+            for y in range(4, 13):
+                if (y + frame * 2 + column * 3) % 5 == 0:
+                    canvas.set(x, y, (210, 235, 255))
+    canvas.set(4, 2, (230, 80, 70))
+    canvas.set(11, 2, (90, 160, 240))
+
+
+FORMED_FACES["electrolyser"] = _electrolyser_face
+FRONT_STYLES["hatch_face"] = hatch_face
+TOP_STYLES["helipad"] = top_helipad
+
+
+def item_h2(base, key):
+    """A gas bottle with a blue shoulder and an H2 label."""
+    canvas = Canvas()
+    canvas.rect(5, 4, 10, 14, (196, 202, 210))
+    canvas.vline(5, 4, 14, (230, 234, 240))
+    canvas.vline(10, 4, 14, (130, 136, 146))
+    canvas.rect(5, 4, 10, 6, base)
+    canvas.vline(5, 4, 6, lighten(base, 0.3))
+    canvas.rect(7, 2, 8, 3, darken(STEEL, 0.3))
+    canvas.hline(6, 9, 1, BLACK)
+    for y in range(8, 12):
+        canvas.set(6, y, (40, 90, 160))
+        canvas.set(8, y, (40, 90, 160))
+    canvas.set(7, 9, (40, 90, 160))
+    canvas.set(9, 11, (40, 90, 160))
+    return canvas
+
+
+def item_motor(base, key):
+    """A motor can with copper windings showing and a shaft out of the front."""
+    canvas = Canvas()
+    canvas.rect(3, 5, 11, 12, darken(STEEL, 0.1))
+    canvas.hline(3, 11, 5, lighten(STEEL, 0.25))
+    canvas.hline(3, 11, 12, darken(STEEL, 0.45))
+    for x in range(4, 11, 2):
+        canvas.vline(x, 7, 10, base)
+    canvas.rect(12, 8, 14, 9, lighten(STEEL, 0.3))
+    canvas.rect(2, 13, 12, 13, darken(STEEL, 0.5))
+    return canvas
+
+
+def item_drone_frame(base, key):
+    """An X of bare booms with a centre plate: the drone before the line gets to it."""
+    canvas = Canvas()
+    canvas.line(2, 2, 13, 13, base)
+    canvas.line(13, 2, 2, 13, base)
+    canvas.line(3, 2, 13, 12, darken(base, 0.3))
+    canvas.line(12, 2, 2, 12, darken(base, 0.3))
+    canvas.rect(6, 6, 9, 9, darken(base, 0.2))
+    canvas.frame(6, 6, 9, 9, darken(base, 0.5))
+    for x, y in ((2, 2), (13, 2), (2, 13), (13, 13)):
+        canvas.set(x, y, lighten(base, 0.3))
+    return canvas
+
+
+def item_drone(base, key):
+    """The finished quadcopter, seen from above: four rotors round an orange body."""
+    canvas = Canvas()
+    canvas.line(3, 3, 12, 12, (70, 74, 80))
+    canvas.line(12, 3, 3, 12, (70, 74, 80))
+    for cx, cy in ((3, 3), (12, 3), (3, 12), (12, 12)):
+        canvas.disc(cx + 0.5, cy + 0.5, 2.8, (190, 198, 208))
+        canvas.set(cx, cy, BLACK)
+    canvas.rect(5, 5, 10, 10, base)
+    canvas.frame(5, 5, 10, 10, darken(base, 0.4))
+    canvas.rect(7, 7, 8, 8, (60, 150, 230))
+    canvas.set(5, 5, LED_GREEN)
+    canvas.set(10, 5, LED_RED)
+    return canvas
+
+
+ITEM_STYLES["h2"] = item_h2
+ITEM_STYLES["motor"] = item_motor
+ITEM_STYLES["drone_frame"] = item_drone_frame
+ITEM_STYLES["drone"] = item_drone

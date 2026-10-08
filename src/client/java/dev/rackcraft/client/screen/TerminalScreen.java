@@ -64,7 +64,10 @@ public final class TerminalScreen extends HandledScreen<TerminalScreenHandler> {
 	@Override
 	protected void init() {
 		super.init();
-		search = addDrawableChild(new TextFieldWidget(textRenderer, x + 92, y + 4, 94, 11, Text.translatable("exchange.rackcraft.search")));
+		// The search box starts after the title, so the two never touch.
+		int searchX = Math.max(92, 8 + textRenderer.getWidth(title) + 6);
+		search = addDrawableChild(new TextFieldWidget(textRenderer, x + searchX, y + 4, backgroundWidth - 8 - searchX, 11,
+				Text.translatable("exchange.rackcraft.search")));
 		search.setText(rememberedSearch);
 		search.setPlaceholder(Text.translatable("exchange.rackcraft.search").formatted(Formatting.DARK_GRAY));
 		addDrawableChild(ButtonWidget.builder(Text.literal("Clear grid"), button -> ClientNet.terminalAction(handler.syncId, Action.CLEAR))
@@ -228,11 +231,13 @@ public final class TerminalScreen extends HandledScreen<TerminalScreenHandler> {
 		context.drawText(textRenderer, title, 8, 4, TEXT, false);
 		TerminalScreenHandler.Stats stats = handler.stats();
 		String summary = !stats.online() ? "Storage offline: check power, fiber and heat"
-				: String.format(Locale.ROOT, "%s / %s on %d drive%s", abbreviate(stats.hotUsed()), abbreviate(stats.hotCapacity()),
-						stats.drives(), stats.drives() == 1 ? "" : "s")
-						+ (stats.tapes() > 0 ? String.format(Locale.ROOT, ", %s / %s on tape", abbreviate(stats.coldUsed()),
+				: String.format(Locale.ROOT, "Drives %s/%s (%d)", abbreviate(stats.hotUsed()), abbreviate(stats.hotCapacity()), stats.drives())
+						+ (stats.tapes() > 0 ? String.format(Locale.ROOT, "  Tape %s/%s", abbreviate(stats.coldUsed()),
 						abbreviate(stats.coldCapacity())) : "");
-		context.drawText(textRenderer, textRenderer.trimToWidth(summary, backgroundWidth - 16), 8, 110, stats.online() ? MUTED : BAD, false);
+		if (textRenderer.getWidth(summary) > backgroundWidth - 16) {
+			summary = textRenderer.trimToWidth(summary, backgroundWidth - 16 - textRenderer.getWidth("...")).trim() + "...";
+		}
+		context.drawText(textRenderer, summary, 8, 110, stats.online() ? MUTED : BAD, false);
 		if (selected != null) {
 			context.drawItem(selected.toStack(1), 7, 175);
 		} else if (!handler.jobs().isEmpty()) {
