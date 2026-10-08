@@ -38,7 +38,7 @@ public final class RackcraftSelfTest {
 		RackcraftConfig.values.events.enabled = false;
 		dev.rackcraft.compute.ResearchLab.get(server.getOverworld()).reset();
 		dev.rackcraft.world.OrbitState.get(server.getOverworld()).reset();
-		check("S0.a", RcBlocks.BLOCKS.size() == 78 && RcItems.ITEMS.size() == 70,
+		check("S0.a", RcBlocks.BLOCKS.size() == 84 && RcItems.ITEMS.size() == 84,
 				"blocks=" + RcBlocks.BLOCKS.size() + " items=" + RcItems.ITEMS.size(), failures);
 		ServerWorld world = server.getOverworld();
 		BlockPos generatorPos = new BlockPos(0, 80, 0);
@@ -76,10 +76,14 @@ public final class RackcraftSelfTest {
 		// Some things only come out of machines: no crafting recipe may make them (a stale one once made Fuel Cells
 		// from glowstone and amethyst).
 		java.util.Set<net.minecraft.item.Item> madeOnly = new java.util.HashSet<>(java.util.List.of(RcItems.ITEMS.get("fuel_cell"),
-				RcItems.ITEMS.get("hydrogen_canister"), RcItems.ITEMS.get("wafer_scale_engine"), RcItems.ITEMS.get("enriched_uranium")));
+				RcItems.ITEMS.get("hydrogen_canister"), RcItems.ITEMS.get("wafer_scale_engine"), RcItems.ITEMS.get("enriched_uranium"),
+				RcItems.ITEMS.get("graphene_sheet"), RcItems.ITEMS.get("gallium_nitride")));
 		dev.rackcraft.world.AssemblyLine.recipes().forEach(recipe -> madeOnly.add(recipe.product()));
+		// Crafting a chiplet down a bin is allowed: it only ever costs a better chiplet.
+		java.util.Set<String> downbins = java.util.Set.of("rackcraft:chiplet_bronze_from_silver", "rackcraft:chiplet_silver_from_gold");
 		List<String> shortcuts = server.getRecipeManager().values().stream()
-				.filter(recipe -> madeOnly.contains(recipe.getOutput(server.getRegistryManager()).getItem()))
+				.filter(recipe -> madeOnly.contains(recipe.getOutput(server.getRegistryManager()).getItem())
+						&& !downbins.contains(recipe.getId().toString()))
 				.map(recipe -> recipe.getId().toString()).toList();
 		check("S5.d", shortcuts.isEmpty(), "recipesForMachineOnlyItems=" + shortcuts, failures);
 		// The rocket's own sounds: every event registered, and every file sounds.json names shipped in the jar.
@@ -151,6 +155,7 @@ public final class RackcraftSelfTest {
 		checkRenewables(world, failures);
 		checkStorageLogistics(world, failures);
 		checkSiteConstruction(world, failures);
+		checkAdvancedHardware(world, failures);
 		checkStructures(world, failures);
 		check("S0.b", SimTicker.failedSteps() == 0, "simulation steps that threw=" + SimTicker.failedSteps(), failures);
 		Rackcraft.LOGGER.info("RACKCRAFT_SELFTEST DONE failures={}", failures[0]);
@@ -1767,6 +1772,188 @@ public final class RackcraftSelfTest {
 	}
 
 	/** Steps the simulation through a launch's countdown and flight. */
+	/**
+	 * Advanced hardware: rack tiers take their bays and modules and deal with heat their own way; Quantum Annealers need a
+	 * cold Cryostat that boils off hydrogen; NPUs only serve inference; FPGAs switch modes; the new cubes and the Assembly
+	 * Line wait for research; a diced wafer comes off the line as eight chiplets of one bin; and none of it is for sale.
+	 */
+	private static void checkAdvancedHardware(ServerWorld world, int[] failures) {
+		dev.rackcraft.compute.ResearchLab lab = dev.rackcraft.compute.ResearchLab.get(world);
+		lab.reset();
+		BlockPos origin = clearArea(world, new BlockPos(-1900, 150, -1536), 40, 8, 24);
+
+		// Bays and what goes in them.
+		MachineBlockEntity server = place(world, origin, "server_rack", Direction.NORTH);
+		MachineBlockEntity dense = place(world, origin.east(4), "high_density_rack", Direction.NORTH);
+		MachineBlockEntity bath = place(world, origin.east(8), "immersion_rack", Direction.NORTH);
+		MachineBlockEntity exa = place(world, origin.east(12), "exascale_cabinet", Direction.NORTH);
+		ItemStack pi = new ItemStack(RcItems.ITEMS.get("pi_node"));
+		ItemStack gpu = new ItemStack(RcItems.ITEMS.get("gpu_blade"));
+		check("AH1.a", server.size() == 9 && !server.isValid(8, pi) && dense.isValid(11, pi) && !dense.isValid(12, pi)
+						&& bath.isValid(15, pi) && exa.size() == 24 && exa.isValid(23, gpu) && !exa.isValid(0, pi)
+						&& exa.isValid(0, new ItemStack(RcItems.ITEMS.get("quantum_annealer"))),
+				"sizes=" + server.size() + "/" + dense.size() + "/" + bath.size() + "/" + exa.size(), failures);
+		ItemStack fpga = new ItemStack(RcItems.ITEMS.get("fpga_module"));
+		var mining = dev.rackcraft.block.Racks.module(fpga);
+		fpga.getOrCreateNbt().putInt(dev.rackcraft.block.Racks.FPGA_MODE, 2);
+		check("AH1.b", mining == dev.rackcraft.sim.ServerModel.Module.FPGA_MINING
+						&& dev.rackcraft.block.Racks.module(fpga) == dev.rackcraft.sim.ServerModel.Module.FPGA_CRAFTING
+						&& dev.rackcraft.sim.ServerModel.Module.FPGA_CRAFTING.compute() == 20,
+				"default=" + mining + " reflashed=" + dev.rackcraft.block.Racks.module(fpga), failures);
+		for (MachineBlockEntity rack : List.of(server, dense, bath, exa)) world.setBlockState(rack.getPos(), Blocks.AIR.getDefaultState());
+
+		// A High-Density Rack of air-cooled 1U servers: off a loop its heat goes to the air; on one, its built-in door
+		// catches it all. A Liquid-Immersion Rack won't run off a loop at all, and on one sends nothing to the air.
+		dense = place(world, origin, "high_density_rack", Direction.NORTH);
+		world.setBlockState(origin.west(), RcBlocks.get("creative_power").getDefaultState());
+		for (int slot = 0; slot < 12; slot++) dense.setStack(slot, new ItemStack(RcItems.ITEMS.get("server_1u")));
+		bath = place(world, origin.east(6), "immersion_rack", Direction.NORTH);
+		world.setBlockState(origin.east(5), RcBlocks.get("creative_power").getDefaultState());
+		for (int slot = 0; slot < 16; slot++) bath.setStack(slot, new ItemStack(RcItems.ITEMS.get("server_1u")));
+		for (int step = 0; step < 6; step++) SimTicker.stepNow(world);
+		double denseAirOff = dense.heatToAirKw();
+		RackStatus dryBath = bath.rackStatus();
+		MachineBlockEntity denseChiller = place(world, origin.up(), "chiller", Direction.NORTH);
+		MachineBlockEntity bathChiller = place(world, origin.east(6).up(), "chiller", Direction.NORTH);
+		for (int step = 0; step < 10; step++) SimTicker.stepNow(world);
+		check("AH2.a", denseAirOff > 6 && dense.heatToLoopKw() > 6 && dense.heatToAirKw() < 0.1 && denseChiller.coolingKw() > 6,
+				"dense: offLoopToAir=" + denseAirOff + " toLoop=" + dense.heatToLoopKw() + " toAir=" + dense.heatToAirKw(), failures);
+		check("AH2.b", dryBath == RackStatus.NEEDS_WATER && bath.heatToLoopKw() > 8 && bath.heatToAirKw() < 0.01 && bathChiller.coolingKw() > 8,
+				"immersion: offLoop=" + dryBath + " toLoop=" + bath.heatToLoopKw() + " toAir=" + bath.heatToAirKw(), failures);
+		clearArea(world, origin, 40, 8, 24);
+
+		// An Exascale Cabinet of GPU Blades mines 20% more than the same blades would, on half the bandwidth, and its
+		// switches draw 30 kW on top.
+		exa = place(world, origin, "exascale_cabinet", Direction.NORTH);
+		world.setBlockState(origin.west(), RcBlocks.get("creative_power").getDefaultState());
+		machine(world, origin.west()).setCreativeValue(CreativeSettings.OUTPUT_KW, 1_000);
+		place(world, origin.up(), "chiller", Direction.NORTH);
+		place(world, origin.up(2), "chiller", Direction.NORTH);
+		MachineBlockEntity core = place(world, origin.east(), "core_router", Direction.NORTH);
+		for (int slot = 0; slot < 24; slot++) exa.setStack(slot, new ItemStack(RcItems.ITEMS.get("gpu_blade")));
+		for (int step = 0; step < 10; step++) SimTicker.stepNow(world);
+		check("AH3.a", exa.rackStatus() == RackStatus.MINING && Math.abs(exa.miningRate() - 24 * 12 * 1.2) < 1
+						&& exa.powerKw() > 24 * 3 + 29 && Math.abs(core.dataDemand() - 24 * 12 * 1.2 * 0.5) < 1 && exa.heatToAirKw() < 0.1,
+				"status=" + exa.rackStatus() + " rate=" + exa.miningRate() + " draw=" + exa.powerKw() + " bandwidthNeed=" + core.dataDemand()
+						+ " toAir=" + exa.heatToAirKw(), failures);
+		clearArea(world, origin, 40, 8, 24);
+
+		// A Quantum Annealer waits for a cold Cryostat, mines 120 RC/s beside one, and stops when its hydrogen runs out.
+		MachineBlockEntity annealerRack = place(world, origin, "server_rack", Direction.NORTH);
+		world.setBlockState(origin.west(), RcBlocks.get("creative_power").getDefaultState());
+		place(world, origin.up(), "chiller", Direction.NORTH);
+		place(world, origin.down(), "core_router", Direction.NORTH);
+		annealerRack.setStack(0, new ItemStack(RcItems.ITEMS.get("quantum_annealer")));
+		for (int step = 0; step < 4; step++) SimTicker.stepNow(world);
+		RackStatus warm = annealerRack.rackStatus();
+		MachineBlockEntity cryostat = place(world, origin.east(), "cryostat", Direction.NORTH);
+		world.setBlockState(origin.east(2), RcBlocks.get("creative_power").getDefaultState());
+		cryostat.setStack(0, new ItemStack(RcItems.ITEMS.get("hydrogen_canister"), 1));
+		for (int step = 0; step < 6; step++) SimTicker.stepNow(world);
+		RackStatus cold = annealerRack.rackStatus();
+		double coldRate = annealerRack.miningRate();
+		int cooling = cryostat.workers();
+		cryostat.setWorkProgress(0.999);
+		for (int step = 0; step < 6; step++) SimTicker.stepNow(world);
+		check("AH4.a", warm == RackStatus.NEEDS_CRYOSTAT && cold == RackStatus.MINING && Math.abs(coldRate - 120) < 1 && cooling == 1
+						&& cryostat.getStack(0).isEmpty() && cryostat.itemsMade() == 1 && annealerRack.rackStatus() == RackStatus.NEEDS_CRYOSTAT,
+				"warm=" + warm + " cold=" + cold + " rate=" + coldRate + " cooling=" + cooling + " left=" + cryostat.getStack(0)
+						+ " after=" + annealerRack.rackStatus(), failures);
+		clearArea(world, origin, 40, 8, 24);
+
+		// NPUs lend AI compute to inference (contracts, leases) and nothing to training or R&D.
+		MachineBlockEntity npuRack = place(world, origin, "server_rack", Direction.NORTH);
+		world.setBlockState(origin.west(), RcBlocks.get("creative_power").getDefaultState());
+		for (int slot = 0; slot < 8; slot++) npuRack.setStack(slot, new ItemStack(RcItems.ITEMS.get("npu_card")));
+		for (int step = 0; step < 4; step++) SimTicker.stepNow(world);
+		double inference = dev.rackcraft.compute.Cluster.compute(npuRack, dev.rackcraft.compute.Cluster.Kind.INFERENCE);
+		double training = dev.rackcraft.compute.Cluster.compute(npuRack, dev.rackcraft.compute.Cluster.Kind.AI);
+		check("AH5.a", Math.abs(inference - 8 * 32) < 0.5 && training == 0,
+				"inference=" + inference + " ai=" + training, failures);
+		clearArea(world, origin, 40, 8, 24);
+
+		// The CVD Furnace waits for Advanced Materials, then grows graphene from coke and hydrogen.
+		for (BlockPos pos : BlockPos.iterate(origin, origin.add(1, 1, 1))) place(world, pos.toImmutable(), "cvd_furnace", Direction.NORTH);
+		world.setBlockState(origin.west(), RcBlocks.get("creative_power").getDefaultState());
+		machine(world, origin.west()).setCreativeValue(CreativeSettings.OUTPUT_KW, 5_000);
+		MachineBlockEntity furnace = machine(world, origin);
+		furnace.setStack(0, new ItemStack(RcItems.ITEMS.get("coke"), 32));
+		furnace.setStack(1, new ItemStack(RcItems.ITEMS.get("hydrogen_canister"), 8));
+		for (int step = 0; step < 4; step++) SimTicker.stepNow(world);
+		int lockedStatus = furnace.processStatus();
+		lab.complete(world, dev.rackcraft.compute.Research.get("advanced_materials"));
+		for (int step = 0; step < 130; step++) SimTicker.stepNow(world);
+		var furnaceMembers = dev.rackcraft.world.ReactorArrays.arrayOf(world, furnace).members();
+		int graphene = dev.rackcraft.world.ReactorArrays.count(furnaceMembers, dev.rackcraft.world.NuclearProcessing.OUTPUT_SLOT,
+				RcItems.ITEMS.get("graphene_sheet"));
+		check("AH6.a", lockedStatus == dev.rackcraft.world.NuclearProcessing.Status.LOCKED.ordinal() && graphene >= 16,
+				"lockedStatus=" + lockedStatus + " graphene=" + graphene + " status=" + furnace.processStatus(), failures);
+		clearArea(world, origin, 40, 8, 24);
+
+		// Dicing a wafer: before Chiplets and Advanced Packaging the welder won't touch it and it rides through whole;
+		// after, eight chiplets of one bin come off the end together.
+		BlockPos line = origin.add(0, 0, 8);
+		List<dev.rackcraft.block.BeltBlockEntity> belts = new java.util.ArrayList<>();
+		for (int index = 0; index < 6; index++) {
+			world.setBlockState(line.east(index), RcBlocks.get("conveyor_belt").getDefaultState()
+					.with(dev.rackcraft.block.ConveyorBeltBlock.FACING, Direction.EAST));
+			belts.add((dev.rackcraft.block.BeltBlockEntity) world.getBlockEntity(line.east(index)));
+		}
+		world.setBlockState(line.east(6), Blocks.CHEST.getDefaultState());
+		String[] robots = {"welding_arm", "assembly_arm", "riveting_arm"};
+		List<MachineBlockEntity> arms = new java.util.ArrayList<>();
+		for (int index = 0; index < robots.length; index++) {
+			BlockPos at = line.east(1 + index).north();
+			arms.add(place(world, at, robots[index], Direction.SOUTH));
+			world.setBlockState(at.north(), RcBlocks.get("creative_power").getDefaultState());
+			machine(world, at.north()).setCreativeValue(CreativeSettings.OUTPUT_KW, 5_000);
+		}
+		arms.get(1).setStack(0, new ItemStack(RcItems.ITEMS.get("graphene_sheet"), 2));
+		for (int step = 0; step < 2; step++) SimTicker.stepNow(world);
+		belts.get(0).accept(new ItemStack(RcItems.ITEMS.get("wafer_scale_engine")), 0);
+		int weldLocked = 0;
+		for (int tick = 0; tick < 400; tick++) {
+			for (var belt : belts) belt.serverTick(world);
+			if (tick % 10 == 9) {
+				SimTicker.stepNow(world);
+				if (arms.get(0).processStatus() == dev.rackcraft.world.AssemblyLine.Status.LOCKED.ordinal()) weldLocked++;
+			}
+		}
+		java.util.function.Function<net.minecraft.item.Item, Integer> inChest = item -> {
+			int count = 0;
+			if (world.getBlockEntity(line.east(6)) instanceof net.minecraft.block.entity.ChestBlockEntity chest) {
+				for (int slot = 0; slot < chest.size(); slot++) if (chest.getStack(slot).isOf(item)) count += chest.getStack(slot).getCount();
+			}
+			return count;
+		};
+		int wafersThrough = inChest.apply(RcItems.ITEMS.get("wafer_scale_engine"));
+		lab.complete(world, dev.rackcraft.compute.Research.get("advanced_packaging"));
+		belts.get(0).accept(new ItemStack(RcItems.ITEMS.get("wafer_scale_engine")), 0);
+		for (int tick = 0; tick < 2000; tick++) {
+			for (var belt : belts) belt.serverTick(world);
+			if (tick % 10 == 9) SimTicker.stepNow(world);
+		}
+		int bronze = inChest.apply(RcItems.ITEMS.get("chiplet_bronze"));
+		int silver = inChest.apply(RcItems.ITEMS.get("chiplet_silver"));
+		int gold = inChest.apply(RcItems.ITEMS.get("chiplet_gold"));
+		check("AH7.a", wafersThrough == 1 && weldLocked > 0 && bronze + silver + gold == 8
+						&& (bronze == 8 || silver == 8 || gold == 8) && arms.get(1).getStack(0).isEmpty(),
+				"lockedWaferThrough=" + wafersThrough + " weldLocked=" + weldLocked + " bins=" + bronze + "/" + silver + "/" + gold
+						+ " belts=" + belts.stream().map(belt -> belt.stack().getCount() + " " + belt.stack().getName().getString()).toList(), failures);
+		clearArea(world, origin, 40, 8, 24);
+
+		// None of it is sold, except the cubes themselves (which wait for research anyway).
+		List<String> forSale = java.util.stream.Stream.of("graphene_sheet", "gallium_nitride", "superconducting_wire", "chiplet_bronze",
+						"chiplet_silver", "chiplet_gold", "hbm_stack", "photonic_chip", "fpga_module", "npu_card", "neuromorphic_core",
+						"photonic_tensor_core", "quantum_annealer")
+				.filter(id -> ExchangeCatalog.price(RcItems.ITEMS.get(id)) != null).toList();
+		List<String> racksForSale = java.util.stream.Stream.of("high_density_rack", "immersion_rack", "exascale_cabinet", "cryostat")
+				.filter(id -> ExchangeCatalog.price(item(id)) != null).toList();
+		check("AH8.a", forSale.isEmpty() && racksForSale.isEmpty() && ExchangeCatalog.price(item("cvd_furnace")) != null,
+				"forSale=" + forSale + " racksForSale=" + racksForSale + " cvd=" + ExchangeCatalog.price(item("cvd_furnace")), failures);
+		lab.reset();
+	}
+
 	private static void flyMission(ServerWorld world, MachineBlockEntity control) {
 		for (int step = 0; step < 200 && (control.launchCountdown() > 0 || control.launchFlight() > 0); step++) SimTicker.stepNow(world);
 	}

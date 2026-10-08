@@ -48,8 +48,16 @@ public final class BeltBlockEntity extends BlockEntity implements net.minecraft.
 
 	/** Puts an item on the belt at this point along it. Only one item rides a belt at a time. */
 	public boolean accept(ItemStack item, double at) {
+		return acceptWhole(item.copyWithCount(1), at);
+	}
+
+	/**
+	 * Puts this whole stack on the belt: what a robot made comes off as one stack (a wafer's chiplets) and travels on
+	 * together, belt to belt.
+	 */
+	private boolean acceptWhole(ItemStack item, double at) {
 		if (!stack.isEmpty() || item.isEmpty()) return false;
-		stack = item.copyWithCount(1);
+		stack = item.copy();
 		progress = Math.max(0, Math.min(1, at));
 		previousProgress = progress;
 		heldBy = null;
@@ -119,7 +127,7 @@ public final class BeltBlockEntity extends BlockEntity implements net.minecraft.
 		if (world.getBlockEntity(target) instanceof BeltBlockEntity next) {
 			if (next.facing() == facing.getOpposite()) return;
 			// Straight on enters at the back edge; onto a belt that turns, it lands in the middle, as if fed from the side.
-			if (next.accept(stack, next.facing() == facing ? 0 : MIDDLE)) take();
+			if (next.acceptWhole(stack, next.facing() == facing ? 0 : MIDDLE)) take();
 			return;
 		}
 		Inventory inventory = HopperBlockEntity.getInventoryAt(world, target);

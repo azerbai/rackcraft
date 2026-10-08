@@ -315,14 +315,14 @@ public final class OpsScreenHandler extends ScreenHandler {
 			Map.entry(RackStatus.NETWORK_LIMITED, "bandwidth-limited"), Map.entry(RackStatus.CRAFTING, "autocrafting"),
 			Map.entry(RackStatus.GENERATING, "generating"), Map.entry(RackStatus.TRAINING, "training"),
 			Map.entry(RackStatus.EMPTY, "empty"), Map.entry(RackStatus.TRIPPED, "tripped"), Map.entry(RackStatus.NO_POWER, "unpowered"),
-			Map.entry(RackStatus.NEEDS_CDU, "need a CDU"), Map.entry(RackStatus.NEEDS_WATER, "need liquid cooling"),
+			Map.entry(RackStatus.NEEDS_CDU, "need a CDU"), Map.entry(RackStatus.NEEDS_CRYOSTAT, "need a cold Cryostat"), Map.entry(RackStatus.NEEDS_WATER, "need liquid cooling"),
 			Map.entry(RackStatus.OVERHEATED, "overheated"), Map.entry(RackStatus.NO_NETWORK, "offline"),
 			Map.entry(RackStatus.BOOTING, "booting"), Map.entry(RackStatus.RESEARCHING, "on R&D"),
 			Map.entry(RackStatus.LEASED, "leased"));
 
 	private static boolean problem(RackStatus status) {
 		return switch (status) {
-			case TRIPPED, NO_POWER, NEEDS_CDU, NEEDS_WATER, OVERHEATED, NO_NETWORK -> true;
+			case TRIPPED, NO_POWER, NEEDS_CDU, NEEDS_WATER, OVERHEATED, NO_NETWORK, NEEDS_CRYOSTAT -> true;
 			default -> false;
 		};
 	}
@@ -339,7 +339,7 @@ public final class OpsScreenHandler extends ScreenHandler {
 		for (MachineBlockEntity machine : machines) {
 			String at = " at " + machine.getPos().toShortString();
 			switch (machine.blockId()) {
-				case "server_rack" -> {
+				case "server_rack", "high_density_rack", "immersion_rack", "exascale_cabinet" -> {
 					racks++;
 					RackStatus status = machine.rackStatus();
 					boolean bad = problem(status);

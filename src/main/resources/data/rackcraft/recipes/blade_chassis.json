@@ -1,0 +1,23 @@
+{
+  "key": {
+    "A": {
+      "item": "rackcraft:aluminum_ingot"
+    },
+    "C": {
+      "item": "rackcraft:circuit_board"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    }
+  },
+  "pattern": [
+    "SAS",
+    "ACA",
+    "SAS"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:blade_chassis"
+  },
+  "type": "minecraft:crafting_shaped"
+}

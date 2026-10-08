@@ -1,0 +1,29 @@
+{
+  "key": {
+    "B": {
+      "item": "rackcraft:steel_block"
+    },
+    "C": {
+      "item": "rackcraft:cryo_coil"
+    },
+    "D": {
+      "item": "minecraft:diamond"
+    },
+    "P": {
+      "item": "rackcraft:coolant_pipe"
+    },
+    "T": {
+      "item": "minecraft:tinted_glass"
+    }
+  },
+  "pattern": [
+    "BTB",
+    "DCD",
+    "BPB"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:epitaxy_reactor"
+  },
+  "type": "minecraft:crafting_shaped"
+}

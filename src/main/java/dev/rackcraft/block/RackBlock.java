@@ -20,7 +20,7 @@ public class RackBlock extends MachineBlock {
 		/** What a rack's status looks like on its front panel. Busy and empty racks are fine. */
 		public static Health of(RackStatus status) {
 			return switch (status) {
-				case TRIPPED, NO_POWER, NEEDS_CDU, NEEDS_WATER, OVERHEATED, NO_NETWORK -> FAULT;
+				case TRIPPED, NO_POWER, NEEDS_CDU, NEEDS_WATER, OVERHEATED, NO_NETWORK, NEEDS_CRYOSTAT -> FAULT;
 				case THROTTLED, NETWORK_LIMITED -> WARN;
 				default -> OK;
 			};

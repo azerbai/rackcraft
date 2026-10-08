@@ -2926,3 +2926,149 @@ def _tank_face(canvas, base, frame, on):
 
 
 FORMED_FACES["hydrogen_tank"] = _tank_face
+
+
+# ---------------------------------------------------------------- advanced hardware
+
+def item_graphene(base, key):
+    """A sheet of graphene: a dark honeycomb with a sheen across it."""
+    canvas = Canvas()
+    for y in range(2, 14):
+        for x in range(2, 14):
+            canvas.set(x, y, mix(darken(base, 0.2), lighten(base, 0.35), ((x + 13 - y) % 9) / 12))
+    for y in range(2, 14):
+        for x in range(2, 14):
+            row = y // 2
+            if (x + (row % 2) * 2) % 4 == 0 or (y % 2 == 0 and (x + (row % 2) * 2) % 4 in (1, 3)):
+                canvas.set(x, y, lighten(base, 0.55))
+    canvas.frame(2, 2, 13, 13, darken(base, 0.45))
+    canvas.set(4, 3, (235, 240, 245))
+    return canvas
+
+
+def item_chiplet(base, key):
+    """A small die on a green package, the die tinted with its bin's metal."""
+    canvas = Canvas()
+    canvas.rect(3, 3, 12, 12, (52, 96, 64))
+    canvas.bevel(3, 3, 12, 12, (82, 130, 92), (30, 60, 40))
+    for x in range(4, 12, 2):
+        canvas.set(x, 12, GOLD)
+        canvas.set(x, 3, GOLD)
+    canvas.rect(5, 5, 10, 10, darken(base, 0.15))
+    canvas.bevel(5, 5, 10, 10, lighten(base, 0.45), darken(base, 0.45))
+    canvas.set(6, 6, (255, 255, 255))
+    return canvas
+
+
+def item_hbm(base, key):
+    """Four memory dies stacked on an interposer, seen at an angle."""
+    canvas = Canvas()
+    canvas.rect(1, 11, 14, 13, (52, 96, 64))
+    canvas.hline(1, 14, 13, GOLD)
+    for layer in range(4):
+        y = 9 - layer * 2
+        canvas.rect(3 + layer, y, 12 - layer // 2, y + 1, lighten(base, 0.1 * layer))
+        canvas.hline(3 + layer, 12 - layer // 2, y, lighten(base, 0.35 + 0.1 * layer))
+    canvas.set(4, 3, (255, 255, 255))
+    return canvas
+
+
+def item_photonic(base, key):
+    """A chip with light running through waveguides across it."""
+    canvas = item_chip(base, key)
+    glow = (120, 230, 255)
+    canvas.hline(1, 14, 7, glow)
+    canvas.vline(7, 1, 14, darken(glow, 0.25))
+    canvas.line(5, 5, 10, 10, lighten(glow, 0.3))
+    canvas.set(7, 7, (255, 255, 255))
+    return canvas
+
+
+def item_chassis(base, key):
+    """An empty module sled: rails, a back plate and nothing in the middle."""
+    canvas = Canvas()
+    canvas.rect(0, 4, 15, 11, darken(base, 0.55))
+    canvas.hline(0, 15, 4, lighten(base, 0.2))
+    canvas.hline(0, 15, 11, darken(base, 0.2))
+    canvas.vline(0, 4, 11, base)
+    canvas.vline(15, 4, 11, base)
+    for x in (3, 7, 11):
+        canvas.set(x, 7, darken(base, 0.75))
+        canvas.set(x, 8, darken(base, 0.75))
+    canvas.vline(14, 5, 10, STEEL)
+    return canvas
+
+
+def item_fpga(base, key):
+    """A board with a big chip covered in a grid of logic blocks, and a mode switch."""
+    canvas = item_board(base, key)
+    canvas.rect(4, 5, 9, 10, BLACK)
+    for y in range(6, 10, 2):
+        for x in range(5, 9, 2):
+            canvas.set(x, y, LED_BLUE)
+    canvas.set(12, 11, LED_AMBER)
+    return canvas
+
+
+def item_neuro(base, key):
+    """A rounded die with a branching web of neurons firing across it."""
+    canvas = item_orb(base, key)
+    spark = (255, 220, 250)
+    for x0, y0, x1, y1 in ((8, 8, 4, 5), (8, 8, 12, 6), (8, 8, 5, 12), (8, 8, 11, 11)):
+        canvas.line(x0, y0, x1, y1, lighten(base, 0.6))
+        canvas.set(x1, y1, spark)
+    return canvas
+
+
+def item_ptc(base, key):
+    """A liquid-cooled blade with a violet light grid shining through its window."""
+    canvas = item_server(base, key, gpu=True)
+    canvas.rect(3, 5, 12, 10, (24, 20, 52))
+    for y in (6, 8):
+        canvas.hline(3, 12, y, (150, 110, 255))
+    for x in (5, 8, 11):
+        canvas.vline(x, 5, 10, (110, 220, 255))
+    canvas.set(8, 6, (255, 255, 255))
+    return canvas
+
+
+def item_annealer(base, key):
+    """A dilution refrigerator's gold chandelier: stacked plates hung on rods, the chip at the bottom."""
+    canvas = Canvas()
+    for x in (5, 10):
+        canvas.vline(x, 1, 12, STEEL)
+    for y, half in ((2, 6), (5, 5), (8, 4), (11, 3)):
+        canvas.rect(8 - half, y, 7 + half, y + 1, GOLD)
+        canvas.hline(8 - half, 7 + half, y, lighten(GOLD, 0.35))
+    canvas.rect(6, 13, 9, 14, base)
+    canvas.set(7, 13, (200, 240, 255))
+    return canvas
+
+
+ITEM_STYLES.update({"graphene": item_graphene, "chiplet": item_chiplet, "hbm": item_hbm, "photonic": item_photonic,
+                    "chassis": item_chassis, "fpga": item_fpga, "neuro": item_neuro, "ptc": item_ptc,
+                    "annealer": item_annealer})
+
+
+def _cvd_face(canvas, base, frame, on):
+    """A quartz tube furnace glowing orange, a black sheet of graphene growing inside."""
+    heat = mix((230, 110, 40), (255, 190, 90), [0.0, 0.5, 1.0, 0.5][frame]) if on else (90, 70, 60)
+    canvas.rect(2, 5, 13, 10, darken(heat, 0.4))
+    canvas.hline(2, 13, 5, heat)
+    canvas.hline(2, 13, 10, heat)
+    canvas.rect(4, 7, 11, 8, (30, 32, 36))
+    canvas.set(5, 7, (110, 116, 124))
+
+
+def _epitaxy_face(canvas, base, frame, on):
+    """A wafer under a showerhead, a blue-violet crystal layer shining on it."""
+    glow = mix((90, 110, 240), (170, 150, 255), [0.0, 0.5, 1.0, 0.5][frame]) if on else (60, 60, 90)
+    canvas.rect(3, 2, 12, 3, (150, 156, 164))
+    for x in range(4, 12, 2):
+        canvas.set(x, 4, glow if on else (90, 96, 104))
+    canvas.disc(8, 10, 4.5, darken(glow, 0.3))
+    canvas.disc(8, 10, 3.2, glow)
+    canvas.set(7, 9, (255, 255, 255))
+
+
+FORMED_FACES.update({"cvd_furnace": _cvd_face, "epitaxy_reactor": _epitaxy_face})

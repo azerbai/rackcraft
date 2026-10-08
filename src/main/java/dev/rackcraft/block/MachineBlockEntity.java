@@ -32,7 +32,9 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.server.world.ServerWorld;
 
 public final class MachineBlockEntity extends BlockEntity implements net.minecraft.inventory.SidedInventory, ExtendedScreenHandlerFactory {
-	private final DefaultedList<ItemStack> inventory = DefaultedList.ofSize(9, ItemStack.EMPTY);
+	/** Nine slots, or one per bay for racks with more than that. */
+	private final DefaultedList<ItemStack> inventory;
+	private final int[] allSlots;
 	private int loadLimitPercent = 100;
 	private double chargeKws;
 	private boolean tripped;
@@ -127,6 +129,10 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 
 	public MachineBlockEntity(BlockPos pos, BlockState state) {
 		super(RcBlocks.MACHINE_ENTITY, pos, state);
+		ServerModel.Tier tier = ServerModel.Tier.of(Registries.BLOCK.getId(state.getBlock()).getPath());
+		int size = tier == null ? 9 : Math.max(9, tier.bays());
+		inventory = DefaultedList.ofSize(size, ItemStack.EMPTY);
+		allSlots = java.util.stream.IntStream.range(0, size).toArray();
 	}
 
 	@Override
@@ -149,13 +155,13 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 	}
 
 	public static final java.util.Set<String> COOLANT_MACHINES = java.util.Set.of("cooling_tower", "crac_unit", "cdu",
-			"freshwater_pump", "server_rack", "modular_reactor", "rear_door_cooler", "dry_cooler", "chiller", "water_heat_exchanger",
+			"freshwater_pump", "server_rack", "high_density_rack", "immersion_rack", "exascale_cabinet", "modular_reactor", "rear_door_cooler", "dry_cooler", "chiller", "water_heat_exchanger",
 			"desalination_plant", "heat_recovery_plant");
 	/** Machines an Item Pipe feeds from storage (and empties into it): storage itself, the training stations and generators. */
 	public static final java.util.Set<String> ITEM_MACHINES = java.util.Set.of("storage_array", "tape_library", "art_table",
 			"writing_desk", "diesel_generator", "modular_reactor", "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer", "wafer_fab", "silicon_foundry", "ewaste_recycler",
 			"electrolyser", "assembly_arm", "drone_dock", "launch_control", "belt_loader", "belt_unloader", "site_planner", "storage_exporter", "storage_link",
-			"hydrogen_tank", "auto_buyer");
+			"hydrogen_tank", "auto_buyer", "cryostat", "cvd_furnace", "epitaxy_reactor");
 
 	public static java.util.Set<NetKind> networkKinds(String id) {
 		java.util.EnumSet<NetKind> kinds = java.util.EnumSet.noneOf(NetKind.class);
@@ -164,13 +170,13 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 				"facility_controller", "cdu", "modular_reactor", "freshwater_pump", "smog_scrubber",
 				"rear_door_cooler", "dry_cooler", "chiller", "water_heat_exchanger", "desalination_plant", "grid_substation",
 				"welding_arm", "riveting_arm", "assembly_arm", "drone_dock", "launch_control", "rectenna",
-				"solar_array", "solar_array_tracking", "wind_nacelle", "tower_section", "site_planner")
-				.contains(id)) kinds.add(NetKind.POWER);
+				"solar_array", "solar_array_tracking", "wind_nacelle", "tower_section", "site_planner", "cryostat")
+				.contains(id) || ServerModel.Tier.isRack(id)) kinds.add(NetKind.POWER);
 		// The coolant loop: racks (liquid-cooled modules) and reactors put heat in; towers, coolers and chillers take it out.
 		if (COOLANT_MACHINES.contains(id)) kinds.add(NetKind.COOLANT);
 		if (ITEM_MACHINES.contains(id)) kinds.add(NetKind.ITEM);
-		if (List.of("server_rack", "uplink_router", "core_router", "facility_controller",
-				"monitoring_wall", "creative_router").contains(id)) kinds.add(NetKind.DATA);
+		if (List.of("uplink_router", "core_router", "facility_controller",
+				"monitoring_wall", "creative_router").contains(id) || ServerModel.Tier.isRack(id)) kinds.add(NetKind.DATA);
 		if (List.of("creative_power", "creative_rack").contains(id)) kinds.add(NetKind.POWER);
 		if (List.of("storage_array", "tape_library", "wireless_transmitter", "storage_link", "auto_buyer").contains(id)) kinds.add(NetKind.POWER);
 		if (dev.rackcraft.world.NuclearProcessing.recipe(id) != null) kinds.add(NetKind.POWER);
@@ -213,10 +219,8 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 		markDirty();
 	}
 
-	private static final int[] ALL_SLOTS = {0, 1, 2, 3, 4, 5, 6, 7, 8};
-
 	@Override
-	public int[] getAvailableSlots(net.minecraft.util.math.Direction side) { return ALL_SLOTS; }
+	public int[] getAvailableSlots(net.minecraft.util.math.Direction side) { return allSlots; }
 
 	@Override
 	public boolean canInsert(int slot, ItemStack stack, net.minecraft.util.math.Direction side) { return isValid(slot, stack); }
@@ -247,10 +251,13 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 	@Override
 	public boolean isValid(int slot, ItemStack stack) {
 		String blockId = Registries.BLOCK.getId(getCachedState().getBlock()).getPath();
-		if (blockId.equals("server_rack")) {
-			// Eight bays, one module each: GPU Blades and Quantum Cores fill a bay like anything else.
-			return slot < ServerModel.BAYS && ServerModel.Module.byItemId(Registries.ITEM.getId(stack.getItem()).getPath()) != null;
+		ServerModel.Tier tier = ServerModel.Tier.of(blockId);
+		if (tier != null) {
+			// One module a bay: GPU Blades and Quantum Cores fill a bay like anything else. An Exascale Cabinet turns
+			// away starter hardware.
+			return slot < tier.bays() && tier.accepts(Racks.module(stack));
 		}
+		if (blockId.equals("cryostat")) return slot == 0 && stack.isOf(dev.rackcraft.RcItems.ITEMS.get("hydrogen_canister"));
 		if (blockId.equals("diesel_generator")) return slot == 0;
 		if (blockId.equals("modular_reactor")) return slot == 0 && stack.isOf(dev.rackcraft.RcItems.ITEMS.get("fuel_cell"));
 		dev.rackcraft.world.NuclearProcessing.Recipe recipe = dev.rackcraft.world.NuclearProcessing.recipe(blockId);
@@ -294,8 +301,7 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 	public List<ServerModel.Module> modules() {
 		java.util.ArrayList<ServerModel.Module> modules = new java.util.ArrayList<>();
 		for (ItemStack stack : inventory) {
-			if (stack.isEmpty()) continue;
-			ServerModel.Module module = ServerModel.Module.byItemId(Registries.ITEM.getId(stack.getItem()).getPath());
+			ServerModel.Module module = Racks.module(stack);
 			if (module != null) modules.add(module);
 		}
 		return List.copyOf(modules);
@@ -517,11 +523,13 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 	public ScreenHandler createMenu(int syncId, PlayerInventory playerInventory, PlayerEntity player) {
 		String id = blockId();
 		MachineScreenHandler.Mode mode = switch (id) {
-			case "server_rack" -> MachineScreenHandler.Mode.RACK;
+			case "server_rack", "high_density_rack", "immersion_rack", "exascale_cabinet" -> MachineScreenHandler.Mode.RACK;
 			case "diesel_generator", "fire_suppression_tank" -> MachineScreenHandler.Mode.SINGLE_SLOT;
 			case "modular_reactor" -> MachineScreenHandler.Mode.REACTOR;
-			case "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer", "wafer_fab", "silicon_foundry", "ewaste_recycler", "electrolyser" -> MachineScreenHandler.Mode.PROCESSOR;
-			case "welding_arm", "riveting_arm", "assembly_arm", "drone_dock", "belt_loader", "belt_unloader", "storage_exporter", "hydrogen_tank" -> MachineScreenHandler.Mode.WORKCELL;
+			case "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer", "wafer_fab", "silicon_foundry", "ewaste_recycler", "electrolyser",
+					"cvd_furnace", "epitaxy_reactor" -> MachineScreenHandler.Mode.PROCESSOR;
+			case "welding_arm", "riveting_arm", "assembly_arm", "drone_dock", "belt_loader", "belt_unloader", "storage_exporter", "hydrogen_tank",
+					"cryostat" -> MachineScreenHandler.Mode.WORKCELL;
 			case "launch_control" -> MachineScreenHandler.Mode.LAUNCH;
 			case "site_planner" -> MachineScreenHandler.Mode.SITE;
 			case "crypto_exchange" -> MachineScreenHandler.Mode.EXCHANGE;

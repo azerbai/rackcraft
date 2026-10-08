@@ -16,7 +16,8 @@ import net.minecraft.registry.Registry;
 public final class RcItems {
 	private static final Set<String> SINGLE_STACK = Set.of(
 			"pi_node", "server_1u", "asic_miner", "gpu_blade", "quantum_core", "tensor_accelerator", "crafting_coprocessor",
-			"crafting_accelerator", "wafer_scale_engine", "agi_weights", "failed_module", "thermal_scanner", "field_manual");
+			"crafting_accelerator", "wafer_scale_engine", "agi_weights", "failed_module", "thermal_scanner", "field_manual",
+			"fpga_module", "npu_card", "neuromorphic_core", "photonic_tensor_core", "quantum_annealer");
 	public static final Map<String, Item> ITEMS = new LinkedHashMap<>();
 
 	private RcItems() {}
@@ -52,7 +53,9 @@ public final class RcItems {
 					@Override
 					public boolean hasGlint(net.minecraft.item.ItemStack stack) { return true; }
 				};
-				case "wafer_scale_engine" -> new Item(settings.rarity(net.minecraft.util.Rarity.RARE));
+				case "wafer_scale_engine", "neuromorphic_core", "npu_card", "chiplet_gold" -> new Item(settings.rarity(net.minecraft.util.Rarity.RARE));
+				case "photonic_tensor_core", "quantum_annealer" -> new Item(settings.rarity(net.minecraft.util.Rarity.EPIC));
+				case "fpga_module" -> new dev.rackcraft.item.FpgaItem(settings);
 				case "drive_1k", "drive_4k", "drive_16k", "drive_64k", "tape_cartridge" -> new dev.rackcraft.storage.DriveItem(settings,
 						ContentIds.DRIVE_CAPACITY.get(id), id.equals("tape_cartridge"));
 				default -> new Item(settings);

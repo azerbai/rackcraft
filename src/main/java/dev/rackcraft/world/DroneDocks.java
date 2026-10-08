@@ -5,7 +5,6 @@ import dev.rackcraft.block.CableBlock;
 import dev.rackcraft.block.MachineBlockEntity;
 import dev.rackcraft.entity.MaintenanceDroneEntity;
 import dev.rackcraft.sim.NetKind;
-import dev.rackcraft.sim.ServerModel;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -91,7 +90,7 @@ public final class DroneDocks {
 	}
 
 	private static boolean isModule(ItemStack stack) {
-		return !stack.isEmpty() && ServerModel.Module.byItemId(Registries.ITEM.getId(stack.getItem()).getPath()) != null;
+		return dev.rackcraft.block.Racks.module(stack) != null;
 	}
 
 	public static void step(ServerWorld world, List<MachineBlockEntity> machines, Map<MachineBlockEntity, Double> satisfaction) {
@@ -151,8 +150,8 @@ public final class DroneDocks {
 		for (MachineBlockEntity machine : machines) {
 			BlockPos pos = machine.getPos();
 			if (!inRange(dock, pos) || claimed.contains(pos)) continue;
-			if (machine.blockId().equals("server_rack")) {
-				for (int slot = 0; slot < ServerModel.BAYS; slot++) {
+			if (dev.rackcraft.block.Racks.isRack(machine)) {
+				for (int slot = 0; slot < dev.rackcraft.block.Racks.bays(machine); slot++) {
 					if (machine.getStack(slot).isOf(failed)) {
 						tasks.add(new Task(Job.SWAP, pos, slot));
 						break;
@@ -241,10 +240,11 @@ public final class DroneDocks {
 		boolean done = false;
 		switch (drone.job()) {
 			case SWAP -> {
-				if (world.getBlockEntity(target) instanceof MachineBlockEntity rack && rack.blockId().equals("server_rack") && isModule(carried)) {
+				if (world.getBlockEntity(target) instanceof MachineBlockEntity rack && dev.rackcraft.block.Racks.isRack(rack) && isModule(carried)
+						&& rack.isValid(drone.slot(), carried)) {
 					Item failed = RcItems.ITEMS.get("failed_module");
 					int slot = rack.getStack(drone.slot()).isOf(failed) ? drone.slot() : -1;
-					for (int index = 0; slot < 0 && index < ServerModel.BAYS; index++) if (rack.getStack(index).isOf(failed)) slot = index;
+					for (int index = 0; slot < 0 && index < dev.rackcraft.block.Racks.bays(rack); index++) if (rack.getStack(index).isOf(failed)) slot = index;
 					if (slot >= 0) {
 						ItemStack dead = rack.getStack(slot);
 						rack.setStack(slot, carried);

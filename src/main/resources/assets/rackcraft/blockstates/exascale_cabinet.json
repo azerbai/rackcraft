@@ -1,0 +1,100 @@
+{
+  "variants": {
+    "facing=east,lit=false,health=fault": {
+      "model": "rackcraft:block/exascale_cabinet_fault",
+      "y": 90
+    },
+    "facing=east,lit=false,health=ok": {
+      "model": "rackcraft:block/exascale_cabinet",
+      "y": 90
+    },
+    "facing=east,lit=false,health=warn": {
+      "model": "rackcraft:block/exascale_cabinet_warn",
+      "y": 90
+    },
+    "facing=east,lit=true,health=fault": {
+      "model": "rackcraft:block/exascale_cabinet_fault",
+      "y": 90
+    },
+    "facing=east,lit=true,health=ok": {
+      "model": "rackcraft:block/exascale_cabinet_on",
+      "y": 90
+    },
+    "facing=east,lit=true,health=warn": {
+      "model": "rackcraft:block/exascale_cabinet_warn",
+      "y": 90
+    },
+    "facing=north,lit=false,health=fault": {
+      "model": "rackcraft:block/exascale_cabinet_fault",
+      "y": 0
+    },
+    "facing=north,lit=false,health=ok": {
+      "model": "rackcraft:block/exascale_cabinet",
+      "y": 0
+    },
+    "facing=north,lit=false,health=warn": {
+      "model": "rackcraft:block/exascale_cabinet_warn",
+      "y": 0
+    },
+    "facing=north,lit=true,health=fault": {
+      "model": "rackcraft:block/exascale_cabinet_fault",
+      "y": 0
+    },
+    "facing=north,lit=true,health=ok": {
+      "model": "rackcraft:block/exascale_cabinet_on",
+      "y": 0
+    },
+    "facing=north,lit=true,health=warn": {
+      "model": "rackcraft:block/exascale_cabinet_warn",
+      "y": 0
+    },
+    "facing=south,lit=false,health=fault": {
+      "model": "rackcraft:block/exascale_cabinet_fault",
+      "y": 180
+    },
+    "facing=south,lit=false,health=ok": {
+      "model": "rackcraft:block/exascale_cabinet",
+      "y": 180
+    },
+    "facing=south,lit=false,health=warn": {
+      "model": "rackcraft:block/exascale_cabinet_warn",
+      "y": 180
+    },
+    "facing=south,lit=true,health=fault": {
+      "model": "rackcraft:block/exascale_cabinet_fault",
+      "y": 180
+    },
+    "facing=south,lit=true,health=ok": {
+      "model": "rackcraft:block/exascale_cabinet_on",
+      "y": 180
+    },
+    "facing=south,lit=true,health=warn": {
+      "model": "rackcraft:block/exascale_cabinet_warn",
+      "y": 180
+    },
+    "facing=west,lit=false,health=fault": {
+      "model": "rackcraft:block/exascale_cabinet_fault",
+      "y": 270
+    },
+    "facing=west,lit=false,health=ok": {
+      "model": "rackcraft:block/exascale_cabinet",
+      "y": 270
+    },
+    "facing=west,lit=false,health=warn": {
+      "model": "rackcraft:block/exascale_cabinet_warn",
+      "y": 270
+    },
+    "facing=west,lit=true,health=fault": {
+      "model": "rackcraft:block/exascale_cabinet_fault",
+      "y": 270
+    },
+    "facing=west,lit=true,health=ok": {
+      "model": "rackcraft:block/exascale_cabinet_on",
+      "y": 270
+    },
+    "facing=west,lit=true,health=warn": {
+      "model": "rackcraft:block/exascale_cabinet_warn",
+      "y": 270
+    }
+  }
+}

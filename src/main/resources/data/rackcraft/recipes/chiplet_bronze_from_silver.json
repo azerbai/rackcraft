@@ -1,0 +1,12 @@
+{
+  "ingredients": [
+    {
+      "item": "rackcraft:chiplet_silver"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:chiplet_bronze"
+  },
+  "type": "minecraft:crafting_shapeless"
+}

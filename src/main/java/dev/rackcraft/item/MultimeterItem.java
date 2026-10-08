@@ -4,7 +4,6 @@ import dev.rackcraft.block.CableBlock;
 import dev.rackcraft.block.MachineBlock;
 import dev.rackcraft.block.MachineBlockEntity;
 import dev.rackcraft.sim.NetKind;
-import dev.rackcraft.sim.ServerModel;
 import dev.rackcraft.world.NetworkManager;
 import java.util.ArrayList;
 import java.util.List;
@@ -60,7 +59,7 @@ public final class MultimeterItem extends Item {
 		List<Text> lines = new ArrayList<>();
 		lines.add(header(Text.translatable("block.rackcraft." + machine.blockId())));
 		switch (machine.blockId()) {
-			case "server_rack" -> {
+			case "server_rack", "high_density_rack", "immersion_rack", "exascale_cabinet" -> {
 				lines.add(row("Status", Text.translatable(machine.rackStatus().translationKey(), format(machine.miningRate())),
 						machine.rackStatus().mining() ? Formatting.GREEN : Formatting.RED));
 				lines.add(row("Intake / exhaust", Text.literal(format(machine.inletCelsius()) + " C / "
@@ -175,9 +174,7 @@ public final class MultimeterItem extends Item {
 			if (entity.blockId().equals("uplink_router")) bandwidth += 100;
 			if (entity.blockId().equals("core_router")) bandwidth += 1000;
 			if (entity.blockId().equals("creative_router")) bandwidth += entity.creativeValue(dev.rackcraft.CreativeSettings.BANDWIDTH);
-			if (entity.blockId().equals("server_rack")) {
-				demand += entity.modules().stream().mapToDouble(ServerModel.Module::creditsPerSecond).sum();
-			}
+			if (dev.rackcraft.block.Racks.isRack(entity)) demand += dev.rackcraft.block.Racks.bandwidthNeed(entity);
 		}
 		return row("Fiber bandwidth", Text.literal(format(bandwidth) + " available, " + format(demand) + " needed"),
 				bandwidth <= 0 ? Formatting.RED : bandwidth < demand ? Formatting.GOLD : Formatting.GREEN);

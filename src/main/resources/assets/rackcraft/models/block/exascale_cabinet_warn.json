@@ -1,0 +1,51 @@
+{
+  "elements": [
+    {
+      "faces": {
+        "down": {
+          "cullface": "down",
+          "texture": "#bottom"
+        },
+        "east": {
+          "cullface": "east",
+          "texture": "#side"
+        },
+        "north": {
+          "cullface": "north",
+          "texture": "#front"
+        },
+        "south": {
+          "cullface": "south",
+          "texture": "#back"
+        },
+        "up": {
+          "cullface": "up",
+          "texture": "#top"
+        },
+        "west": {
+          "cullface": "west",
+          "texture": "#side"
+        }
+      },
+      "from": [
+        0,
+        0,
+        0
+      ],
+      "to": [
+        16,
+        16,
+        16
+      ]
+    }
+  ],
+  "parent": "minecraft:block/block",
+  "textures": {
+    "back": "rackcraft:block/exascale_cabinet_back",
+    "bottom": "rackcraft:block/exascale_cabinet_bottom",
+    "front": "rackcraft:block/exascale_cabinet_front_warn",
+    "particle": "rackcraft:block/exascale_cabinet_side",
+    "side": "rackcraft:block/exascale_cabinet_side",
+    "top": "rackcraft:block/exascale_cabinet_top"
+  }
+}

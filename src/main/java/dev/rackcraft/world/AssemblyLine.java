@@ -56,8 +56,8 @@ public final class AssemblyLine {
 		}
 	}
 
-	/** What an arm is doing, for its screen and the fault finder. */
-	public enum Status { WORKING, WAITING, NO_PARTS, NO_POWER, NO_BELT, LOW_POWER }
+	/** What an arm is doing, for its screen and the fault finder. LOCKED: it could do the step, but not before research. */
+	public enum Status { WORKING, WAITING, NO_PARTS, NO_POWER, NO_BELT, LOW_POWER, LOCKED }
 
 	public record Step(Kind kind, Item part, int count) {
 		public String describe() {
@@ -65,7 +65,37 @@ public final class AssemblyLine {
 		}
 	}
 
-	public record Recipe(String id, Item base, List<Step> steps, Item product) {}
+	/**
+	 * @param count    how many of the product it makes
+	 * @param binned   a wafer diced into chiplets: the product is the bin the wafer rolls (see {@link #roll})
+	 * @param research the project that must be finished before arms will start it, or null
+	 */
+	public record Recipe(String id, Item base, List<Step> steps, Item product, int count, boolean binned, String research) {
+		public Recipe(String id, Item base, List<Step> steps, Item product) {
+			this(id, base, steps, product, 1, false, null);
+		}
+
+		public Recipe(String id, Item base, List<Step> steps, Item product, String research) {
+			this(id, base, steps, product, 1, false, research);
+		}
+	}
+
+	/** Chiplets a diced wafer makes. */
+	public static final int DIES_PER_WAFER = 8;
+	/** Percent of wafers that bin silver, and gold; the rest are bronze. */
+	public static final int SILVER_PERCENT = 30;
+	public static final int GOLD_PERCENT = 10;
+
+	/** The silicon lottery: a whole wafer bins as one. */
+	public static Item roll(net.minecraft.util.math.random.Random random) {
+		int roll = random.nextInt(100);
+		return item(roll < GOLD_PERCENT ? "chiplet_gold" : roll < GOLD_PERCENT + SILVER_PERCENT ? "chiplet_silver" : "chiplet_bronze");
+	}
+
+	/** Whether this world has done the research the recipe needs. */
+	public static boolean unlocked(net.minecraft.world.World world, Recipe recipe) {
+		return recipe.research() == null || world instanceof ServerWorld server && dev.rackcraft.compute.ResearchLab.get(server).done(recipe.research());
+	}
 
 	private AssemblyLine() {}
 
@@ -133,7 +163,79 @@ public final class AssemblyLine {
 				new Recipe("dyson_mirror", item("satellite_bus"), List.of(
 						new Step(Kind.INSTALL, dev.rackcraft.RcBlocks.get("solar_panel").asItem(), 16),
 						new Step(Kind.WELD, null, 0),
-						new Step(Kind.RIVET, null, 0)), item("dyson_mirror")));
+						new Step(Kind.RIVET, null, 0)), item("dyson_mirror")),
+				// Advanced materials.
+				new Recipe("superconducting_wire", item("cryo_coil"), List.of(
+						new Step(Kind.INSTALL, item("copper_wire"), 8),
+						new Step(Kind.INSTALL, item("hydrogen_canister"), 2),
+						new Step(Kind.WELD, null, 0),
+						new Step(Kind.RIVET, null, 0)), item("superconducting_wire"), "advanced_materials"),
+				// Chips. A Wafer-Scale Engine is a whole wafer: dicing it makes eight chiplets, all of one bin.
+				new Recipe("chiplets", item("wafer_scale_engine"), List.of(
+						new Step(Kind.WELD, null, 0),
+						new Step(Kind.INSTALL, item("graphene_sheet"), 2),
+						new Step(Kind.RIVET, null, 0)), item("chiplet_bronze"), DIES_PER_WAFER, true, "advanced_packaging"),
+				new Recipe("hbm_stack", item("ram_module"), List.of(
+						new Step(Kind.INSTALL, item("ram_module"), 3),
+						new Step(Kind.INSTALL, item("chiplet_bronze"), 1),
+						new Step(Kind.INSTALL, item("graphene_sheet"), 1),
+						new Step(Kind.RIVET, null, 0)), item("hbm_stack"), "advanced_packaging"),
+				new Recipe("photonic_chip", item("gallium_nitride"), List.of(
+						new Step(Kind.INSTALL, item("chiplet_silver"), 1),
+						new Step(Kind.INSTALL, dev.rackcraft.RcBlocks.get("fiber_cable").asItem(), 4),
+						new Step(Kind.WELD, null, 0),
+						new Step(Kind.RIVET, null, 0)), item("photonic_chip"), "silicon_photonics"),
+				// Modules share the Blade Chassis; the first part fitted decides which one it becomes.
+				new Recipe("fpga_module", item("blade_chassis"), List.of(
+						new Step(Kind.INSTALL, item("gpu_chip"), 2),
+						new Step(Kind.INSTALL, item("graphene_sheet"), 2),
+						new Step(Kind.INSTALL, item("ram_module"), 2),
+						new Step(Kind.WELD, null, 0),
+						new Step(Kind.RIVET, null, 0)), item("fpga_module"), "advanced_materials"),
+				new Recipe("npu_card", item("blade_chassis"), List.of(
+						new Step(Kind.INSTALL, item("chiplet_bronze"), 4),
+						new Step(Kind.INSTALL, item("hbm_stack"), 1),
+						new Step(Kind.INSTALL, item("circuit_board"), 2),
+						new Step(Kind.RIVET, null, 0)), item("npu_card"), "advanced_packaging"),
+				new Recipe("neuromorphic_core", item("blade_chassis"), List.of(
+						new Step(Kind.INSTALL, item("chiplet_silver"), 2),
+						new Step(Kind.INSTALL, item("hbm_stack"), 1),
+						new Step(Kind.INSTALL, item("graphene_sheet"), 2),
+						new Step(Kind.WELD, null, 0),
+						new Step(Kind.RIVET, null, 0)), item("neuromorphic_core"), "advanced_packaging"),
+				new Recipe("photonic_tensor_core", item("blade_chassis"), List.of(
+						new Step(Kind.INSTALL, item("chiplet_gold"), 2),
+						new Step(Kind.INSTALL, item("photonic_chip"), 4),
+						new Step(Kind.INSTALL, item("hbm_stack"), 2),
+						new Step(Kind.WELD, null, 0),
+						new Step(Kind.RIVET, null, 0)), item("photonic_tensor_core"), "silicon_photonics"),
+				new Recipe("quantum_annealer", item("blade_chassis"), List.of(
+						new Step(Kind.INSTALL, item("superconducting_wire"), 4),
+						new Step(Kind.INSTALL, item("chiplet_gold"), 1),
+						new Step(Kind.INSTALL, item("cryo_coil"), 4),
+						new Step(Kind.INSTALL, item("hbm_stack"), 1),
+						new Step(Kind.WELD, null, 0),
+						new Step(Kind.RIVET, null, 0)), item("quantum_annealer"), "quantum_annealing"),
+				// Rack tiers: each is built from the one below.
+				new Recipe("high_density_rack", dev.rackcraft.RcBlocks.get("server_rack").asItem(), List.of(
+						new Step(Kind.INSTALL, item("cryo_coil"), 2),
+						new Step(Kind.INSTALL, dev.rackcraft.RcBlocks.get("cdu").asItem(), 1),
+						new Step(Kind.INSTALL, dev.rackcraft.RcBlocks.get("rear_door_cooler").asItem(), 1),
+						new Step(Kind.WELD, null, 0),
+						new Step(Kind.RIVET, null, 0)), dev.rackcraft.RcBlocks.get("high_density_rack").asItem(), "dense_racks"),
+				new Recipe("immersion_rack", dev.rackcraft.RcBlocks.get("high_density_rack").asItem(), List.of(
+						new Step(Kind.INSTALL, dev.rackcraft.RcBlocks.get("cdu").asItem(), 2),
+						new Step(Kind.INSTALL, dev.rackcraft.RcBlocks.get("coolant_pipe").asItem(), 8),
+						new Step(Kind.INSTALL, item("graphene_sheet"), 4),
+						new Step(Kind.WELD, null, 0),
+						new Step(Kind.RIVET, null, 0)), dev.rackcraft.RcBlocks.get("immersion_rack").asItem(), "immersion_cooling"),
+				new Recipe("exascale_cabinet", dev.rackcraft.RcBlocks.get("immersion_rack").asItem(), List.of(
+						new Step(Kind.INSTALL, item("photonic_chip"), 8),
+						new Step(Kind.INSTALL, item("superconducting_wire"), 4),
+						new Step(Kind.INSTALL, dev.rackcraft.RcBlocks.get("core_router").asItem(), 1),
+						new Step(Kind.WELD, null, 0),
+						new Step(Kind.INSTALL, item("hbm_stack"), 4),
+						new Step(Kind.RIVET, null, 0)), dev.rackcraft.RcBlocks.get("exascale_cabinet").asItem(), "exascale"));
 	}
 
 	private static Item item(String id) {
@@ -161,14 +263,30 @@ public final class AssemblyLine {
 
 	/** The recipe this arm would build the workpiece to: its settled one, or the first branch the arm can start. */
 	private static Recipe recipeFor(MachineBlockEntity arm, ItemStack stack) {
+		Recipe recipe = doable(arm, stack);
+		return recipe != null && unlocked(arm.getWorld(), recipe) ? recipe : null;
+	}
+
+	/** Like {@link #recipeFor}, but whether or not the research is done. */
+	private static Recipe doable(MachineBlockEntity arm, ItemStack stack) {
 		Kind kind = kind(arm.blockId());
 		int done = stepsDone(stack);
+		Recipe locked = null;
 		for (Recipe recipe : candidates(stack)) {
 			if (done >= recipe.steps().size()) continue;
 			Step step = recipe.steps().get(done);
-			if (step.kind() == kind && (step.part() == null || parts(arm, step.part()) >= step.count())) return recipe;
+			if (step.kind() == kind && (step.part() == null || parts(arm, step.part()) >= step.count())) {
+				if (unlocked(arm.getWorld(), recipe)) return recipe;
+				if (locked == null) locked = recipe;
+			}
 		}
-		return null;
+		return locked;
+	}
+
+	/** The research this arm is waiting on to work this item, or null if none (or it can't work it at all). */
+	public static String lockedBy(MachineBlockEntity arm, ItemStack stack) {
+		Recipe recipe = doable(arm, stack);
+		return recipe == null || unlocked(arm.getWorld(), recipe) ? null : recipe.research();
 	}
 
 	public static int stepsDone(ItemStack stack) {
@@ -252,6 +370,7 @@ public final class AssemblyLine {
 				Step next = nextStep(belt.stack());
 				boolean ours = next != null && next.kind() == kind;
 				status = kind == Kind.INSTALL && arm.isEmpty() ? Status.NO_PARTS
+						: facesBelt(arm, beltPos) && lockedBy(arm, belt.stack()) != null ? Status.LOCKED
 						: ours && power < MIN_POWER ? Status.NO_POWER : Status.WAITING;
 				arm.setWorkProgress(0);
 			} else if (power < MIN_POWER) {
@@ -279,7 +398,7 @@ public final class AssemblyLine {
 		if (step.part() != null) useParts(arm, step.part(), step.count());
 		int done = stepsDone(stack) + 1;
 		if (done >= recipe.steps().size()) {
-			stack = new ItemStack(recipe.product());
+			stack = new ItemStack(recipe.binned() ? roll(world.random) : recipe.product(), recipe.count());
 			world.playSound(null, belt.getPos(), SoundEvents.BLOCK_ANVIL_USE, SoundCategory.BLOCKS, 0.4f, 1.6f);
 		} else {
 			stack.getOrCreateNbt().putInt(STEPS_KEY, done);

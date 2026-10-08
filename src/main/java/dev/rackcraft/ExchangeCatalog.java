@@ -51,7 +51,7 @@ public final class ExchangeCatalog {
 			"pi_node", "server_1u", "gpu_blade", "asic_miner", "quantum_core", "tensor_accelerator", "crafting_coprocessor",
 			"crafting_accelerator", "thermal_scanner", "multimeter", "repair_kit", "drive_1k", "drive_4k", "drive_16k", "drive_64k",
 			"tape_cartridge", "wireless_terminal", "electric_motor", "drone_frame", "stage_frame", "satellite_bus", "solar_array_frame",
-			"nacelle_frame", "tower_frame", "heavy_drone_frame");
+			"nacelle_frame", "tower_frame", "heavy_drone_frame", "blade_chassis");
 	private static final Set<String> EXCLUDED = Set.of(
 			"air", "bedrock", "spawner", "end_portal_frame", "budding_amethyst", "reinforced_deepslate",
 			"petrified_oak_slab", "farmland", "dirt_path", "frogspawn", "light", "barrier", "structure_void",
@@ -62,7 +62,10 @@ public final class ExchangeCatalog {
 			"art_aggregate", "text_corpus", "generated_image", "generated_document", "spent_fuel", "waste_cask",
 			"wafer_scale_engine", "agi_weights",
 			// Hydrogen and drones are what spare power is for: buying them with RackCoin would skip the point.
-			"hydrogen_canister", "maintenance_drone");
+			"hydrogen_canister", "maintenance_drone",
+			// Advanced hardware is made, not bought: its materials come out of research-locked cubes, its chips off the
+			// Assembly Line (which nothing here sells anyway), and the Cryostat is built from Superconducting Wire.
+			"graphene_sheet", "gallium_nitride", "chiplet_bronze", "chiplet_silver", "chiplet_gold", "cryostat");
 
 	private static volatile Map<Item, Long> prices = Map.of();
 

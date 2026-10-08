@@ -69,7 +69,7 @@ public final class FaultFinder {
 				continue;
 			}
 			switch (machine.blockId()) {
-				case "server_rack" -> {
+				case "server_rack", "high_density_rack", "immersion_rack", "exascale_cabinet" -> {
 					RackBlock.Health health = RackBlock.Health.of(machine.rackStatus());
 					if (health != RackBlock.Health.OK) {
 						faults.add(new Fault(pos, health == RackBlock.Health.FAULT ? 2 : 1, "Rack: " + describe(machine.rackStatus())));
@@ -100,12 +100,13 @@ public final class FaultFinder {
 					}
 				}
 				case "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer", "wafer_fab", "silicon_foundry", "ewaste_recycler",
-						"electrolyser" -> {
+						"electrolyser", "cvd_furnace", "epitaxy_reactor" -> {
 					int status = machine.processStatus();
 					if (status == NuclearProcessing.Status.NOT_FORMED.ordinal()) faults.add(new Fault(pos, 1, notWhole(machine)));
 					else if (status == NuclearProcessing.Status.NO_POWER.ordinal()) faults.add(new Fault(pos, 2, "Multiblock: no power"));
 					else if (status == NuclearProcessing.Status.OUTPUT_FULL.ordinal()) faults.add(new Fault(pos, 1, "Multiblock: output full"));
-					else if (status == NuclearProcessing.Status.LOCKED.ordinal()) faults.add(new Fault(pos, 1, "Wafer Fab: needs EUV Lithography research"));
+					else if (status == NuclearProcessing.Status.LOCKED.ordinal()) faults.add(new Fault(pos, 1, "Multiblock: needs "
+							+ dev.rackcraft.compute.Research.get(NuclearProcessing.research(machine.blockId())).name() + " research"));
 					else if (status == NuclearProcessing.Status.LOW_POWER.ordinal()) faults.add(new Fault(pos, 1, "Multiblock: short of power, running slowly"));
 					else if (status == NuclearProcessing.Status.NO_WATER.ordinal()) faults.add(new Fault(pos, 2, "Electrolyser: not touching water"));
 				}
@@ -115,6 +116,7 @@ public final class FaultFinder {
 					else if (status == AssemblyLine.Status.NO_PARTS.ordinal()) faults.add(new Fault(pos, 2, "Robot: no parts loaded"));
 					else if (status == AssemblyLine.Status.NO_POWER.ordinal()) faults.add(new Fault(pos, 2, "Robot: no power"));
 					else if (status == AssemblyLine.Status.LOW_POWER.ordinal()) faults.add(new Fault(pos, 1, "Robot: short of power, working slowly"));
+					else if (status == AssemblyLine.Status.LOCKED.ordinal()) faults.add(new Fault(pos, 1, "Robot: needs research first"));
 				}
 				case "wind_nacelle" -> {
 					int status = machine.processStatus();
@@ -194,6 +196,7 @@ public final class FaultFinder {
 			case TRIPPED -> "breaker tripped";
 			case NO_POWER -> "no power";
 			case NEEDS_CDU -> "needs a CDU";
+			case NEEDS_CRYOSTAT -> "needs a cold Cryostat";
 			case NEEDS_WATER -> "needs liquid cooling";
 			case OVERHEATED -> "overheated";
 			case NO_NETWORK -> "offline";

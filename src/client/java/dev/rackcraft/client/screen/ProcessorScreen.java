@@ -30,7 +30,10 @@ public final class ProcessorScreen extends RackcraftHandledScreen {
 			case 1, 5, 6 -> WARN;
 			default -> BAD;
 		};
-		String headline = state == 1 ? dev.rackcraft.world.ReactorArrays.notFormed(stat(Stat.LOCKED_CUBE)) : STATES[state];
+		String needs = dev.rackcraft.world.NuclearProcessing.research(blockId());
+		String headline = state == 1 ? dev.rackcraft.world.ReactorArrays.notFormed(stat(Stat.LOCKED_CUBE))
+				: state == 5 && needs != null ? "Locked: needs " + dev.rackcraft.compute.Research.get(needs).name() + " research"
+				: STATES[state];
 		wrappedClamped(context, Text.literal(headline), 8, 30, 160, 1, color);
 		int edge = Math.max(1, stat(Stat.ARRAY_EDGE));
 		line(context, edge > 1 ? "Array " + edge + "x" + edge + "x" + edge + ": " + edge * edge * edge + " cores, " + kw(stat(Stat.POWER))
@@ -62,6 +65,8 @@ public final class ProcessorScreen extends RackcraftHandledScreen {
 			case "silicon_foundry" -> "2 Quartz + 4 Sand -> 8 Silicon. 20 s per batch per core, 40 kW.";
 			case "ewaste_recycler" -> "Failed Module -> 3 Silicon + Copper Wire. 15 s per batch per core, 10 kW.";
 			case "electrolyser" -> "Aluminium Ingot + water -> Hydrogen Canister. 30 s per batch per core, 4,000 kW.";
+			case "cvd_furnace" -> "4 Coke + Hydrogen Canister -> 2 Graphene Sheets. 60 s per batch per core, 150 kW.";
+			case "epitaxy_reactor" -> "8 Raw Bauxite + Hydrogen Canister -> Gallium Nitride. 90 s per batch per core, 250 kW.";
 			default -> "";
 		};
 	}

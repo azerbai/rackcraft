@@ -135,6 +135,7 @@ public final class ItemPipes {
 			case "belt_unloader" -> {
 				for (int slot = 0; slot < machine.size(); slot++) store(machine, slot, items);
 			}
+			case "cryostat" -> stock(machine, 0, ItemKey.of(RcItems.ITEMS.get("hydrogen_canister")), Cryostats.STOCK, items);
 			// A Launch Control fills its tank from storage and files Survey maps away.
 			case "launch_control" -> {
 				stock(machine, LaunchPads.FUEL_SLOT, ItemKey.of(RcItems.ITEMS.get("hydrogen_canister")), 16, items);

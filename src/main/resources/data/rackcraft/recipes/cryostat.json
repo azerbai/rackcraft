@@ -1,0 +1,26 @@
+{
+  "key": {
+    "C": {
+      "item": "rackcraft:cryo_coil"
+    },
+    "S": {
+      "item": "rackcraft:steel_block"
+    },
+    "T": {
+      "item": "rackcraft:hydrogen_tank"
+    },
+    "W": {
+      "item": "rackcraft:superconducting_wire"
+    }
+  },
+  "pattern": [
+    "SWS",
+    "CTC",
+    "SWS"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:cryostat"
+  },
+  "type": "minecraft:crafting_shaped"
+}

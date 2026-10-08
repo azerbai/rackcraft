@@ -1,0 +1,14 @@
+{
+  "pools": [
+    {
+      "entries": [
+        {
+          "name": "rackcraft:immersion_rack",
+          "type": "minecraft:item"
+        }
+      ],
+      "rolls": 1
+    }
+  ],
+  "type": "minecraft:block"
+}

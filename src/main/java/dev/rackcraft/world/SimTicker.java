@@ -13,6 +13,7 @@ import dev.rackcraft.storage.TransmitterUpgrades;
 import dev.rackcraft.block.ArrayMachineBlock;
 import dev.rackcraft.block.MachineBlock;
 import dev.rackcraft.block.RackBlock;
+import dev.rackcraft.block.Racks;
 import dev.rackcraft.block.MachineBlockEntity;
 import dev.rackcraft.block.CableBlock;
 import dev.rackcraft.block.RackStatus;
@@ -108,7 +109,7 @@ public final class SimTicker {
 		for (MachineBlockEntity machine : machines) {
 			satisfaction.put(machine, 0.0);
 			machine.setNetworkStats(0, 0);
-			if (!machine.blockId().equals("server_rack")) machine.setPowerKw(0);
+			if (!Racks.isRack(machine)) machine.setPowerKw(0);
 		}
 		RECTENNAS.put(world, LaunchPads.rectennas(world, machines));
 		int maxEdge = ReactorArrays.maxEdge(world);
@@ -165,7 +166,7 @@ public final class SimTicker {
 				MachineBlockEntity owner = sinkOwners.get(id);
 				if (owner != null) {
 					satisfaction.put(owner, ratio);
-					if (!owner.blockId().equals("server_rack")) owner.setPowerKw(demandFor(owner) * ratio);
+					if (!Racks.isRack(owner)) owner.setPowerKw(demandFor(owner) * ratio);
 				}
 			});
 		}
@@ -233,7 +234,8 @@ public final class SimTicker {
 		Map<MachineBlockEntity, ServerModel.RackStep> rackSteps = new HashMap<>();
 		List<RackHeat> rackHeat = new ArrayList<>();
 		for (MachineBlockEntity rack : machines) {
-			if (!rack.blockId().equals("server_rack")) continue;
+			if (!Racks.isRack(rack)) continue;
+			ServerModel.Tier tier = Racks.tier(rack);
 			Direction facing = rack.getCachedState().get(MachineBlock.FACING);
 			BlockPos back = rack.getPos().offset(facing.getOpposite());
 			MachineBlockEntity door = byPos.get(back);
@@ -249,27 +251,35 @@ public final class SimTicker {
 			// Research can widen the envelope: the rack is rated for hotter air, so it throttles and trips later.
 			double rated = inlet - research.thermalOffset();
 			boolean hasCdu = adjacentMachine(machines, rack.getPos(), "cdu");
+			boolean cryostat = !Cryostats.beside(rack.getPos(), byPos, satisfaction).isEmpty();
 			if (supplied < 0.5) rack.setTripped(true);
 			// Racks boot slowly once they have power, and go cold again when they lose it.
 			double bootSeconds = ServerModel.bootSeconds(rack.modules()) * RackcraftConfig.values.sim.rackBootScale * research.bootScale();
 			if (supplied < 0.5 || rack.modules().isEmpty()) rack.setBootProgress(0);
 			else rack.setBootProgress(bootSeconds <= 0 ? 1 : rack.bootProgress() + dt / bootSeconds);
-			ServerModel.RackStep result = scalePower(ServerModel.calculate(rack.modules(), rack.loadLimitPercent(),
-					supplied, rated, hasCdu, loops.cooled(rack.getPos()), rack.bootProgress()), research.rackPower());
+			ServerModel.RackStep result = scalePower(ServerModel.calculate(tier, rack.modules(), rack.loadLimitPercent(),
+					supplied, rated, hasCdu, cryostat, loops.cooled(rack.getPos()), rack.bootProgress()), research.rackPower());
 			if (rack.isTripped() && rated < 32 && result.thermalFactor() > 0) rack.setTripped(false);
 			if (rack.isTripped()) result = new ServerModel.RackStep(result.usedBays(), result.demandKw(),
-					0, 0, result.thermalFactor(), result.quantumBlocked(), result.tripped(), result.waterBlocked());
+					0, 0, result.thermalFactor(), result.quantumBlocked(), result.tripped(), result.waterBlocked(), result.cryoBlocked());
 			rackSteps.put(rack, result);
 			// Every kilowatt a rack actually draws comes back out as heat; an unpowered rack makes none.
 			double total = result.demandKw() * supplied;
-			double liquid = loops.cooled(rack.getPos())
-					? Math.min(total, ServerModel.liquidHeatKw(rack.modules(), result.load()) * research.rackPower() * supplied) : 0;
+			double liquid = 0;
+			if (loops.cooled(rack.getPos())) {
+				// An immersion rack's fluid takes it all. Otherwise cold plates take their share, and a High-Density
+				// Rack's built-in door catches some of what's left.
+				liquid = tier.immersed() ? total
+						: Math.min(total, ServerModel.liquidHeatKw(rack.modules(), result.load()) * research.rackPower() * supplied);
+				liquid += Math.min(tier.doorKw(), total - liquid);
+			}
 			loops.request(rack.getPos(), liquid);
 			double doorKw = door != null && satisfaction.getOrDefault(door, 0.0) >= 0.5 && loops.cooled(door.getPos())
 					? Math.min(CoolingLoops.REAR_DOOR_KW, total - liquid) : 0;
 			if (door != null) loops.request(door.getPos(), doorKw);
 			rackHeat.add(new RackHeat(rack, result, inlet, total, liquid, door, doorKw, intakeCells, exhaustCells));
 		}
+		Cryostats.step(machines, rackSteps, byPos, satisfaction, dt);
 		List<CracSide> cracSides = new ArrayList<>();
 		for (MachineBlockEntity crac : machines) {
 			if (!crac.blockId().equals("crac_unit")) continue;
@@ -348,7 +358,7 @@ public final class SimTicker {
 		pinCreativeCoolers(world, machines, heat);
 		RackcraftNetworking.sendHeatCells(world, heat);
 		if (world.getTime() % 20 < Math.max(1, RackcraftConfig.values.sim.stepTicks)) RackcraftNetworking.sendHud(world, machines);
-		List<MachineBlockEntity> racks = machines.stream().filter(machine -> machine.blockId().equals("server_rack")).toList();
+		List<MachineBlockEntity> racks = machines.stream().filter(Racks::isRack).toList();
 		Map<MachineBlockEntity, RackStatus> lent = ComputeScheduler.tick(world, racks, dt);
 		awardCredits(world, machines, rackSteps, networks, satisfaction, lent, dt);
 		updateRackHealth(world, racks);
@@ -470,7 +480,9 @@ public final class SimTicker {
 			Set<MachineBlockEntity> energized, NetworkManager networks, Map<MachineBlockEntity, Double> fanHeat) {
 		for (MachineBlockEntity machine : machines) {
 			boolean active = switch (machine.blockId()) {
-				case "server_rack" -> satisfaction.getOrDefault(machine, 0.0) > 0 && !machine.isTripped();
+				case "server_rack", "high_density_rack", "immersion_rack", "exascale_cabinet" ->
+						satisfaction.getOrDefault(machine, 0.0) > 0 && !machine.isTripped();
+				case "cryostat" -> machine.processActive();
 				case "solar_panel", "wind_turbine", "utility_intake", "diesel_generator", "creative_power", "rectenna", "solar_array",
 						"solar_array_tracking", "wind_nacelle" ->
 						sourceOutput.getOrDefault(machine, 0.0) > 0;
@@ -532,11 +544,12 @@ public final class SimTicker {
 						case "uplink_router" -> bandwidth += 100;
 						case "core_router" -> bandwidth += 1000;
 						case "creative_router" -> bandwidth += member.creativeValue(CreativeSettings.BANDWIDTH);
-						case "server_rack" -> {
-							racks++;
-							demand += member.modules().stream().mapToDouble(ServerModel.Module::creditsPerSecond).sum();
+						default -> {
+							if (Racks.isRack(member)) {
+								racks++;
+								demand += Racks.bandwidthNeed(member);
+							}
 						}
-						default -> {}
 					}
 				}
 				return new double[] {bandwidth, demand, racks};
@@ -583,10 +596,13 @@ public final class SimTicker {
 	}
 
 	private static double demandFor(MachineBlockEntity machine) {
-		return switch (machine.blockId()) {
-			case "server_rack" -> ServerModel.calculate(machine.modules(), machine.loadLimitPercent(), 1,
-					machine.inletCelsius() - effects(machine).thermalOffset(), true, true, nextBoot(machine)).demandKw()
+		if (Racks.isRack(machine)) {
+			return ServerModel.calculate(Racks.tier(machine), machine.modules(), machine.loadLimitPercent(), 1,
+					machine.inletCelsius() - effects(machine).thermalOffset(), true, true, true, nextBoot(machine)).demandKw()
 					* effects(machine).rackPower();
+		}
+		return switch (machine.blockId()) {
+			case "cryostat" -> Cryostats.KW;
 			case "exhaust_fan" -> 0.2;
 			case "cooling_tower" -> 4;
 			case "crac_unit" -> 3;
@@ -595,7 +611,7 @@ public final class SimTicker {
 			case "chiller" -> CoolingLoops.CHILLER_BASE_KW + CoolingLoops.CHILLER_KW_PER_KW * machine.coolingKw();
 			case "water_heat_exchanger" -> 0.5;
 			case "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer", "wafer_fab", "silicon_foundry", "ewaste_recycler",
-					"electrolyser" -> NuclearProcessing.demandKw(machine);
+					"electrolyser", "cvd_furnace", "epitaxy_reactor" -> NuclearProcessing.demandKw(machine);
 			case "welding_arm", "riveting_arm", "assembly_arm" -> AssemblyLine.demandKw(machine);
 			case "drone_dock" -> DroneDocks.DOCK_KW;
 			case "storage_link" -> 4;
@@ -623,14 +639,14 @@ public final class SimTicker {
 	private static ServerModel.RackStep scalePower(ServerModel.RackStep step, double scale) {
 		if (scale == 1) return step;
 		return new ServerModel.RackStep(step.usedBays(), step.demandKw() * scale, step.creditsPerSecond(), step.load(),
-				step.thermalFactor(), step.quantumBlocked(), step.tripped(), step.waterBlocked());
+				step.thermalFactor(), step.quantumBlocked(), step.tripped(), step.waterBlocked(), step.cryoBlocked());
 	}
 
 	/** A heat wave makes the air every rack breathes this much hotter. */
 	public static final double HEAT_WAVE_K = 4;
 
 	private static int priority(String blockId) {
-		return blockId.equals("server_rack") || blockId.equals("creative_rack") ? 1 : 0;
+		return Racks.isRack(blockId) || blockId.equals("creative_rack") ? 1 : 0;
 	}
 
 	private static String id(MachineBlockEntity machine) {
@@ -815,9 +831,7 @@ public final class SimTicker {
 				if (endpoint.blockId().equals("uplink_router")) bandwidth += 100;
 				if (endpoint.blockId().equals("core_router")) bandwidth += 1000;
 				if (endpoint.blockId().equals("creative_router")) bandwidth += endpoint.creativeValue(CreativeSettings.BANDWIDTH);
-				if (endpoint.blockId().equals("server_rack")) {
-					demand += endpoint.modules().stream().mapToDouble(ServerModel.Module::creditsPerSecond).sum();
-				}
+				if (Racks.isRack(endpoint)) demand += Racks.bandwidthNeed(endpoint);
 			}
 			double rate = bandwidth > 0 && demand > 0
 					? result.creditsPerSecond() * Math.min(1, bandwidth / demand) * mining : 0;
@@ -831,6 +845,7 @@ public final class SimTicker {
 			else if (rack.isTripped()) status = RackStatus.TRIPPED;
 			else if (satisfaction.getOrDefault(rack, 0.0) < 0.5) status = RackStatus.NO_POWER;
 			else if (result.quantumBlocked()) status = RackStatus.NEEDS_CDU;
+			else if (result.cryoBlocked()) status = RackStatus.NEEDS_CRYOSTAT;
 			else if (result.waterBlocked()) status = RackStatus.NEEDS_WATER;
 			else if (result.thermalFactor() <= 0) status = RackStatus.OVERHEATED;
 			else if (bandwidth <= 0) status = RackStatus.NO_NETWORK;
@@ -962,8 +977,8 @@ public final class SimTicker {
 	 *   <li>utility_outage: Utility Intakes supply nothing until it ends.</li>
 	 *   <li>cooling_failure: every heat sink, CRAC and fan stops until it ends.</li>
 	 *   <li>heat_wave: racks breathe 4 C hotter air, and dry coolers and towers lose 30% for five minutes.</li>
-	 *   <li>hardware_failure: one module per 64 racks (one to three) burns out into a Failed Module. Quantum Cores and
-	 *       Wafer-Scale Engines are spared. Predictive Maintenance research catches them in time.</li>
+	 *   <li>hardware_failure: one module per 64 racks (one to three) burns out into a Failed Module. Tier 3 and 4
+	 *       hardware (Quantum Cores, Wafer-Scale Engines and up) is spared. Predictive Maintenance research catches them in time.</li>
 	 *   <li>cable_cut: a random power or fiber cable is cut.</li>
 	 *   <li>surge: every rack on a power network without a battery reboots from cold.</li>
 	 * </ul>
@@ -973,7 +988,7 @@ public final class SimTicker {
 		facility.triggerEvent(event, eventDuration(facility, event));
 		List<MachineBlockEntity> machines = machines(world);
 		List<MachineBlockEntity> racks = machines.stream()
-				.filter(machine -> machine.blockId().equals("server_rack") && !machine.modules().isEmpty()).toList();
+				.filter(machine -> Racks.isRack(machine) && !machine.modules().isEmpty()).toList();
 		String detail = switch (event) {
 			case "cable_cut" -> {
 				BlockPos cutAt = cutRandomCable(world, networksFor(world));
@@ -1004,9 +1019,9 @@ public final class SimTicker {
 		for (int attempt = 0; attempt < failures * 16 && lost.size() < failures; attempt++) {
 			MachineBlockEntity rack = racks.get(facility.nextRandomInt(racks.size()));
 			List<Integer> slots = new ArrayList<>();
-			for (int slot = 0; slot < ServerModel.BAYS && slot < rack.size(); slot++) {
-				ServerModel.Module module = moduleIn(rack.getStack(slot));
-				if (module != null && module != ServerModel.Module.QUANTUM_CORE && module != ServerModel.Module.WAFER_SCALE_ENGINE) {
+			for (int slot = 0; slot < Racks.bays(rack) && slot < rack.size(); slot++) {
+				ServerModel.Module module = Racks.module(rack.getStack(slot));
+				if (module != null && !module.hardened()) {
 					slots.add(slot);
 				}
 			}
@@ -1024,11 +1039,6 @@ public final class SimTicker {
 		}
 		if (lost.isEmpty()) return "nothing failed";
 		return (caught ? "Predictive Maintenance caught a failing " : "burned out: ") + String.join(", ", lost);
-	}
-
-	private static ServerModel.Module moduleIn(ItemStack stack) {
-		if (stack.isEmpty()) return null;
-		return ServerModel.Module.byItemId(net.minecraft.registry.Registries.ITEM.getId(stack.getItem()).getPath());
 	}
 
 	/** Reboots every rack whose power network has no battery to smooth the surge. Returns how many. */
@@ -1059,7 +1069,7 @@ public final class SimTicker {
 		for (NetKind kind : List.of(NetKind.POWER, NetKind.DATA)) {
 			for (Set<BlockPos> network : networks.components(kind)) {
 				boolean feedsRack = network.stream().anyMatch(pos -> world.getBlockEntity(pos) instanceof MachineBlockEntity machine
-						&& machine.blockId().equals("server_rack"));
+						&& Racks.isRack(machine));
 				if (!feedsRack) continue;
 				for (BlockPos pos : network) {
 					BlockState state = world.getBlockState(pos);

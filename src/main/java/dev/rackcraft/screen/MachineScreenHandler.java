@@ -61,7 +61,7 @@ public final class MachineScreenHandler extends ScreenHandler {
 		super(RcScreenHandlers.type(mode), syncId);
 		this.mode = mode;
 		this.machine = machine;
-		this.machineInventory = machine == null ? new SimpleInventory(9) : machine;
+		this.machineInventory = machine == null ? new SimpleInventory(Math.max(9, dev.rackcraft.sim.ServerModel.MAX_BAYS)) : machine;
 		this.pos = pos;
 		this.activeContract = activeContract;
 		this.activeEvent = activeEvent;
@@ -75,8 +75,13 @@ public final class MachineScreenHandler extends ScreenHandler {
 			@Override public void set(int index, int value) {}
 		};
 		if (mode == Mode.RACK) {
-			// Two columns of four bays, below the header.
-			for (int index = 0; index < 8; index++) addSlot(new MachineSlot(machineInventory, index, 13 + (index % 2) * 20, 46 + (index / 2) * 20));
+			// A Server Rack's eight bays sit in two columns of four; bigger racks pack theirs in columns of six.
+			String id = net.minecraft.registry.Registries.BLOCK.getId(playerInventory.player.getWorld().getBlockState(pos).getBlock()).getPath();
+			dev.rackcraft.sim.ServerModel.Tier tier = dev.rackcraft.sim.ServerModel.Tier.of(id);
+			bays = tier == null ? dev.rackcraft.sim.ServerModel.BAYS : tier.bays();
+			for (int index = 0; index < bays; index++) {
+				addSlot(new MachineSlot(machineInventory, index, 13 + bayColumn(index) * baySpacing(), 46 + bayRow(index) * baySpacing()));
+			}
 			addPlayerInventory(playerInventory, 13, 190);
 		} else if (mode == Mode.STORAGE_ARRAY) {
 			for (int index = 0; index < 8; index++) addSlot(new MachineSlot(machineInventory, index, 8 + (index % 4) * 22, 30 + (index / 4) * 22));
@@ -108,7 +113,7 @@ public final class MachineScreenHandler extends ScreenHandler {
 			if (id.equals("assembly_arm") || id.equals("drone_dock") || id.equals("belt_unloader")
 					|| id.equals("storage_exporter")) {
 				for (int index = 0; index < 9; index++) addSlot(new MachineSlot(machineInventory, index, 8 + index * 18, 116));
-			} else if (id.equals("belt_loader") || id.equals("hydrogen_tank")) {
+			} else if (id.equals("belt_loader") || id.equals("hydrogen_tank") || id.equals("cryostat")) {
 				addSlot(new MachineSlot(machineInventory, 0, 80, 116));
 			}
 			addPlayerInventory(playerInventory, 8, 152);
@@ -167,6 +172,16 @@ public final class MachineScreenHandler extends ScreenHandler {
 	@Override
 	public boolean canUse(PlayerEntity player) { return machine == null || machine.canPlayerUse(player); }
 	public Mode mode() { return mode; }
+
+	/** Racks: how many bays this one has, and where they sit. */
+	private int bays = dev.rackcraft.sim.ServerModel.BAYS;
+
+	public int bays() { return bays; }
+	public int bayRows() { return bays <= dev.rackcraft.sim.ServerModel.BAYS ? 4 : 6; }
+	public int bayColumns() { return (bays + bayRows() - 1) / bayRows(); }
+	public int baySpacing() { return bays <= dev.rackcraft.sim.ServerModel.BAYS ? 20 : 18; }
+	public int bayColumn(int index) { return index % bayColumns(); }
+	public int bayRow(int index) { return index / bayColumns(); }
 	public BlockPos pos() { return pos; }
 	/** Button 0 on a cube's port: hand the player every product the whole cube holds. */
 	public static final int COLLECT_BUTTON = 0;

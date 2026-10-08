@@ -77,8 +77,30 @@ Racks on one fiber network form a **cluster**. Each step the facility hands out 
 | Crafting Coprocessor | 0 | 8 | 0.5 | air |
 | Crafting Accelerator | 0 | 30 | 2 | liquid |
 | Wafer-Scale Engine | 0 | 40 | 150 | liquid (2 to 16 kW; only a Wafer Fab makes it) |
+| FPGA Module | 8, or | 20, or | 8 (one mode at a time) | air (0.4 to 2.5 kW) |
+| NPU Inference Card | 0 | 2 | 32, contracts and leases only | air (0.3 to 1.8 kW) |
+| Neuromorphic Core | 0 | 80 | 4 | air (0.2 to 1.2 kW) |
+| Photonic Tensor Core | 0 | 60 | 300 | liquid (3 to 12 kW) |
+| Quantum Annealer | 120 | 10 | 30 | liquid (4 to 14 kW, and a Cryostat beside the rack) |
 
-A rack has eight bays and every module takes one, so a rack holds eight GPU Blades (24 kW) or eight Quantum Cores (72 kW, and a CDU beside it).
+A Server Rack has eight bays and every module takes one, so it holds eight GPU Blades (24 kW) or eight Quantum Cores (72 kW, and a CDU beside it). The last five modules and the bigger racks are advanced hardware: see below.
+
+## Advanced Hardware
+
+Past the Wafer-Scale Engine, hardware is manufactured on the Assembly Line, each step behind research, and **none of it is sold on the Crypto Exchange** (nor are its materials).
+
+- **Materials.** Advanced Materials unlocks two processing cubes: the **CVD Furnace** (4 Coke + a Hydrogen Canister to 2 **Graphene Sheets**, 60 s, 150 kW per core) and the **Epitaxy Reactor** (8 Raw Bauxite + a Hydrogen Canister to **Gallium Nitride**, 90 s, 250 kW per core). On a pipe to a Hydrogen Tank they draw hydrogen from it. **Superconducting Wire** is a Cryo Coil wound with 8 Copper Wire and cooled with 2 Hydrogen Canisters on the line.
+- **Chiplets and the silicon lottery.** After Chiplets and Advanced Packaging, a line dices a **Wafer-Scale Engine** (weld, 2 Graphene, rivet) into 8 chiplets that all come off as one bin: 60% **bronze**, 30% **silver**, 10% **gold**. Better modules need better bins, and a chiplet can be crafted down a bin, never up.
+- **Parts.** An **HBM Stack** is a RAM Module plus 3 more, a bronze chiplet and a Graphene Sheet. A **Photonic Interconnect** (Silicon Photonics) is Gallium Nitride, a silver chiplet and 4 Fiber Cable.
+- **Modules** all start as a crafted **Blade Chassis**, and the first part fitted decides what it becomes: GPU Chips an **FPGA** (right-click to reflash it for mining, AI or autocrafting), 4 bronze chiplets an **NPU**, 2 silver a **Neuromorphic Core**, 2 gold a **Photonic Tensor Core**, Superconducting Wire a **Quantum Annealer**. Tier 3 and 4 hardware never burns out in a hardware failure.
+- **Cryostat.** A rack with Quantum Annealers only runs with a cold Cryostat touching it: 15 kW and Hydrogen Canisters in its slot. Each running Annealer boils off a canister every 5 minutes; an Item Pipe keeps 16 in it from storage or a tank. It's crafted from Superconducting Wire, Cryo Coils, steel blocks and a Hydrogen Tank.
+
+| Rack | Bays | Built from | Research | Notes |
+| --- | --- | --- | --- | --- |
+| Server Rack | 8 | crafted | | |
+| High-Density Rack | 12 | a Server Rack, 2 Cryo Coils, a CDU and a Rear-Door Cooler | High-Density Racks | Built-in rear door: up to 40 kW of its air heat goes to its loop |
+| Liquid-Immersion Rack | 16 | a High-Density Rack, 2 CDUs, 8 Coolant Pipe, 4 Graphene | Immersion Cooling | All its heat goes to the loop; won't run off one |
+| Exascale Cabinet | 24 | an Immersion Rack, 8 Photonic Interconnects, 4 Superconducting Wire, a Core Router, 4 HBM Stacks | Exascale Architecture | +20% mining and compute, half the bandwidth, tier 2+ modules only, 30 kW overhead, all heat to the loop |
 
 Contracts pay 1.35 RC per AI-compute-second against a well-trained reference model, so AI work earns about 10% more than mining on GPUs and Quantum Cores, and about a third more with Tensor Accelerators (which can't mine). That holds even on free solar power.
 
@@ -141,6 +163,13 @@ The late game: once the cluster is big, the Operations Terminal's **R&D** tab tu
 | Reactor Uprate | Titanium PSUs | 1,000,000 RC + 15M general | Modular Reactors make 20% more from the same fuel |
 | Extreme UV Lithography | Titanium PSUs, Coolant Chemistry | 2,000,000 RC + 25M general | Unlocks the Wafer Fab |
 | Cryogenic Hydrogen Storage | Titanium PSUs | 1,500,000 RC + 20M general | Unlocks Hydrogen Tanks, and Tanker Drones at the Exchange |
+| High-Density Racks | Coolant Chemistry | 800,000 RC + 15M general | High-Density Racks on the Assembly Line |
+| Advanced Materials | Cryogenic Hydrogen Storage | 3,000,000 RC + 40M general | CVD Furnace, Epitaxy Reactor, Superconducting Wire, FPGA Modules |
+| Chiplets and Advanced Packaging | Lithography, Advanced Materials | 6,000,000 RC + 80M general | Wafer dicing, HBM Stacks, NPUs, Neuromorphic Cores |
+| Immersion Cooling | High-Density Racks, Advanced Materials | 8,000,000 RC + 100M general | Liquid-Immersion Racks |
+| Silicon Photonics | Advanced Packaging | 15,000,000 RC + 200M AI | Photonic Interconnects, Photonic Tensor Cores |
+| Quantum Annealing | Advanced Packaging | 20,000,000 RC + 250M general | Quantum Annealers |
+| Exascale Architecture | Silicon Photonics, Immersion Cooling, Structural Engineering | 60,000,000 RC + 800M AI | Exascale Cabinets |
 | Structural Engineering | Reactor Uprate | 5,000,000 RC + 100M general | Cube multiblocks up to 7x7x7 |
 | Space Frame Design | Structural Engineering | 25,000,000 RC + 400M general | Cube multiblocks up to 9x9x9 |
 | Arcology | Space Frame Design | 100,000,000 RC + 1.5B general | Cube multiblocks up to 10x10x10 |
@@ -174,7 +203,7 @@ Events start about three times an hour once a facility has run for a while (`eve
 | Utility outage | Utility Intakes supply nothing for 1.5 to 3 minutes |
 | Cooling failure | Every heat sink, CRAC and exhaust fan stops for 2 minutes |
 | Heat wave | For 5 minutes intakes breathe 4 C hotter air, and dry coolers and cooling towers lose 30% |
-| Hardware failure | One module per 64 racks (one to three) burns out into a Failed Module, and chat says where. Quantum Cores and Wafer-Scale Engines are spared, and Predictive Maintenance stops it entirely |
+| Hardware failure | One module per 64 racks (one to three) burns out into a Failed Module, and chat says where. Tier 3 and 4 modules (Quantum Cores, Wafer-Scale Engines and up) are spared, and Predictive Maintenance stops it entirely |
 | Cable cut | A random power or fiber cable on a network that feeds a server rack is cut, and the terminal shows where. With no such cable, nothing happens |
 | Surge | Every rack on a power network without a Battery Bank reboots from cold |
 

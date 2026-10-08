@@ -515,9 +515,9 @@ def main():
             if block.get("model") == "solar_array":
                 # Six parts of one 3x2 array share the model; the blockstate rotates it with the array.
                 variants = {f"{key},part={part}": value for key, value in variants.items() for part in range(6)}
-            if identifier == "server_rack":
-                # Health: amber for a slowed rack, red for a stopped one, whether or not it is lit. Only the Server Rack
-                # has the property; the Creative Rack shares its face but not its health.
+            if block.get("front") == "rack" and not block.get("creative"):
+                # Health: amber for a slowed rack, red for a stopped one, whether or not it is lit. Every rack tier has
+                # the property; the Creative Rack shares the face but not its health.
                 variants = {f"{key},health={health}": (value if health == "ok" else
                     {"model": f"rackcraft:block/{identifier}_{health}", "y": value["y"]})
                     for key, value in variants.items() for health in ("ok", "warn", "fault")}
@@ -632,6 +632,8 @@ def main():
         "rack_status.rackcraft.no_power.hint": "Connect this rack to a generator, solar panel or utility intake with Power Cable.",
         "rack_status.rackcraft.needs_cdu": "Stopped: Quantum Core needs a CDU",
         "rack_status.rackcraft.needs_cdu.hint": "Place a Coolant Distribution Unit directly beside this rack.",
+        "rack_status.rackcraft.needs_cryostat": "Stopped: Quantum Annealer needs a Cryostat",
+        "rack_status.rackcraft.needs_cryostat.hint": "Place a Cryostat directly beside this rack, give it power and load it with Hydrogen Canisters (an Item Pipe to storage or a Hydrogen Tank keeps it topped up). Each running Annealer boils off a canister every 5 minutes.",
         "rack_status.rackcraft.overheated": "Stopped: overheated",
         "rack_status.rackcraft.overheated.hint": "The intake air is 40 C or hotter. Heat that doesn't go into a coolant loop goes into the room: catch it with a Rear-Door Cooler on the rack's back, take it out of the air with a CRAC unit or exhaust fan, and keep hot exhaust away from intakes. If To loop is less than the rack's heat, its loop is overloaded: add sinks.",
         "rack_status.rackcraft.no_network": "Not mining: offline",

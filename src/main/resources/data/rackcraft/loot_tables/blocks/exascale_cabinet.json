@@ -1,0 +1,14 @@
+{
+  "pools": [
+    {
+      "entries": [
+        {
+          "name": "rackcraft:exascale_cabinet",
+          "type": "minecraft:item"
+        }
+      ],
+      "rolls": 1
+    }
+  ],
+  "type": "minecraft:block"
+}

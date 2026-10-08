@@ -1,0 +1,29 @@
+{
+  "key": {
+    "B": {
+      "item": "rackcraft:steel_block"
+    },
+    "F": {
+      "item": "minecraft:blast_furnace"
+    },
+    "G": {
+      "item": "minecraft:glass"
+    },
+    "K": {
+      "item": "minecraft:copper_block"
+    },
+    "P": {
+      "item": "rackcraft:coolant_pipe"
+    }
+  },
+  "pattern": [
+    "BGB",
+    "KFK",
+    "BPB"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:cvd_furnace"
+  },
+  "type": "minecraft:crafting_shaped"
+}

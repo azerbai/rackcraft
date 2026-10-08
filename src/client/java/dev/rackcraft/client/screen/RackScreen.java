@@ -12,13 +12,15 @@ import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.text.Text;
 
 /**
- * Rack telemetry. Eight module bays in two columns on the left; on the right the status headline, live
- * readings, what to do about the status, and the load-limit buttons. Everything wraps inside the panel, and
- * a hint too long for its box is cut with "..." and shown whole on hover.
+ * Rack telemetry. The module bays on the left (two columns of four on a Server Rack, up to four columns of six on an
+ * Exascale Cabinet, which widens the panel); on the right the status headline, live readings, what to do about the
+ * status, and the load-limit buttons. Everything wraps inside the panel, and a hint too long for its box is cut with
+ * "..." and shown whole on hover.
  */
 public final class RackScreen extends RackcraftHandledScreen {
-	private static final int RIGHT = 60;
 	private static final int RIGHT_WIDTH = 188;
+	/** Where the right-hand column starts: past however many columns of bays this rack has. */
+	private final int right;
 	private static final int HINT_TOP = 103;
 	private static final int HINT_LINES = 5;
 	private static final int[] LIMITS = {25, 50, 75, 100};
@@ -29,7 +31,12 @@ public final class RackScreen extends RackcraftHandledScreen {
 	private record Reading(String label, String value, int color, String help) {}
 
 	public RackScreen(MachineScreenHandler handler, PlayerInventory inventory, Text title) {
-		super(handler, inventory, title, 256, 272);
+		super(handler, inventory, title, 256 + extraWidth(handler), 272);
+		right = 60 + extraWidth(handler);
+	}
+
+	private static int extraWidth(MachineScreenHandler handler) {
+		return Math.max(0, handler.bayColumns() - 2) * handler.baySpacing();
 	}
 
 	@Override
@@ -42,7 +49,7 @@ public final class RackScreen extends RackcraftHandledScreen {
 			int limit = LIMITS[index];
 			limitButtons.add(addDrawableChild(ButtonWidget.builder(Text.literal(limit + "%"), button ->
 					ClientNet.setLoadLimit(handler.pos(), limit))
-					.dimensions(left + 92 + index * 39, top + 157, 36, 16).build()));
+					.dimensions(left + right + 32 + index * 39, top + 157, 36, 16).build()));
 		}
 	}
 
@@ -57,13 +64,13 @@ public final class RackScreen extends RackcraftHandledScreen {
 		int localX = mouseX - left;
 		int localY = mouseY - top;
 		RackStatus status = RackStatus.byOrdinal(stat(Stat.RACK_STATUS));
-		if (hintCut && localX >= RIGHT && localX < RIGHT + RIGHT_WIDTH && localY >= HINT_TOP && localY < HINT_TOP + HINT_LINES * 10) {
+		if (hintCut && localX >= right && localX < right + RIGHT_WIDTH && localY >= HINT_TOP && localY < HINT_TOP + HINT_LINES * 10) {
 			context.drawOrderedTooltip(textRenderer, textRenderer.wrapLines(Text.translatable(status.hintKey()), 220), mouseX, mouseY);
 			return;
 		}
 		List<Reading> readings = readings();
 		for (int index = 0; index < readings.size(); index++) {
-			int x = RIGHT + (index % 2) * 96;
+			int x = right + (index % 2) * 96;
 			int y = 56 + (index / 2) * 11;
 			Reading reading = readings.get(index);
 			int labelWidth = textRenderer.getWidth(reading.label() + " " + reading.value());
@@ -101,9 +108,10 @@ public final class RackScreen extends RackcraftHandledScreen {
 	@Override
 	protected void drawDashboard(DrawContext context) {
 		int used = 0;
-		for (int slot = 0; slot < 8; slot++) if (!handler.getSlot(slot).getStack().isEmpty()) used++;
+		int bays = handler.bays();
+		for (int slot = 0; slot < bays; slot++) if (!handler.getSlot(slot).getStack().isEmpty()) used++;
 		// Under the bays, so it can't run into the status headline.
-		line(context, "Bays " + used + "/8", 13, 128, used == 8 ? WARN : MUTED);
+		line(context, "Bays " + used + "/" + bays, 13, 48 + handler.bayRows() * handler.baySpacing(), used == bays ? WARN : MUTED);
 
 		RackStatus status = RackStatus.byOrdinal(stat(Stat.RACK_STATUS));
 		int color = status == RackStatus.MINING || status == RackStatus.GENERATING || status == RackStatus.LEASED ? GOOD
@@ -111,19 +119,19 @@ public final class RackScreen extends RackcraftHandledScreen {
 		Text headline = status == RackStatus.BOOTING
 				? Text.translatable(status.translationKey(), stat(Stat.BOOT), coins(stat(Stat.MINING_RATE)))
 				: Text.translatable(status.translationKey(), coins(stat(Stat.MINING_RATE)));
-		wrappedClamped(context, headline, RIGHT, 32, RIGHT_WIDTH, 2, color);
+		wrappedClamped(context, headline, right, 32, RIGHT_WIDTH, 2, color);
 
 		List<Reading> readings = readings();
 		for (int index = 0; index < readings.size(); index++) {
 			Reading reading = readings.get(index);
-			int x = RIGHT + (index % 2) * 96;
+			int x = right + (index % 2) * 96;
 			int y = 56 + (index / 2) * 11;
 			line(context, reading.label(), x, y, MUTED);
 			line(context, reading.value(), x + textRenderer.getWidth(reading.label() + " "), y, reading.color());
 		}
 
-		context.fill(RIGHT, HINT_TOP - 5, RIGHT + RIGHT_WIDTH, HINT_TOP - 4, 0xFF3A525C);
-		hintCut = wrappedClamped(context, Text.translatable(status.hintKey()), RIGHT, HINT_TOP, RIGHT_WIDTH, HINT_LINES, MUTED);
-		line(context, "Limit", RIGHT, 161, MUTED);
+		context.fill(right, HINT_TOP - 5, right + RIGHT_WIDTH, HINT_TOP - 4, 0xFF3A525C);
+		hintCut = wrappedClamped(context, Text.translatable(status.hintKey()), right, HINT_TOP, RIGHT_WIDTH, HINT_LINES, MUTED);
+		line(context, "Limit", right, 161, MUTED);
 	}
 }

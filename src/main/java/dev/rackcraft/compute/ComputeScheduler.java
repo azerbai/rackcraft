@@ -89,9 +89,9 @@ public final class ComputeScheduler {
 						? "No online cluster: racks need an uplink router" : "Assigned cluster is offline or gone";
 				continue;
 			}
-			double rate = Cluster.take(eligible, Cluster.Kind.AI, Double.POSITIVE_INFINITY, busy, RackStatus.GENERATING, new ArrayList<>());
+			double rate = Cluster.take(eligible, Cluster.Kind.INFERENCE, Double.POSITIVE_INFINITY, busy, RackStatus.GENERATING, new ArrayList<>());
 			if (rate <= 0) {
-				contract.status = "No free AI compute (GPUs, Tensor Accelerators)";
+				contract.status = "No free AI compute (GPUs, Tensor Accelerators, NPUs)";
 				continue;
 			}
 			contract.computeRate = rate;
@@ -201,14 +201,14 @@ public final class ComputeScheduler {
 			Map<MachineBlockEntity, RackStatus> busy, double dt) {
 		long now = world.getTime();
 		double facilityAi = clusters.stream().filter(cluster -> cluster.policy() == Cluster.Policy.AUTO)
-				.mapToDouble(cluster -> cluster.capacity(Cluster.Kind.AI)).sum();
+				.mapToDouble(cluster -> cluster.capacity(Cluster.Kind.INFERENCE)).sum();
 		market.refreshLeases(now, facilityAi, lab.effects().leases());
 		List<Cluster> eligible = clusters.stream()
 				.filter(cluster -> cluster.policy() == Cluster.Policy.AUTO && cluster.online()).toList();
 		long ticks = Math.max(1, Math.round(dt * 20));
 		for (Lease lease : market.runningLeases()) {
 			double rate = eligible.isEmpty() ? 0
-					: Cluster.take(eligible, Cluster.Kind.AI, lease.compute, busy, RackStatus.LEASED, new ArrayList<>());
+					: Cluster.take(eligible, Cluster.Kind.INFERENCE, lease.compute, busy, RackStatus.LEASED, new ArrayList<>());
 			lease.rate = rate;
 			lease.record(rate / lease.compute, ticks);
 			lease.status = rate >= lease.compute ? "Serving"

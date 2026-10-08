@@ -31,7 +31,11 @@ public final class Cluster {
 		public Policy next() { return values()[(ordinal() + 1) % values().length]; }
 	}
 
-	public enum Kind { GENERAL, AI }
+	/**
+	 * GENERAL: autocrafting and general research. AI: training, AI research and frontier runs. INFERENCE: contracts and
+	 * leases, which also take NPU Inference Cards' AI compute.
+	 */
+	public enum Kind { GENERAL, AI, INFERENCE }
 
 	private final long id;
 	private final Set<BlockPos> network;
@@ -63,12 +67,19 @@ public final class Cluster {
 	public static double compute(MachineBlockEntity rack, Kind kind) {
 		if (rack.powerSatisfaction() < 0.5 || rack.isTripped() || rack.thermalFactor() <= 0) return 0;
 		double total = 0;
-		for (ServerModel.Module module : rack.modules()) total += kind == Kind.AI ? module.aiCompute() : module.compute();
+		for (ServerModel.Module module : rack.modules()) {
+			total += switch (kind) {
+				case GENERAL -> module.compute();
+				case AI -> module.inferenceOnly() ? 0 : module.aiCompute();
+				case INFERENCE -> module.aiCompute();
+			};
+		}
 		if (total <= 0) return 0;
+		total *= dev.rackcraft.block.Racks.tier(rack).bonus();
 		// Research makes every rack lend more.
 		Research.Effects effects = rack.getWorld() instanceof net.minecraft.server.world.ServerWorld world
 				? ResearchLab.effects(world) : Research.Effects.NONE;
-		return total * rack.load() * (kind == Kind.AI ? effects.aiCompute() : effects.generalCompute());
+		return total * rack.load() * (kind == Kind.GENERAL ? effects.generalCompute() : effects.aiCompute());
 	}
 
 	/**

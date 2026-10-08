@@ -37,7 +37,7 @@ public final class RackcraftNetworking {
 			int limit = buf.readInt();
 			server.execute(() -> {
 				MachineBlockEntity machine = validatedMachine(player, pos);
-				if (machine != null && machine.blockId().equals("server_rack")) machine.setLoadLimitPercent(limit);
+				if (machine != null && dev.rackcraft.block.Racks.isRack(machine)) machine.setLoadLimitPercent(limit);
 			});
 		});
 		ServerPlayNetworking.registerGlobalReceiver(SET_CONTRACT, (server, player, handler, buf, responseSender) -> {
@@ -118,7 +118,7 @@ public final class RackcraftNetworking {
 		for (ServerPlayerEntity player : world.getPlayers()) {
 			boolean tool = java.util.stream.Stream.of("field_manual", "multimeter", "thermal_scanner")
 					.map(RcItems.ITEMS::get).anyMatch(item -> player.getMainHandStack().isOf(item) || player.getOffHandStack().isOf(item));
-			boolean nearRack = machines.stream().anyMatch(machine -> (machine.blockId().equals("server_rack")
+			boolean nearRack = machines.stream().anyMatch(machine -> (dev.rackcraft.block.Racks.isRack(machine)
 					|| machine.blockId().equals("creative_rack"))
 					&& machine.getPos().getSquaredDistance(player.getPos()) <= HUD_RANGE_SQUARED);
 			net.minecraft.network.PacketByteBuf buf = net.fabricmc.fabric.api.networking.v1.PacketByteBufs.create();

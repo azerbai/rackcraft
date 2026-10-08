@@ -1,0 +1,51 @@
+{
+  "elements": [
+    {
+      "faces": {
+        "down": {
+          "cullface": "down",
+          "texture": "#bottom"
+        },
+        "east": {
+          "cullface": "east",
+          "texture": "#side"
+        },
+        "north": {
+          "cullface": "north",
+          "texture": "#front"
+        },
+        "south": {
+          "cullface": "south",
+          "texture": "#back"
+        },
+        "up": {
+          "cullface": "up",
+          "texture": "#top"
+        },
+        "west": {
+          "cullface": "west",
+          "texture": "#side"
+        }
+      },
+      "from": [
+        0,
+        0,
+        0
+      ],
+      "to": [
+        16,
+        16,
+        16
+      ]
+    }
+  ],
+  "parent": "minecraft:block/block",
+  "textures": {
+    "back": "rackcraft:block/cvd_furnace_back",
+    "bottom": "rackcraft:block/cvd_furnace_bottom",
+    "front": "rackcraft:block/cvd_furnace_front_on",
+    "particle": "rackcraft:block/cvd_furnace_side",
+    "side": "rackcraft:block/cvd_furnace_side",
+    "top": "rackcraft:block/cvd_furnace_top"
+  }
+}

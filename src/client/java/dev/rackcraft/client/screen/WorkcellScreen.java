@@ -19,7 +19,9 @@ import net.minecraft.util.math.BlockPos;
 public final class WorkcellScreen extends RackcraftHandledScreen {
 	private static final String[] ARM_STATES = {"Working", "Waiting for a workpiece that needs it",
 			"No parts loaded: stock the slots below", "Stopped: not enough power (under 10%)", "Not facing a Conveyor Belt",
-			"Working slowly: short of power"};
+			"Working slowly: short of power", "Locked: needs research"};
+	private static final String[] CRYOSTAT_STATES = {"Cooling", "Standing by: cold, no Quantum Annealers running beside it",
+			"Out of hydrogen: load Hydrogen Canisters", "Stopped: no power"};
 	private static final String[] DOCK_STATES = {"Drones out on jobs", "Standing by: nothing to fix in range",
 			"Stopped: no power", "Jobs waiting, but no drones are home", "Out of hydrogen: load Hydrogen Canisters",
 			"Jobs waiting that need spares: add rack modules or Repair Kits"};
@@ -36,6 +38,7 @@ public final class WorkcellScreen extends RackcraftHandledScreen {
 			case "belt_unloader" -> drawUnloader(context);
 			case "storage_exporter" -> drawExporter(context);
 			case "hydrogen_tank" -> drawTank(context);
+			case "cryostat" -> drawCryostat(context);
 			default -> drawArm(context);
 		}
 	}
@@ -49,7 +52,13 @@ public final class WorkcellScreen extends RackcraftHandledScreen {
 			case LOW_POWER, NO_BELT -> WARN;
 			default -> BAD;
 		};
-		wrappedClamped(context, Text.literal(ARM_STATES[state]), 8, 30, 160, 2, color);
+		String headline = ARM_STATES[state];
+		if (AssemblyLine.Status.values()[state] == AssemblyLine.Status.LOCKED) {
+			String needs = AssemblyLine.candidates(workpiece()).stream().map(AssemblyLine.Recipe::research)
+					.filter(java.util.Objects::nonNull).findFirst().orElse(null);
+			if (needs != null) headline = "Locked: needs " + dev.rackcraft.compute.Research.get(needs).name() + " research";
+		}
+		wrappedClamped(context, Text.literal(headline), 8, 30, 160, 2, color);
 		if (kind != null) {
 			lineFit(context, kind.verb + "s in " + (int) kind.seconds + " s at " + kw((int) Math.round(kind.kw * 10)) + " while working",
 					8, 52, 160, MUTED);
@@ -131,6 +140,20 @@ public final class WorkcellScreen extends RackcraftHandledScreen {
 		wrapped(context, Text.literal("Tankers top up docks, planners and Launch Controls within "
 				+ dev.rackcraft.world.HydrogenTanks.TANKER_RANGE + " blocks."), 8, 78, 160, MUTED);
 		line(context, "Tanker Drones", 8, 105, MUTED);
+	}
+
+	private void drawCryostat(DrawContext context) {
+		int state = Math.max(0, Math.min(CRYOSTAT_STATES.length - 1, stat(Stat.PROCESS_STATUS)));
+		int color = state == 0 ? GOOD : state == 1 ? MUTED : BAD;
+		String headline = state == 0 ? "Cooling " + stat(Stat.WORKERS) + (stat(Stat.WORKERS) == 1 ? " Quantum Annealer" : " Quantum Annealers")
+				: CRYOSTAT_STATES[state];
+		wrappedClamped(context, Text.literal(headline), 8, 30, 160, 2, color);
+		int canisters = handler.getSlot(0).getStack().getCount();
+		lineFit(context, "Hydrogen Canisters: " + canisters + "   Boiled off: " + stat(Stat.ITEMS_MADE), 8, 52, 160, canisters > 0 ? TEXT : BAD);
+		bar(context, 8, 64, 160, 1 - stat(Stat.WORK_PROGRESS) / 100.0, 0xFF7FB8E8);
+		wrappedClamped(context, Text.literal("Touch a rack of Quantum Annealers. Each running one uses a canister per "
+				+ (int) (dev.rackcraft.world.Cryostats.SECONDS_PER_CANISTER / 60) + " min."), 8, 74, 160, 3, MUTED);
+		line(context, "Hydrogen", 8, 105, MUTED);
 	}
 
 	private void drawExporter(DrawContext context) {

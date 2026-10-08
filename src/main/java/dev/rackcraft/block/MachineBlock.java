@@ -112,7 +112,7 @@ public class MachineBlock extends BlockWithEntity {
 		// A Survey Stake hands its site to a Site Planner (SurveyStakeItem) rather than opening the screen.
 		if (player.getStackInHand(hand).isOf(dev.rackcraft.RcItems.ITEMS.get("survey_stake"))) return ActionResult.PASS;
 		if (!world.isClient && world.getBlockEntity(pos) instanceof MachineBlockEntity machine) {
-			if (machine.blockId().equals("server_rack")
+			if (Racks.isRack(machine)
 					&& player.getStackInHand(hand).isOf(dev.rackcraft.RcItems.ITEMS.get("thermal_scanner"))) {
 				player.sendMessage(net.minecraft.text.Text.literal(String.format(java.util.Locale.ROOT,
 						"Rack inlet %.1f C, exhaust %.1f C. Heat: %.1f kW to the coolant loop, %.1f kW to the air",

@@ -27,7 +27,11 @@ import net.minecraft.item.Items;
  *       Extreme UV Lithography is researched; until then it reports {@link Status#LOCKED}.</li>
  *   <li>Electrolyser: an Aluminium Ingot to a Hydrogen Canister (30 s, 4,000 kW). It also needs water against the
  *       outside of the cube, or it reports {@link Status#NO_WATER}.</li>
+ *   <li>CVD Furnace: four Coke and a Hydrogen Canister to two Graphene Sheets (60 s, 150 kW).</li>
+ *   <li>Epitaxy Reactor: eight Raw Bauxite (for its gallium) and a Hydrogen Canister to a Gallium Nitride crystal (90 s,
+ *       250 kW).</li>
  * </ul>
+ * The last two only run once Advanced Materials is researched, as the Wafer Fab waits for Extreme UV Lithography.
  */
 public final class NuclearProcessing {
 	public static final int OUTPUT_SLOT = 2;
@@ -58,6 +62,18 @@ public final class NuclearProcessing {
 			case "silicon_foundry" -> new Recipe(Items.QUARTZ, 2, Items.SAND, 4, item("silicon"), 8, null, 0, 20, 40);
 			case "ewaste_recycler" -> new Recipe(item("failed_module"), 1, null, 0, item("silicon"), 3, item("copper_wire"), 1, 15, 10);
 			case "electrolyser" -> new Recipe(item("aluminum_ingot"), 1, null, 0, item("hydrogen_canister"), 1, null, 0, 30, 4000);
+			case "cvd_furnace" -> new Recipe(item("coke"), 4, item("hydrogen_canister"), 1, item("graphene_sheet"), 2, null, 0, 60, 150);
+			case "epitaxy_reactor" -> new Recipe(RcItems.ITEMS.get("raw_bauxite"), 8, item("hydrogen_canister"), 1, item("gallium_nitride"), 1,
+					null, 0, 90, 250);
+			default -> null;
+		};
+	}
+
+	/** The research a cube needs before it runs, or null. */
+	public static String research(String machine) {
+		return switch (machine) {
+			case "wafer_fab" -> "lithography";
+			case "cvd_furnace", "epitaxy_reactor" -> "advanced_materials";
 			default -> null;
 		};
 	}
@@ -98,7 +114,8 @@ public final class NuclearProcessing {
 						? tankNetwork(world, controller) : null;
 				boolean ready = gas != null ? gas.hydrogenRoom() > 0 : ready(members, recipe);
 				active = ready;
-				if (array.controller().blockId().equals("wafer_fab") && !research.lithography()) {
+				String needs = research(array.controller().blockId());
+				if (needs != null && !dev.rackcraft.compute.ResearchLab.get(world).done(needs)) {
 					status = Status.LOCKED;
 					active = false;
 				} else if (array.controller().blockId().equals("electrolyser") && UtilityPlants.waterTouching(world, array) == 0) {
