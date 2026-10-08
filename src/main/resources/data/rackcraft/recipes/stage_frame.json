@@ -1,0 +1,26 @@
+{
+  "key": {
+    "A": {
+      "item": "rackcraft:aluminum_ingot"
+    },
+    "B": {
+      "item": "minecraft:bucket"
+    },
+    "F": {
+      "item": "minecraft:blast_furnace"
+    },
+    "S": {
+      "item": "rackcraft:steel_block"
+    }
+  },
+  "pattern": [
+    "AAA",
+    "ABA",
+    "SFS"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:stage_frame"
+  },
+  "type": "minecraft:crafting_shaped"
+}

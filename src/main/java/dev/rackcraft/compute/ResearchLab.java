@@ -57,7 +57,15 @@ public final class ResearchLab extends PersistentState {
 
 	/** What finished research does in this world. Cheap: rebuilt only when a project completes. */
 	public static Research.Effects effects(ServerWorld world) {
-		return get(world).effects();
+		Research.Effects base = get(world).effects();
+		// Orbital Data Centers add compute to every rack; Comms Satellites add lease slots.
+		double orbit = dev.rackcraft.world.OrbitState.computeFactor(world);
+		int slots = base.leases() ? dev.rackcraft.world.OrbitState.extraLeaseSlots(world) : 0;
+		if (orbit == 1 && slots == 0) return base;
+		return new Research.Effects(base.mining(), base.aiCompute() * orbit, base.generalCompute() * orbit, base.rackPower(),
+				base.sinkCapacity(), base.thermalOffset(), base.bootScale(), base.trainingWork(), base.contractWork(), base.contractPay(),
+				base.leasePay(), base.leaseSlots() + slots, base.reactorOutput(), base.leases(), base.lithography(), base.safeHardware(),
+				base.agi());
 	}
 
 	public Research.Effects effects() {

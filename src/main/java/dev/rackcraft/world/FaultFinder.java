@@ -107,9 +107,15 @@ public final class FaultFinder {
 				case "welding_arm", "riveting_arm", "assembly_arm" -> {
 					int status = machine.processStatus();
 					if (status == AssemblyLine.Status.NO_BELT.ordinal()) faults.add(new Fault(pos, 1, "Robot: not facing a Conveyor Belt"));
-					else if (status == AssemblyLine.Status.NO_PARTS.ordinal()) faults.add(new Fault(pos, 2, "Robot: out of parts"));
+					else if (status == AssemblyLine.Status.NO_PARTS.ordinal()) faults.add(new Fault(pos, 2, "Robot: no parts loaded"));
 					else if (status == AssemblyLine.Status.NO_POWER.ordinal()) faults.add(new Fault(pos, 2, "Robot: no power"));
 					else if (status == AssemblyLine.Status.LOW_POWER.ordinal()) faults.add(new Fault(pos, 1, "Robot: short of power, working slowly"));
+				}
+				case "launch_control" -> {
+					int status = machine.processStatus();
+					if (status == LaunchPads.Status.NO_PAD.ordinal()) faults.add(new Fault(pos, 1, "Launch Control: not beside a 3x3 Launch Pad"));
+					else if (status == LaunchPads.Status.NO_SKY.ordinal()) faults.add(new Fault(pos, 1, "Launch Control: the pad can't see the sky"));
+					else if (status == LaunchPads.Status.NO_POWER.ordinal()) faults.add(new Fault(pos, 2, "Launch Control: no power"));
 				}
 				case "drone_dock" -> {
 					int status = machine.processStatus();

@@ -34,6 +34,8 @@ public final class RcItems {
 			if (id.equals("spent_fuel")) settings.maxCount(16);
 			if (id.equals("hydrogen_canister")) settings.maxCount(16);
 			if (id.equals("maintenance_drone")) settings.maxCount(8);
+			if (id.equals("rocket_stage")) settings.maxCount(16);
+			if (java.util.Set.of("comms_satellite", "survey_satellite", "orbital_datacenter", "dyson_mirror").contains(id)) settings.maxCount(1);
 			Item item = switch (id) {
 				case "field_manual" -> new FieldManualItem(settings);
 				case "multimeter" -> new MultimeterItem(settings.maxCount(1));

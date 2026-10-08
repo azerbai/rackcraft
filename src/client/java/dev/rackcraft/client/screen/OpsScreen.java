@@ -371,8 +371,12 @@ public final class OpsScreen extends HandledScreen<OpsScreenHandler> {
 					left, row + 22, TEXT);
 			row += 40;
 		}
-		text(context, "Auto lends racks to autocrafting, contracts and training, and mines with the rest.", left, row, MUTED);
-		return row + 12;
+		for (net.minecraft.text.OrderedText line : textRenderer.wrapLines(
+				Text.literal("Auto lends racks to autocrafting, contracts and training, and mines with the rest."), right - left)) {
+			context.drawText(textRenderer, line, left, row, MUTED, false);
+			row += 10;
+		}
+		return row + 2;
 	}
 
 	private int models(DrawContext context, OpsSnapshot snapshot, int top, int mouseX, int mouseY) {

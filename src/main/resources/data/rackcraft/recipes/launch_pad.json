@@ -1,0 +1,20 @@
+{
+  "key": {
+    "C": {
+      "tag": "minecraft:terracotta"
+    },
+    "S": {
+      "item": "rackcraft:steel_block"
+    }
+  },
+  "pattern": [
+    "CCC",
+    "CSC",
+    "CCC"
+  ],
+  "result": {
+    "count": 9,
+    "item": "rackcraft:launch_pad"
+  },
+  "type": "minecraft:crafting_shaped"
+}

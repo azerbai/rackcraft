@@ -268,7 +268,8 @@ public final class DarknetMarket extends PersistentState {
 		if (listing.playerLeading()) {
 			Parcel parcel = new Parcel();
 			parcel.stack = listing.stack.copy();
-			parcel.arrivesAt = now + 20 * (120 + random.nextInt(241));
+			// Comms Satellites in orbit route the courier faster.
+			parcel.arrivesAt = now + Math.round(20 * (120 + random.nextInt(241)) * dev.rackcraft.world.OrbitState.deliveryFactor(world));
 			parcel.courier = COURIERS.get(random.nextInt(COURIERS.size()));
 			parcels.add(parcel);
 			result = String.format(Locale.ROOT, "%s won %s for %,d RC", listing.bidder, what, listing.bid);

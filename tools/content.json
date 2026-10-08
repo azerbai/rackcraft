@@ -88,6 +88,12 @@
      "desc":"A robot arm with a gripper and nine slots of parts. Place it beside a Conveyor Belt, facing the belt, and stock it with what the line needs (Electric Motors, Circuit Boards, Hydrogen Canisters): it installs parts into every workpiece whose next step it can do, three seconds per step at 250 kW, and keeps going while the steps that follow are installs too. Hoppers and Item Pipes can restock it."},
     {"id":"drone_dock","name":"Drone Dock","color":"5A6470","front":"hatch_face","side":"panel","top":"helipad","machine":true,
      "desc":"Home base for Maintenance Drones, and the end of walking to every broken thing in a big hall. Load drones into its first slot (up to eight), Hydrogen Canisters into the second, and spares into the rest: rack modules and Repair Kits. Every couple of seconds it looks for work within 32 blocks and sends a drone to each job: swapping a Failed Module out of a rack for a spare (the dead one comes back to the dock), splicing a cut cable with a Repair Kit, or resetting a tripped PDU breaker. Each trip burns an eighth of a canister. Draws 2 kW. Hit a drone and it drops as an item, so maybe don't."},
+    {"id":"launch_pad","name":"Launch Pad","color":"6E6E6A","pattern":"launch_pad",
+     "desc":"Blast-proof concrete with a flame trench. Lay nine in a flat 3x3 square with open sky above the middle, put a Launch Control beside it, and you have a spaceport. The rocket stands on the centre block."},
+    {"id":"launch_control","name":"Launch Control","color":"2C3A48","front":"launch","side":"panel","top":"plate","machine":true,
+     "desc":"Runs the launch programme. Place it touching a 3x3 Launch Pad. Load Rocket Stages into its first three slots, a payload into the fourth, and Hydrogen Canisters into the fifth (hoppers and Item Pipes work): canisters are drained into its tank, which holds 4,096. Each stage burns 128 canisters. Comms and Survey Satellites need one stage, an Orbital Data Center two, a Dyson Mirror three. Press Launch, and after a ten-second countdown the rocket lifts off. About one launch in fifty ends in a rapid unscheduled disassembly: the stages and fuel are lost, but the payload's abort motor brings it back. Draws 5 kW, and needs power to launch."},
+    {"id":"rectenna","name":"Rectenna","color":"4A5A6A","front":"antenna","side":"frame","top":"rectenna","machine":true,
+     "desc":"Catches the power your Dyson Mirrors beam down from orbit. Each mirror sends 2 MW, shared out between every Rectenna in the dimension that can see the sky, up to 20 MW per Rectenna. It works day and night, never runs out and can't be sold through a Grid-Tie Substation. Without mirrors in orbit it does nothing."},
     {"id":"waste_cask","name":"Sealed Waste Cask","color":"7A8288","pattern":"cask",
      "desc":"Four Spent Fuel rods sealed behind steel and depleted uranium. Completely safe to carry, stack and store: line them up on a concrete pad somewhere and try not to think about the next ten thousand years."},
     {"id":"monitoring_wall","name":"Monitoring Wall","color":"45637B","front":"monitor","side":"bezel","top":"plate","machine":true,
@@ -237,7 +243,21 @@
     {"id":"drone_frame","name":"Drone Frame","color":"A8B4BC","pattern":"drone_frame",
      "desc":"The bare airframe of a Maintenance Drone. Put it on an Assembly Line: an Assembly Robot fits four Electric Motors, a Welding Robot welds the mounts, Assembly Robots fit two Circuit Boards and a Hydrogen Canister, and a Riveting Robot closes the shell. A frame that falls off the line half-built remembers how far it got; its tooltip says what it needs next."},
     {"id":"maintenance_drone","name":"Maintenance Drone","color":"E0A040","pattern":"drone",
-     "desc":"A quadcopter with a gripper and a strong sense of duty. Load it into a Drone Dock and it flies out to fix things on its own: failed rack modules, cut cables and tripped breakers. It is built on an Assembly Line, not a crafting table."}
+     "desc":"A quadcopter with a gripper and a strong sense of duty. Load it into a Drone Dock and it flies out to fix things on its own: failed rack modules, cut cables and tripped breakers. It is built on an Assembly Line, not a crafting table."},
+    {"id":"stage_frame","name":"Stage Frame","color":"C8CCD0","pattern":"stage_frame",
+     "desc":"An empty rocket stage: tanks and an engine mount with nothing in them. On an Assembly Line it gets a weld, four Electric Motors (turbopumps), two Circuit Boards (avionics), another weld and rivets, and comes off as a Rocket Stage."},
+    {"id":"rocket_stage","name":"Rocket Stage","color":"E8E8E8","pattern":"rocket_stage",
+     "desc":"A finished rocket stage. Load it into a Launch Control. Payloads need one to three stages, and every stage burns 128 Hydrogen Canisters."},
+    {"id":"satellite_bus","name":"Satellite Bus","color":"B0A070","pattern":"bus",
+     "desc":"The chassis every payload is built on. What it becomes depends on the first part an Assembly Robot fits: copper wire makes a Comms Satellite, a Thermal Scanner a Survey Satellite, Wafer-Scale Engines an Orbital Data Center, Solar Panels a Dyson Mirror."},
+    {"id":"comms_satellite","name":"Comms Satellite","color":"D0D4D8","pattern":"comms",
+     "desc":"Bus + 16 Copper Wire + 4 Circuit Boards, welded and riveted. One stage. In orbit, each one (up to five) makes Darknet parcels arrive 10% sooner and adds a Compute Lease slot."},
+    {"id":"survey_satellite","name":"Survey Satellite","color":"A0C8A0","pattern":"survey",
+     "desc":"Bus + a Thermal Scanner + 2 Circuit Boards, riveted. One stage. It photographs the world once and drops the results into the Launch Control: a map marking the nearest Hyperscale Campus nobody has found yet (or, failing that, the nearest abandoned data center)."},
+    {"id":"orbital_datacenter","name":"Orbital Data Center","color":"8090B0","pattern":"orbital_dc",
+     "desc":"Bus + 4 Wafer-Scale Engines + 4 Cryo Coils, welded and riveted. Two stages. Up there the sun never sets and space is cold: every module in orbit adds 3% to the AI and general compute of every rack you own. There is no limit, and repeatable research never stops wanting more."},
+    {"id":"dyson_mirror","name":"Dyson Mirror","color":"E0C050","pattern":"mirror",
+     "desc":"Bus + 16 Solar Panels, welded and riveted. Three stages. One more mirror in the swarm around the sun: each beams 2 MW down to your Rectennas, forever. It takes a lot of hydrogen to put one up and a long time to pay it back, which is rather the point of a Dyson swarm."}
   ],
   "fuelNotes": "Each tick of furnace burn time gives one tick of 40 kW, and fuel only burns while the generator is supplying power. Coal runs 80 s, a coal block 800 s and a lava bucket 1000 s (the bucket stays in the slot).",
   "guide": [
@@ -283,6 +303,9 @@
     {"id":"industry","title":"Industry and Drones","icon":"welding_arm",
      "intro":"Once RackCoin stops mattering, power is what's left to spend. The Electrolyser turns hundreds of megawatts into Hydrogen Canisters, and the Assembly Line turns parts into machines no crafting table can make: lay Conveyor Belts past a row of robot arms (Welding, Riveting and Assembly Robots, each facing the belt) and each arm does its step as a workpiece passes. A Drone Frame goes in one end and a Maintenance Drone comes out the other. Drones live in a Drone Dock and fix failed modules, cut cables and tripped breakers by themselves.",
      "entries":["electrolyser","hydrogen_canister","conveyor_belt","welding_arm","riveting_arm","assembly_arm","electric_motor","drone_frame","maintenance_drone","drone_dock"]},
+    {"id":"space","title":"The Launch Programme","icon":"launch_control",
+     "intro":"Hydrogen's real job. Build Rocket Stages and payloads on the Assembly Line, fill a Launch Control's tank with Hydrogen Canisters, and put things in orbit. Comms Satellites speed up the Darknet and add lease slots, Survey Satellites find a Hyperscale Campus for you, Orbital Data Centers add compute to every rack, and Dyson Mirrors beam power back down to Rectennas. The last two have no limit.",
+     "entries":["launch_pad","launch_control","stage_frame","rocket_stage","satellite_bus","comms_satellite","survey_satellite","orbital_datacenter","dyson_mirror","rectenna"]},
     {"id":"creative","title":"Creative Tools","icon":"creative_power",
      "intro":"Creative-only machines for building and testing. They cannot be crafted or bought at the Exchange; find them in the Rackcraft Creative tab. Right-click one to set its value in-game; only players in creative mode or operators can change it.",
      "entries":["creative_power","creative_rack","creative_cooler","creative_router"]}
@@ -388,6 +411,11 @@
     {"id":"riveting_arm","kind":"shaped","result":"riveting_arm","pattern":[" P "," M ","SCS"],"key":{"P":"minecraft:piston","M":"rackcraft:electric_motor","S":"rackcraft:steel_ingot","C":"rackcraft:circuit_board"}},
     {"id":"assembly_arm","kind":"shaped","result":"assembly_arm","pattern":[" H "," M ","SCS"],"key":{"H":"minecraft:tripwire_hook","M":"rackcraft:electric_motor","S":"rackcraft:steel_ingot","C":"rackcraft:circuit_board"}},
     {"id":"drone_frame","kind":"shaped","result":"drone_frame","pattern":["A A"," S ","A A"],"key":{"A":"rackcraft:aluminum_ingot","S":"rackcraft:steel_ingot"}},
-    {"id":"drone_dock","kind":"shaped","result":"drone_dock","pattern":["SAS","CHC","SPS"],"key":{"S":"rackcraft:steel_ingot","A":"rackcraft:aluminum_ingot","C":"rackcraft:circuit_board","H":"minecraft:hopper","P":"rackcraft:pdu"}}
+    {"id":"drone_dock","kind":"shaped","result":"drone_dock","pattern":["SAS","CHC","SPS"],"key":{"S":"rackcraft:steel_ingot","A":"rackcraft:aluminum_ingot","C":"rackcraft:circuit_board","H":"minecraft:hopper","P":"rackcraft:pdu"}},
+    {"id":"launch_pad","kind":"shaped","result":"launch_pad","count":9,"pattern":["CCC","CSC","CCC"],"key":{"C":"#minecraft:terracotta","S":"rackcraft:steel_block"}},
+    {"id":"launch_control","kind":"shaped","result":"launch_control","pattern":["SMS","CGC","SBS"],"key":{"S":"rackcraft:steel_ingot","M":"rackcraft:monitoring_wall","C":"rackcraft:circuit_board","G":"rackcraft:gpu_chip","B":"minecraft:stone_button"}},
+    {"id":"rectenna","kind":"shaped","result":"rectenna","pattern":["WWW","ACA","SPS"],"key":{"W":"rackcraft:copper_wire","A":"rackcraft:aluminum_ingot","C":"rackcraft:circuit_board","S":"rackcraft:steel_ingot","P":"rackcraft:pdu"}},
+    {"id":"stage_frame","kind":"shaped","result":"stage_frame","pattern":["AAA","ABA","SFS"],"key":{"A":"rackcraft:aluminum_ingot","B":"minecraft:bucket","S":"rackcraft:steel_block","F":"minecraft:blast_furnace"}},
+    {"id":"satellite_bus","kind":"shaped","result":"satellite_bus","pattern":["AGA","SCS","AGA"],"key":{"A":"rackcraft:aluminum_ingot","G":"minecraft:gold_ingot","S":"rackcraft:steel_ingot","C":"rackcraft:circuit_board"}}
   ]
 }

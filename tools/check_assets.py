@@ -70,7 +70,9 @@ for tag in CONTENT["itemTags"]:
 
 require(RESOURCES / "assets/rackcraft/textures/entity/maintenance_drone.png")
 
-if len(CONTENT["blocks"]) != 63 or len(CONTENT["items"]) != 55:
-    raise SystemExit("content catalog must contain exactly 63 blocks and 55 standalone items")
+require(RESOURCES / "assets/rackcraft/textures/entity/rocket.png")
+
+if len(CONTENT["blocks"]) != 66 or len(CONTENT["items"]) != 62:
+    raise SystemExit("content catalog must contain exactly 66 blocks and 62 standalone items")
 
 print(f"Rackcraft assets ok: {len(CONTENT['blocks'])} blocks, {len(CONTENT['items'])} standalone items, {len(CONTENT['recipes'])} recipes")

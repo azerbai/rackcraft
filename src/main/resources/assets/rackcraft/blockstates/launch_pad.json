@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "rackcraft:block/launch_pad"
+    }
+  }
+}

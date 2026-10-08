@@ -2363,3 +2363,170 @@ ITEM_STYLES["h2"] = item_h2
 ITEM_STYLES["motor"] = item_motor
 ITEM_STYLES["drone_frame"] = item_drone_frame
 ITEM_STYLES["drone"] = item_drone
+
+
+# ---------------------------------------------------------------- the launch programme
+
+def launch_pad_block(entry):
+    """Scorched concrete in big cast slabs, a yellow edge line and a blackened centre where the engines hit."""
+    base = rgb(entry["color"])
+    canvas = noisy(base, entry["id"], 0.05)
+    canvas.hline(0, 15, 7, darken(base, 0.2))
+    canvas.vline(7, 0, 15, darken(base, 0.2))
+    for i in range(SIZE):
+        canvas.set(i, 0, YELLOW if (i // 2) % 2 == 0 else darken(base, 0.4))
+    rng = rng_for(entry["id"] + ":scorch")
+    for y in range(SIZE):
+        for x in range(SIZE):
+            if rng.random() < 0.12 * (1 - math.hypot(x - 8, y - 9) / 11):
+                canvas.set(x, y, darken(base, 0.45))
+    return canvas
+
+
+def launch_face(base, key, on):
+    """A console with a countdown readout and a big red launch button under a flip cover."""
+    frames = []
+    for frame in range(4 if on else 1):
+        canvas = plate(base, key + ":console")
+        canvas.inset(2, 2, 13, 7, GLASS_DARK, lighten(base, 0.1), darken(base, 0.5))
+        digits = (LED_GREEN if on else LED_OFF)
+        for index, x in enumerate((3, 6, 9, 11)):
+            lit = on and (index + frame) % 4 != 0
+            canvas.rect(x, 4, x + 1, 5, digits if lit or not on else darken(digits, 0.5))
+        canvas.disc(8, 11.5, 2.6, (200, 50, 40))
+        canvas.disc(8, 11.5, 1.2, (240, 110, 90) if on and frame % 2 == 0 else (160, 40, 34))
+        canvas.frame(4, 8, 11, 14, YELLOW)
+        frames.append(canvas)
+    return frames
+
+
+def top_rectenna(base, key):
+    """A grid of dipoles that glows faintly where the beam lands."""
+    canvas = plate(darken(base, 0.3), key + ":rectenna")
+    for y in range(2, 14, 3):
+        for x in range(2, 14, 3):
+            canvas.hline(x, x + 1, y, (200, 170, 90))
+            canvas.set(x, y + 1, (120, 100, 60))
+    canvas.frame(0, 0, 15, 15, darken(base, 0.6))
+    return canvas
+
+
+BLOCK_STYLES["launch_pad"] = launch_pad_block
+FRONT_STYLES["launch"] = launch_face
+TOP_STYLES["rectenna"] = top_rectenna
+
+
+def _rocket_body(canvas, x0, x1, y0, y1, color):
+    canvas.rect(x0, y0, x1, y1, color)
+    canvas.vline(x0, y0, y1, lighten(color, 0.25))
+    canvas.vline(x1, y0, y1, darken(color, 0.3))
+
+
+def item_stage_frame(base, key):
+    """A stage with no skin: ribs and a hollow tank, an empty engine mount underneath."""
+    canvas = Canvas()
+    for y in range(2, 13, 3):
+        canvas.hline(5, 10, y, base)
+    canvas.vline(5, 2, 12, darken(base, 0.2))
+    canvas.vline(10, 2, 12, darken(base, 0.35))
+    canvas.rect(6, 13, 9, 14, darken(STEEL, 0.4))
+    return canvas
+
+
+def item_rocket_stage(base, key):
+    """A white stage with a black roll pattern band and an engine bell."""
+    canvas = Canvas()
+    _rocket_body(canvas, 5, 10, 1, 11, base)
+    canvas.rect(5, 4, 7, 6, BLACK)
+    canvas.rect(8, 7, 10, 9, BLACK)
+    canvas.poly([(5.5, 12), (10.5, 12), (12, 15.5), (4, 15.5)], darken(STEEL, 0.35))
+    canvas.set(3, 10, LED_RED)
+    canvas.set(12, 10, LED_RED)
+    return canvas
+
+
+def item_bus(base, key):
+    """A gold-foiled box with mounting rails."""
+    canvas = Canvas()
+    canvas.rect(4, 4, 11, 11, base)
+    canvas.frame(4, 4, 11, 11, darken(base, 0.4))
+    for x, y in ((5, 6), (8, 9), (10, 5), (6, 10)):
+        canvas.set(x, y, lighten(base, 0.35))
+    canvas.hline(2, 13, 7, darken(STEEL, 0.2))
+    canvas.hline(2, 13, 8, darken(STEEL, 0.4))
+    return canvas
+
+
+def _satellite(canvas, body, wing):
+    canvas.rect(6, 6, 9, 9, body)
+    canvas.frame(6, 6, 9, 9, darken(body, 0.4))
+    for x0 in (1, 11):
+        canvas.rect(x0, 6, x0 + 3, 9, wing)
+        canvas.vline(x0 + 2, 6, 9, darken(wing, 0.4))
+    canvas.hline(4, 5, 7, STEEL)
+    canvas.hline(10, 10, 7, STEEL)
+
+
+def item_comms(base, key):
+    canvas = Canvas()
+    _satellite(canvas, base, (50, 80, 150))
+    canvas.disc(8, 3.5, 2.6, (230, 230, 236))
+    canvas.vline(8, 2, 5, darken(STEEL, 0.3))
+    return canvas
+
+
+def item_survey(base, key):
+    canvas = Canvas()
+    _satellite(canvas, base, (50, 80, 150))
+    canvas.rect(7, 10, 8, 13, BLACK)
+    canvas.set(7, 13, (90, 200, 255))
+    return canvas
+
+
+def item_orbital_dc(base, key):
+    canvas = Canvas()
+    canvas.rect(5, 3, 10, 12, base)
+    canvas.frame(5, 3, 10, 12, darken(base, 0.45))
+    for y in range(4, 12, 2):
+        canvas.hline(6, 9, y, darken(base, 0.3))
+        canvas.set(9, y, LED_GREEN)
+    for x0 in (1, 12):
+        canvas.rect(x0, 2, x0 + 2, 13, (40, 70, 140))
+        for y in range(3, 13, 3):
+            canvas.hline(x0, x0 + 2, y, (90, 130, 200))
+    return canvas
+
+
+def item_mirror(base, key):
+    """A gold mirror petal catching the light, on a thin boom."""
+    canvas = Canvas()
+    canvas.poly([(8, 1), (14.5, 8), (8, 15), (1.5, 8)], base)
+    canvas.poly([(8, 3), (12, 8), (8, 9)], lighten(base, 0.4))
+    canvas.line(8, 1, 8, 15, darken(base, 0.3))
+    canvas.set(8, 8, (255, 255, 230))
+    return canvas
+
+
+ITEM_STYLES.update({"stage_frame": item_stage_frame, "rocket_stage": item_rocket_stage, "bus": item_bus,
+                    "comms": item_comms, "survey": item_survey, "orbital_dc": item_orbital_dc, "mirror": item_mirror})
+
+
+def rocket_parts():
+    """Tiles for the rocket entity: 0 stage skin, 1 interstage, 2 engine, 3 fairing, 4 fin."""
+    white = (232, 232, 236)
+    skin = plate(white, "rocket:skin")
+    skin.rect(2, 4, 6, 8, BLACK)
+    skin.rect(9, 9, 13, 13, BLACK)
+    skin.hline(0, 15, 1, darken(white, 0.2))
+    interstage = plate((40, 42, 46), "rocket:interstage")
+    interstage.hline(0, 15, 5, (70, 72, 78))
+    interstage.hline(0, 15, 10, (70, 72, 78))
+    engine = plate((70, 66, 64), "rocket:engine")
+    for y in range(SIZE):
+        engine.hline(0, 15, y, mix((90, 86, 84), (150, 80, 50), y / 15))
+    fairing = plate(white, "rocket:fairing")
+    fairing.rect(4, 6, 11, 9, (40, 120, 200))
+    fairing.set(5, 7, (230, 240, 255))
+    fin = plate((40, 42, 46), "rocket:fin")
+    fin.hline(0, 15, 14, YELLOW)
+    return _strip([skin, interstage, engine, fairing, fin])

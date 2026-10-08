@@ -107,6 +107,11 @@ public final class ItemPipes {
 					if (machine.getStack(slot).isOf(RcItems.ITEMS.get("failed_module"))) store(machine, slot, items);
 				}
 			}
+			// A Launch Control fills its tank from storage and files Survey maps away.
+			case "launch_control" -> {
+				stock(machine, LaunchPads.FUEL_SLOT, ItemKey.of(RcItems.ITEMS.get("hydrogen_canister")), 16, items);
+				if (machine.getStack(LaunchPads.PAYLOAD_SLOT).isOf(Items.FILLED_MAP)) store(machine, LaunchPads.PAYLOAD_SLOT, items);
+			}
 			default -> {
 				NuclearProcessing.Recipe recipe = NuclearProcessing.recipe(machine.blockId());
 				if (recipe == null) return;

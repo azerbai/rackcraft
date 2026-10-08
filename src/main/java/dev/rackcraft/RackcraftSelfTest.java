@@ -37,7 +37,8 @@ public final class RackcraftSelfTest {
 		// Random events would break modules and reboot racks mid-check; checkResearch fires them on purpose.
 		RackcraftConfig.values.events.enabled = false;
 		dev.rackcraft.compute.ResearchLab.get(server.getOverworld()).reset();
-		check("S0.a", RcBlocks.BLOCKS.size() == 63 && RcItems.ITEMS.size() == 55,
+		dev.rackcraft.world.OrbitState.get(server.getOverworld()).reset();
+		check("S0.a", RcBlocks.BLOCKS.size() == 66 && RcItems.ITEMS.size() == 62,
 				"blocks=" + RcBlocks.BLOCKS.size() + " items=" + RcItems.ITEMS.size(), failures);
 		ServerWorld world = server.getOverworld();
 		BlockPos generatorPos = new BlockPos(0, 80, 0);
@@ -121,6 +122,7 @@ public final class RackcraftSelfTest {
 		checkDarknet(world, failures);
 		checkUtilities(world, failures);
 		checkIndustry(world, failures);
+		checkLaunch(world, failures);
 		checkStructures(world, failures);
 		check("S0.b", SimTicker.failedSteps() == 0, "simulation steps that threw=" + SimTicker.failedSteps(), failures);
 		Rackcraft.LOGGER.info("RACKCRAFT_SELFTEST DONE failures={}", failures[0]);
@@ -1140,6 +1142,118 @@ public final class RackcraftSelfTest {
 				"dronesHome=" + dock.getStack(0).getCount() + " fixed=" + dock.itemsMade() + " tripsLeft=" + dock.toolUses()
 						+ " canisters=" + dock.getStack(1).getCount() + " kitDamage=" + dock.getStack(3).getDamage(), failures);
 		clearArea(world, origin, 44, 8, 20);
+	}
+
+	/**
+	 * The launch programme: a Satellite Bus with Solar Panels fitted becomes a Dyson Mirror on the line; a Launch Control
+	 * beside a 3x3 pad puts a Comms Satellite, an Orbital Data Center and that mirror into orbit, each with its effect;
+	 * a failed launch loses the stages and fuel but returns the payload.
+	 */
+	private static void checkLaunch(ServerWorld world, int[] failures) {
+		BlockPos origin = clearArea(world, new BlockPos(-1860, 180, -1536), 30, 12, 20);
+		dev.rackcraft.world.OrbitState orbit = dev.rackcraft.world.OrbitState.get(world);
+		orbit.reset();
+		double baseAi = dev.rackcraft.compute.ResearchLab.effects(world).aiCompute();
+
+		// The bus branches on its first part: an Assembly Robot holding only Solar Panels makes it a mirror.
+		BlockPos line = origin.add(0, 0, 14);
+		List<dev.rackcraft.block.BeltBlockEntity> belts = new java.util.ArrayList<>();
+		for (int index = 0; index < 5; index++) {
+			world.setBlockState(line.east(index), RcBlocks.get("conveyor_belt").getDefaultState()
+					.with(dev.rackcraft.block.ConveyorBeltBlock.FACING, Direction.EAST));
+			belts.add((dev.rackcraft.block.BeltBlockEntity) world.getBlockEntity(line.east(index)));
+		}
+		world.setBlockState(line.east(5), Blocks.CHEST.getDefaultState());
+		String[] robots = {"assembly_arm", "welding_arm", "riveting_arm"};
+		List<MachineBlockEntity> arms = new java.util.ArrayList<>();
+		for (int index = 0; index < robots.length; index++) {
+			BlockPos at = line.east(1 + index).north();
+			arms.add(place(world, at, robots[index], Direction.SOUTH));
+			world.setBlockState(at.north(), RcBlocks.get("creative_power").getDefaultState());
+			machine(world, at.north()).setCreativeValue(CreativeSettings.OUTPUT_KW, 5_000);
+		}
+		arms.get(0).setStack(0, new ItemStack(RcBlocks.get("solar_panel"), 16));
+		for (int step = 0; step < 2; step++) SimTicker.stepNow(world);
+		belts.get(0).accept(new ItemStack(RcItems.ITEMS.get("satellite_bus")), 0);
+		for (int tick = 0; tick < 1200; tick++) {
+			for (var belt : belts) belt.serverTick(world);
+			if (tick % 10 == 9) SimTicker.stepNow(world);
+		}
+		boolean mirror = false;
+		if (world.getBlockEntity(line.east(5)) instanceof net.minecraft.block.entity.ChestBlockEntity chest) {
+			for (int slot = 0; slot < chest.size(); slot++) mirror |= chest.getStack(slot).isOf(RcItems.ITEMS.get("dyson_mirror"));
+		}
+		check("L1.a", mirror && arms.get(0).getStack(0).isEmpty(),
+				"mirror=" + mirror + " panelsLeft=" + arms.get(0).getStack(0).getCount() + " steps="
+						+ arms.stream().map(arm -> arm.itemsMade() + "").toList(), failures);
+
+		// The spaceport: a 3x3 pad, Launch Control on its west side, power, and a Rectenna to catch the mirror's beam.
+		BlockPos pad = origin.add(4, 0, 4);
+		for (BlockPos pos : BlockPos.iterate(pad.add(-1, 0, -1), pad.add(1, 0, 1))) world.setBlockState(pos, RcBlocks.get("launch_pad").getDefaultState());
+		MachineBlockEntity control = place(world, pad.west(2), "launch_control", Direction.WEST);
+		world.setBlockState(pad.west(3), RcBlocks.get("creative_power").getDefaultState());
+		MachineBlockEntity rectenna = place(world, pad.west(2).north(), "rectenna", Direction.NORTH);
+		control.setStack(0, new ItemStack(RcItems.ITEMS.get("rocket_stage"), 16));
+		control.setStack(4, new ItemStack(RcItems.ITEMS.get("hydrogen_canister"), 16));
+		control.setStack(3, new ItemStack(RcItems.ITEMS.get("comms_satellite")));
+		for (int step = 0; step < 2; step++) SimTicker.stepNow(world);
+		int drained = control.launchTank();
+		int noFuel = control.processStatus();
+		control.setLaunchTank(4000);
+		dev.rackcraft.world.LaunchPads.failureChance = 0;
+		SimTicker.stepNow(world);
+		String reply = dev.rackcraft.world.LaunchPads.launch(world, control);
+		boolean rocket = !world.getEntitiesByClass(dev.rackcraft.entity.RocketEntity.class, new net.minecraft.util.math.Box(pad).expand(4),
+				net.minecraft.entity.Entity::isAlive).isEmpty();
+		flyMission(world, control);
+		check("L2.a", drained == 16 && noFuel == dev.rackcraft.world.LaunchPads.Status.NO_FUEL.ordinal() && rocket
+						&& orbit.comms() == 1 && control.launchTank() == 4000 - 128 && control.getStack(0).getCount() == 15
+						&& Math.abs(dev.rackcraft.world.OrbitState.deliveryFactor(world) - 0.9) < 1e-9,
+				"drained=" + drained + " noFuelStatus=" + noFuel + " reply=" + reply + " rocket=" + rocket + " comms=" + orbit.comms()
+						+ " tank=" + control.launchTank() + " stages=" + control.getStack(0).getCount(), failures);
+
+		control.setStack(3, new ItemStack(RcItems.ITEMS.get("orbital_datacenter")));
+		dev.rackcraft.world.LaunchPads.launch(world, control);
+		flyMission(world, control);
+		control.setStack(3, new ItemStack(RcItems.ITEMS.get("dyson_mirror")));
+		dev.rackcraft.world.LaunchPads.launch(world, control);
+		flyMission(world, control);
+		for (int step = 0; step < 2; step++) SimTicker.stepNow(world);
+		double ai = dev.rackcraft.compute.ResearchLab.effects(world).aiCompute();
+		check("L2.b", orbit.datacenters() == 1 && orbit.mirrors() == 1 && Math.abs(ai / baseAi - 1.03) < 1e-9
+						&& rectenna.networkCapacityKw() >= 2000 && control.getStack(0).getCount() == 10,
+				"datacenters=" + orbit.datacenters() + " mirrors=" + orbit.mirrors() + " ai=" + ai + "/" + baseAi
+						+ " rectennaCapacity=" + rectenna.networkCapacityKw() + " stages=" + control.getStack(0).getCount(), failures);
+
+		// A failure: the stage and fuel are spent, the payload comes back, and nothing reaches orbit.
+		dev.rackcraft.world.LaunchPads.failureChance = 1;
+		control.setStack(3, new ItemStack(RcItems.ITEMS.get("comms_satellite")));
+		int tankBefore = control.launchTank();
+		dev.rackcraft.world.LaunchPads.launch(world, control);
+		flyMission(world, control);
+		dev.rackcraft.world.LaunchPads.failureChance = 1.0 / dev.rackcraft.world.LaunchPads.FAILURE_ODDS;
+		check("L3.a", orbit.comms() == 1 && orbit.failures() == 1 && control.getStack(3).isOf(RcItems.ITEMS.get("comms_satellite"))
+						&& control.launchTank() == tankBefore - 128,
+				"comms=" + orbit.comms() + " failures=" + orbit.failures() + " payload=" + control.getStack(3) + " tank=" + control.launchTank(),
+				failures);
+
+		// A Survey Satellite brings back a map of something nobody has found.
+		dev.rackcraft.world.LaunchPads.failureChance = 0;
+		control.setStack(3, new ItemStack(RcItems.ITEMS.get("survey_satellite")));
+		dev.rackcraft.world.LaunchPads.launch(world, control);
+		flyMission(world, control);
+		dev.rackcraft.world.LaunchPads.failureChance = 1.0 / dev.rackcraft.world.LaunchPads.FAILURE_ODDS;
+		check("L4.a", orbit.surveys() == 1 && control.getStack(3).isOf(Items.FILLED_MAP),
+				"surveys=" + orbit.surveys() + " slot=" + control.getStack(3) + " name=" + control.getStack(3).getName().getString(), failures);
+		world.getEntitiesByClass(dev.rackcraft.entity.RocketEntity.class, new net.minecraft.util.math.Box(pad).expand(400),
+				net.minecraft.entity.Entity::isAlive).forEach(net.minecraft.entity.Entity::discard);
+		orbit.reset();
+		clearArea(world, origin, 30, 12, 20);
+	}
+
+	/** Steps the simulation through a launch's countdown and flight. */
+	private static void flyMission(ServerWorld world, MachineBlockEntity control) {
+		for (int step = 0; step < 200 && (control.launchCountdown() > 0 || control.launchFlight() > 0); step++) SimTicker.stepNow(world);
 	}
 
 	/** Flies every drone near this dock until all are home (or 30 seconds pass). */

@@ -40,13 +40,18 @@ public final class MachineStatusScreen extends RackcraftHandledScreen {
 			line(context, "Output " + kw(power), 12, 44, TEXT);
 		} else if (id.equals("battery_bank")) {
 			int permille = stat(Stat.BATTERY_PERMILLE);
-			String trend = power > 0 ? "Charging +" + kw(power) : power < 0 ? "Discharging " + kw(-power) : "Holding charge";
-			line(context, trend, 12, 30, power < 0 ? WARN : GOOD);
+			// Batteries don't count as generating capacity, so none on the network means nothing can charge this one.
+			boolean fed = stat(Stat.NETWORK_CAPACITY) > 0;
+			String trend = power > 0 ? "Charging +" + kw(power) : power < 0 ? "Discharging " + kw(-power)
+					: !fed ? "Not charging: no generator on its power network" : permille == 0 ? "Empty: no spare power to charge it"
+					: permille >= 1000 ? "Full" : "Holding charge";
+			line(context, trend, 12, 30, power < 0 ? WARN : !fed ? BAD : permille == 0 ? MUTED : GOOD);
 			int edge = Math.max(1, stat(Stat.ARRAY_EDGE));
-			line(context, "Charge " + permille / 10 + "%" + (edge > 1 ? String.format(java.util.Locale.ROOT,
-					"  Grid-Scale Battery %dx%dx%d, %.1f MJ, %d%% efficient", edge, edge, edge, stat(Stat.SOURCE_CAPACITY) / 10000.0,
-					90 + 2 * (edge - 1)) : ""), 12, 44, TEXT);
+			line(context, "Charge " + permille / 10 + "%", 12, 44, TEXT);
 			bar(context, 12, 56, 206, permille / 1000.0, GOOD);
+			line(context, edge > 1 ? String.format(java.util.Locale.ROOT, "Grid-Scale Battery %dx%dx%d: %.1f MJ, %d%% efficient",
+					edge, edge, edge, stat(Stat.SOURCE_CAPACITY) / 10000.0, 90 + 2 * (edge - 1))
+					: "A lone bank: build a cube of them for a Grid-Scale Battery", 12, 68, MUTED);
 		} else if (id.equals("freshwater_pump")) {
 			String[] states = {"Pumping fresh water", "No power", "Not touching water: place it beside a lake or river",
 					"Salt water: oceans and beaches don't count", "Too little water: needs 12 source blocks nearby"};
@@ -128,8 +133,10 @@ public final class MachineStatusScreen extends RackcraftHandledScreen {
 		} else if (id.equals("grid_substation")) {
 			int edge = stat(Stat.ARRAY_EDGE);
 			int price = stat(Stat.COOLING_DETAIL);
+			boolean fed = stat(Stat.NETWORK_CAPACITY) > 0;
 			line(context, edge < 2 ? "Not formed: build a solid cube, 2x2x2 to 5x5x5" : power > 0 ? "Exporting " + kw(power)
-					: "Idle: no spare solar, wind or reactor power", 12, 30, edge < 2 ? WARN : power > 0 ? GOOD : MUTED);
+					: !fed ? "Idle: no generator on its power network" : "Idle: no spare solar, wind or nuclear",
+					12, 30, edge < 2 ? WARN : power > 0 ? GOOD : !fed ? BAD : MUTED);
 			line(context, String.format(java.util.Locale.ROOT, "Sells up to %s. Price x%.1f (%s)", kw(stat(Stat.SOURCE_CAPACITY)),
 					price / 100.0, dev.rackcraft.world.UtilityPlants.priceName(price / 100.0)), 12, 44, TEXT);
 			line(context, String.format(java.util.Locale.ROOT, "Earning %,.1f RC/s", stat(Stat.INCOME) / 10.0), 12, 56,
@@ -161,7 +168,7 @@ public final class MachineStatusScreen extends RackcraftHandledScreen {
 					12, 44 + 12, caught > 0 ? GOOD : MUTED);
 			loopLine(context, 68);
 		}
-		int top = id.equals("cdu") || id.equals("desalination_plant") ? 84 : 72;
+		int top = id.equals("cdu") || id.equals("desalination_plant") || id.equals("battery_bank") ? 84 : 72;
 		line(context, "Power network", 12, top, MUTED);
 		line(context, "Delivering " + kw(stat(Stat.NETWORK_DELIVERED)) + " of " + kw(stat(Stat.NETWORK_DEMAND)) + " demand", 12, top + 12, TEXT);
 		line(context, "Generating capacity " + kw(stat(Stat.NETWORK_CAPACITY)), 12, top + 24, TEXT);

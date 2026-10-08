@@ -110,6 +110,7 @@ public final class SimTicker {
 			machine.setNetworkStats(0, 0);
 			if (!machine.blockId().equals("server_rack")) machine.setPowerKw(0);
 		}
+		RECTENNAS.put(world, LaunchPads.rectennas(world, machines));
 		Map<MachineBlockEntity, ReactorArrays.Array> reactors = ReactorArrays.scan(machines);
 		Map<MachineBlockEntity, ReactorArrays.Array> arrays = ReactorArrays.scanAll(machines);
 		Map<String, ReactorArrays.Array> exportSinks = new HashMap<>();
@@ -209,6 +210,7 @@ public final class SimTicker {
 		NuclearProcessing.step(world, arrays, satisfaction, dt, research);
 		AssemblyLine.step(world, machines, satisfaction, dt);
 		DroneDocks.step(world, machines, satisfaction);
+		LaunchPads.step(world, machines, satisfaction);
 		for (ReactorArrays.Array array : new HashSet<>(arrays.values())) {
 			if (array.controller().blockId().equals("grid_substation")) UtilityPlants.sellPower(world, array, exported.getOrDefault(array, 0.0), dt);
 		}
@@ -373,10 +375,20 @@ public final class SimTicker {
 			case "utility_intake" -> new PowerSolver.Source(id(machine), PowerSolver.SourceKind.UTILITY,
 					FacilityManager.get(world).activeEvent().equals("utility_outage") ? 0 : 100);
 			case "diesel_generator" -> dieselSource(machine);
+			// Beamed down from the Dyson swarm: steady, day and night, and (as a UTILITY source) never resold.
+			case "rectenna" -> world.isSkyVisible(machine.getPos().up())
+					? new PowerSolver.Source(id(machine), PowerSolver.SourceKind.UTILITY, OrbitState.rectennaKw(world, rectennaCount(world))) : null;
 			case "creative_power" -> new PowerSolver.Source(id(machine), PowerSolver.SourceKind.UTILITY,
 					machine.creativeValue(CreativeSettings.OUTPUT_KW));
 		default -> null;
 		};
+	}
+
+	/** Rectennas that can see the sky, counted at the start of each step so every one gets its share of the swarm. */
+	private static final Map<ServerWorld, Integer> RECTENNAS = new WeakHashMap<>();
+
+	private static int rectennaCount(ServerWorld world) {
+		return RECTENNAS.getOrDefault(world, 0);
 	}
 
 	private static PowerSolver.Source dieselSource(MachineBlockEntity machine) {
@@ -450,7 +462,7 @@ public final class SimTicker {
 		for (MachineBlockEntity machine : machines) {
 			boolean active = switch (machine.blockId()) {
 				case "server_rack" -> satisfaction.getOrDefault(machine, 0.0) > 0 && !machine.isTripped();
-				case "solar_panel", "wind_turbine", "utility_intake", "diesel_generator", "creative_power" ->
+				case "solar_panel", "wind_turbine", "utility_intake", "diesel_generator", "creative_power", "rectenna" ->
 						sourceOutput.getOrDefault(machine, 0.0) > 0;
 				case "battery_bank" -> machine.powerKw() < -0.01;
 				case "modular_reactor" -> machine.powerKw() > 0;
@@ -570,6 +582,7 @@ public final class SimTicker {
 					"electrolyser" -> NuclearProcessing.demandKw(machine);
 			case "welding_arm", "riveting_arm", "assembly_arm" -> AssemblyLine.demandKw(machine);
 			case "drone_dock" -> DroneDocks.DOCK_KW;
+			case "launch_control" -> LaunchPads.CONTROL_KW;
 			case "cdu" -> 0.5;
 			case "desalination_plant" -> UtilityPlants.desalinationKw(machine);
 			case "facility_controller" -> 0.5;

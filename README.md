@@ -219,6 +219,21 @@ Once RackCoin stops mattering, power is what's left to spend.
   Arms idle at 1 kW, slow down below full power and stop under 10%. A workpiece remembers its progress (its tooltip says what it needs next), so one that falls off half-built can go round again. The first recipe: a **Drone Frame** gets 4 Electric Motors, a weld, 2 Circuit Boards, a Hydrogen Canister and rivets, and becomes a **Maintenance Drone**.
 - **Drone Dock**: holds up to 8 drones, Hydrogen Canisters and spares (rack modules, Repair Kits). Every two seconds it sends a drone to each job within 32 blocks: swapping a Failed Module out of a rack for a spare (the dead one comes back, and a hopper under the dock can take it away), splicing a cut cable with one of a Repair Kit's repairs, or resetting a tripped PDU breaker. Each trip burns an eighth of a canister; the dock draws 2 kW. Hit a drone and it drops as an item.
 
+Each belt carries one item, so only one robot works on it at a time; a second robot beside the same belt helps only if it does a different step. Lengthen the line instead. A Satellite Bus can become any of four payloads: the first part an Assembly Robot fits decides which.
+
+## The Launch Programme
+
+A **Launch Control** touching a flat 3x3 **Launch Pad** (with open sky over the centre) launches payloads. Load Rocket Stages, a payload and Hydrogen Canisters (its tank holds 4,096; hoppers and Item Pipes can fill it), press Launch, and after a ten-second countdown the rocket lifts off. Every stage burns 128 canisters. About one launch in fifty fails: the stages and fuel are lost, the payload comes back.
+
+| Payload | Built from a Satellite Bus with | Stages | In orbit |
+| --- | --- | --- | --- |
+| **Comms Satellite** | 16 Copper Wire, 4 Circuit Boards, weld, rivet | 1 | Each (up to 5): Darknet parcels 10% sooner, one more Compute Lease slot |
+| **Survey Satellite** | Thermal Scanner, 2 Circuit Boards, rivet | 1 | A map to the nearest undiscovered Hyperscale Campus (or data center), left in the Launch Control |
+| **Orbital Data Center** | 4 Wafer-Scale Engines, 4 Cryo Coils, weld, rivet | 2 | +3% AI and general compute on every rack, no limit |
+| **Dyson Mirror** | 16 Solar Panels, weld, rivet | 3 | 2 MW beamed to your **Rectennas** (shared between them, up to 20 MW each), no limit |
+
+Rocket Stages are built on the line too: a Stage Frame gets a weld, 4 Electric Motors, 2 Circuit Boards, another weld and rivets.
+
 ## Smog
 
 Exhaust fans dump waste heat straight outside and pollute heavily. Each running fan pours smoke out of its back and adds smog to its chunk, more the more heat it moves. Smog drifts into neighbouring chunks and clears over a few minutes. Breathing it gets worse in steps:

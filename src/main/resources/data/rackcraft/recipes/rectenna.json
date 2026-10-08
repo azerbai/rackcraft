@@ -1,0 +1,29 @@
+{
+  "key": {
+    "A": {
+      "item": "rackcraft:aluminum_ingot"
+    },
+    "C": {
+      "item": "rackcraft:circuit_board"
+    },
+    "P": {
+      "item": "rackcraft:pdu"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    },
+    "W": {
+      "item": "rackcraft:copper_wire"
+    }
+  },
+  "pattern": [
+    "WWW",
+    "ACA",
+    "SPS"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:rectenna"
+  },
+  "type": "minecraft:crafting_shaped"
+}

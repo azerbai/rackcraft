@@ -1,0 +1,29 @@
+{
+  "key": {
+    "B": {
+      "item": "minecraft:stone_button"
+    },
+    "C": {
+      "item": "rackcraft:circuit_board"
+    },
+    "G": {
+      "item": "rackcraft:gpu_chip"
+    },
+    "M": {
+      "item": "rackcraft:monitoring_wall"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    }
+  },
+  "pattern": [
+    "SMS",
+    "CGC",
+    "SBS"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:launch_control"
+  },
+  "type": "minecraft:crafting_shaped"
+}

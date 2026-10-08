@@ -6,7 +6,6 @@ import dev.rackcraft.screen.MachineScreenHandler;
 import dev.rackcraft.screen.MachineScreenHandler.Stat;
 import dev.rackcraft.world.AssemblyLine;
 import dev.rackcraft.world.DroneDocks;
-import java.util.List;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.ItemStack;
@@ -19,7 +18,7 @@ import net.minecraft.util.math.BlockPos;
  */
 public final class WorkcellScreen extends RackcraftHandledScreen {
 	private static final String[] ARM_STATES = {"Working", "Waiting for a workpiece that needs it",
-			"Out of parts: stock the slots below", "Stopped: not enough power (under 10%)", "Not facing a Conveyor Belt",
+			"No parts loaded: stock the slots below", "Stopped: not enough power (under 10%)", "Not facing a Conveyor Belt",
 			"Working slowly: short of power"};
 	private static final String[] DOCK_STATES = {"Drones out on jobs", "Standing by: nothing to fix in range",
 			"Stopped: no power", "Jobs waiting, but no drones are home", "Out of hydrogen: load Hydrogen Canisters",
@@ -56,10 +55,7 @@ public final class WorkcellScreen extends RackcraftHandledScreen {
 			lineFit(context, "Belt in front: empty", 8, 88, 160, MUTED);
 		} else {
 			lineFit(context, "On the belt: " + piece.getName().getString(), 8, 88, 160, TEXT);
-			List<String> progress = AssemblyLine.describe(piece);
-			AssemblyLine.Step next = AssemblyLine.nextStep(piece);
-			String detail = !progress.isEmpty() ? progress.get(1)
-					: next != null ? "Next: " + next.describe() + " (" + next.kind().armName + ")" : "Nothing to do to it";
+			String detail = AssemblyLine.nextDescription(piece);
 			lineFit(context, detail, 8, 99, 160, MUTED);
 		}
 		if (blockId().equals("assembly_arm")) line(context, "Parts (" + stat(Stat.ITEMS_MADE) + " steps done)", 8, 105, MUTED);

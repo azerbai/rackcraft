@@ -109,6 +109,12 @@ public final class MachineScreenHandler extends ScreenHandler {
 				for (int index = 0; index < 9; index++) addSlot(new MachineSlot(machineInventory, index, 8 + index * 18, 116));
 			}
 			addPlayerInventory(playerInventory, 8, 152);
+		} else if (mode == Mode.LAUNCH) {
+			// Three stage slots, the payload, and hydrogen in.
+			for (int index = 0; index < 3; index++) addSlot(new MachineSlot(machineInventory, index, 8 + index * 18, 42));
+			addSlot(new MachineSlot(machineInventory, 3, 80, 42));
+			addSlot(new MachineSlot(machineInventory, 4, 152, 42));
+			addPlayerInventory(playerInventory, 8, 158);
 		}
 		addProperties(properties);
 	}
@@ -156,9 +162,15 @@ public final class MachineScreenHandler extends ScreenHandler {
 	public BlockPos pos() { return pos; }
 	/** Button 0 on a cube's port: hand the player every product the whole cube holds. */
 	public static final int COLLECT_BUTTON = 0;
+	/** Button 1 on a Launch Control: launch. */
+	public static final int LAUNCH_BUTTON = 1;
 
 	@Override
 	public boolean onButtonClick(PlayerEntity player, int id) {
+		if (id == LAUNCH_BUTTON && mode == Mode.LAUNCH && machine != null && machine.getWorld() instanceof ServerWorld launchWorld) {
+			player.sendMessage(net.minecraft.text.Text.literal(dev.rackcraft.world.LaunchPads.launch(launchWorld, machine)), true);
+			return true;
+		}
 		if (id != COLLECT_BUTTON || machine == null || !(machine.getWorld() instanceof ServerWorld world)
 				|| !(mode == Mode.REACTOR || mode == Mode.PROCESSOR)) return false;
 		var array = dev.rackcraft.world.ReactorArrays.arrayOf(world, machine);
@@ -239,6 +251,18 @@ public final class MachineScreenHandler extends ScreenHandler {
 			case Stat.CUBE_BYPRODUCT -> machine.cubeByproduct();
 			case Stat.CUBE_DEMAND -> tenths(machine.cubeDemandKw());
 			case Stat.DOCK_JOBS -> machine.dockJobs();
+			case Stat.LAUNCH_TANK -> machine.launchTank();
+			case Stat.LAUNCH_COUNTDOWN -> machine.launchCountdown();
+			case Stat.LAUNCH_FLIGHT -> machine.launchFlight();
+			case Stat.ORBIT_COMMS, Stat.ORBIT_DATACENTERS, Stat.ORBIT_MIRRORS, Stat.ORBIT_LAUNCHES -> {
+				var orbit = machine.getWorld() instanceof ServerWorld world ? dev.rackcraft.world.OrbitState.existing(world) : null;
+				yield orbit == null ? 0 : switch (stat) {
+					case Stat.ORBIT_COMMS -> orbit.comms();
+					case Stat.ORBIT_DATACENTERS -> orbit.datacenters();
+					case Stat.ORBIT_MIRRORS -> orbit.mirrors();
+					default -> orbit.launches();
+				};
+			}
 			default -> 0;
 		};
 	}
@@ -302,7 +326,14 @@ public final class MachineScreenHandler extends ScreenHandler {
 		public static final int BALANCE_HIGH = 50;      // RackCoin above 2^31, so balances past 2.1 billion show
 		public static final int INCOME = 51;            // tenths of RC/s a utility plant earns
 		public static final int DOCK_JOBS = 52;        // jobs a Drone Dock can see right now
-		static final int COUNT = 53;
+		public static final int LAUNCH_TANK = 53;      // Hydrogen Canisters in a Launch Control's tank
+		public static final int LAUNCH_COUNTDOWN = 54; // ticks to liftoff
+		public static final int LAUNCH_FLIGHT = 55;    // ticks of flight left
+		public static final int ORBIT_COMMS = 56;
+		public static final int ORBIT_DATACENTERS = 57;
+		public static final int ORBIT_MIRRORS = 58;
+		public static final int ORBIT_LAUNCHES = 59;
+		static final int COUNT = 60;
 
 		private Stat() {}
 	}
@@ -310,5 +341,5 @@ public final class MachineScreenHandler extends ScreenHandler {
 	public String activeEvent() { return activeEvent; }
 
 	public enum Mode { RACK, SINGLE_SLOT, MACHINE_STATUS, CONTROLLER, MONITOR_WALL, EXCHANGE, CREATIVE,
-		STORAGE_ARRAY, TAPE_LIBRARY, TRANSMITTER, WORKSTATION, REACTOR, PROCESSOR, WORKCELL }
+		STORAGE_ARRAY, TAPE_LIBRARY, TRANSMITTER, WORKSTATION, REACTOR, PROCESSOR, WORKCELL, LAUNCH }
 }

@@ -251,10 +251,10 @@ public final class OpsScreenHandler extends ScreenHandler {
 		alerts.sort((a, b) -> Integer.compare(b.severity(), a.severity()));
 		return new OpsSnapshot(facility.credits(), (float) facility.miningRate(), market.earnedSince(now - 20 * 60 * 60),
 				market.totalEarned(), facility.eventDetail().isEmpty() ? facility.activeEvent() : facility.eventDetail(), AirQuality.get(world).smogAt(viewer), market.outbox().size(),
-				clusters, contracts, models, alerts, research(lab, now), leases(market, now));
+				clusters, contracts, models, alerts, research(lab, ResearchLab.effects(world), now), leases(market, now));
 	}
 
-	private static OpsSnapshot.ResearchView research(ResearchLab lab, long now) {
+	private static OpsSnapshot.ResearchView research(ResearchLab lab, Research.Effects effects, long now) {
 		List<OpsSnapshot.ProjectView> projects = new ArrayList<>();
 		for (int index = 0; index < Research.PROJECTS.size(); index++) {
 			Research.Project project = Research.PROJECTS.get(index);
@@ -273,7 +273,6 @@ public final class OpsScreenHandler extends ScreenHandler {
 					(float) project.minCluster(), requires, project.effect(), project.blurb()));
 		}
 		long ago = (now - lab.lastRollback) / 20;
-		Research.Effects effects = lab.effects();
 		return new OpsSnapshot.ResearchView(lab.share(), (float) lab.bestClusterAi, lab.researchStatus, (float) lab.researchRate,
 				lab.frontierStatus, (float) lab.frontierRate, lab.rollbacks(), ago >= 0 && ago < 600 ? (int) ago : -1, lab.agi(),
 				effects.leaseSlots(), effects.leases(), projects);

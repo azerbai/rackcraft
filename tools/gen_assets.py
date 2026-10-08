@@ -660,6 +660,7 @@ def main():
         "effect.rackcraft.coughing": "Smoker's Cough",
         "effect.rackcraft.radiation": "Radiation Sickness",
         "entity.rackcraft.maintenance_drone": "Maintenance Drone",
+        "entity.rackcraft.rocket": "Rocket",
         "screen.rackcraft.workcell": "Robot",
     })
     for entry in blocks + items:
@@ -733,6 +734,10 @@ def main():
     entity_textures = RESOURCES / "assets/rackcraft/textures/entity"
     entity_textures.mkdir(parents=True, exist_ok=True)
     (entity_textures / "maintenance_drone.png").write_bytes(textures.drone_parts())
+    (entity_textures / "rocket.png").write_bytes(textures.rocket_parts())
+    # The Survey Satellite looks for this one.
+    write_json(RESOURCES / "data/rackcraft/tags/worldgen/structure/campus.json",
+               {"replace": False, "values": [f"rackcraft:{CAMPUS[0]}"]})
     remove_stale_textures(blocks)
     print(f"Generated assets for {len(blocks)} blocks, {len(items)} items, and {len(CONTENT['recipes'])} recipes.")
 

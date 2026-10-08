@@ -1,0 +1,26 @@
+{
+  "key": {
+    "A": {
+      "item": "rackcraft:aluminum_ingot"
+    },
+    "C": {
+      "item": "rackcraft:circuit_board"
+    },
+    "G": {
+      "item": "minecraft:gold_ingot"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    }
+  },
+  "pattern": [
+    "AGA",
+    "SCS",
+    "AGA"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:satellite_bus"
+  },
+  "type": "minecraft:crafting_shaped"
+}
