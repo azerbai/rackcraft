@@ -188,6 +188,7 @@ public final class SimTicker {
 		for (Map.Entry<MachineBlockEntity, Double> entry : satisfaction.entrySet()) {
 			entry.getKey().setPowerSatisfaction(entry.getValue());
 		}
+		Renewables.step(world, machines, powerSources, sourceOutput, dt);
 		Research.Effects research = ResearchLab.effects(world);
 		for (ReactorArrays.Array array : new HashSet<>(reactors.values())) {
 			double output = sourceOutput.getOrDefault(array.controller(), 0.0);
@@ -370,9 +371,11 @@ public final class SimTicker {
 					world.isDay() && world.isSkyVisible(machine.getPos().up())
 							? 4 * world.getLightLevel(LightType.SKY, machine.getPos().up()) / 15.0
 								* AirQuality.solarFactor(AirQuality.get(world).smogAt(machine.getPos())) : 0);
-			case "wind_turbine" -> new PowerSolver.Source(id(machine), PowerSolver.SourceKind.WIND,
-					8 * Math.max(0.25, Math.min(1, (machine.getPos().getY() - 50) / 80.0))
-							* (world.isThundering() ? 1.5 : 1));
+			case "wind_turbine" -> new PowerSolver.Source(id(machine), PowerSolver.SourceKind.WIND, Renewables.turbineKw(world, machine.getPos()));
+			// The Assembly Line tier: each part of a Solar Array is a sixth of it; a Wind Tower's nacelle is the whole tower.
+			case "solar_array", "solar_array_tracking" -> new PowerSolver.Source(id(machine), PowerSolver.SourceKind.SOLAR,
+					Renewables.arrayPartKw(world, machine));
+			case "wind_nacelle" -> new PowerSolver.Source(id(machine), PowerSolver.SourceKind.WIND, Renewables.towerKw(world, machine));
 			case "utility_intake" -> new PowerSolver.Source(id(machine), PowerSolver.SourceKind.UTILITY,
 					FacilityManager.get(world).activeEvent().equals("utility_outage") ? 0 : 100);
 			case "diesel_generator" -> dieselSource(machine);
@@ -466,7 +469,8 @@ public final class SimTicker {
 		for (MachineBlockEntity machine : machines) {
 			boolean active = switch (machine.blockId()) {
 				case "server_rack" -> satisfaction.getOrDefault(machine, 0.0) > 0 && !machine.isTripped();
-				case "solar_panel", "wind_turbine", "utility_intake", "diesel_generator", "creative_power", "rectenna" ->
+				case "solar_panel", "wind_turbine", "utility_intake", "diesel_generator", "creative_power", "rectenna", "solar_array",
+						"solar_array_tracking", "wind_nacelle" ->
 						sourceOutput.getOrDefault(machine, 0.0) > 0;
 				case "battery_bank" -> machine.powerKw() < -0.01;
 				case "modular_reactor" -> machine.powerKw() > 0;
@@ -990,7 +994,10 @@ public final class SimTicker {
 			int slot = slots.get(facility.nextRandomInt(slots.size()));
 			String name = rack.getStack(slot).getName().getString();
 			if (!caught) {
-				rack.setStack(slot, new ItemStack(dev.rackcraft.RcItems.ITEMS.get("failed_module")));
+				// The dead module remembers what it was, so a Drone Dock can fetch the same kind to replace it.
+				ItemStack dead = new ItemStack(dev.rackcraft.RcItems.ITEMS.get("failed_module"));
+				dead.getOrCreateNbt().putString(DroneDocks.FAILED_KEY, net.minecraft.registry.Registries.ITEM.getId(rack.getStack(slot).getItem()).toString());
+				rack.setStack(slot, dead);
 				rack.markDirty();
 			}
 			lost.add(name + " at " + rack.getPos().toShortString());

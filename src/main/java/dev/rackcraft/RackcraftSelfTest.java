@@ -38,7 +38,7 @@ public final class RackcraftSelfTest {
 		RackcraftConfig.values.events.enabled = false;
 		dev.rackcraft.compute.ResearchLab.get(server.getOverworld()).reset();
 		dev.rackcraft.world.OrbitState.get(server.getOverworld()).reset();
-		check("S0.a", RcBlocks.BLOCKS.size() == 67 && RcItems.ITEMS.size() == 62,
+		check("S0.a", RcBlocks.BLOCKS.size() == 73 && RcItems.ITEMS.size() == 65,
 				"blocks=" + RcBlocks.BLOCKS.size() + " items=" + RcItems.ITEMS.size(), failures);
 		ServerWorld world = server.getOverworld();
 		BlockPos generatorPos = new BlockPos(0, 80, 0);
@@ -124,6 +124,8 @@ public final class RackcraftSelfTest {
 		checkIndustry(world, failures);
 		checkLaunch(world, failures);
 		checkMegastructures(world, failures);
+		checkRenewables(world, failures);
+		checkStorageLogistics(world, failures);
 		checkStructures(world, failures);
 		check("S0.b", SimTicker.failedSteps() == 0, "simulation steps that threw=" + SimTicker.failedSteps(), failures);
 		Rackcraft.LOGGER.info("RACKCRAFT_SELFTEST DONE failures={}", failures[0]);
@@ -1293,6 +1295,156 @@ public final class RackcraftSelfTest {
 				"edge=" + corner.reactorArraySize() + " scale=" + state.get(dev.rackcraft.block.ArrayMachineBlock.SCALE), failures);
 		lab.reset();
 		clearArea(world, origin, 12, 12, 12);
+	}
+
+	/**
+	 * Wind and solar: a turbine makes its new 30 kW-class output; two Solar Arrays side by side share one network with
+	 * no cable and both feed a load; breaking one part takes the whole array and drops one item; a Wind Tower runs on
+	 * enough sections and stops when too short or blocked; and a Drone Dock services a worn tower.
+	 */
+	private static void checkRenewables(ServerWorld world, int[] failures) {
+		BlockPos origin = clearArea(world, new BlockPos(-2200, 150, -1536), 30, 40, 20);
+		long savedTime = world.getTimeOfDay();
+		world.setTimeOfDay(6000);
+		world.calculateAmbientDarkness();
+
+		BlockPos turbinePos = origin.add(26, 40, 0);
+		world.setBlockState(turbinePos, RcBlocks.get("wind_turbine").getDefaultState());
+		world.setBlockState(turbinePos.down(), RcBlocks.get("creative_rack").getDefaultState());
+		machine(world, turbinePos.down()).setCreativeValue(CreativeSettings.DRAW_KW, 100);
+		for (int step = 0; step < 2; step++) SimTicker.stepNow(world);
+		double expected = dev.rackcraft.world.Renewables.turbineKw(world, turbinePos);
+		check("V1.a", Math.abs(machine(world, turbinePos).powerKw() - expected) < 0.01 && expected > 22,
+				"turbine=" + machine(world, turbinePos).powerKw() + " expected=" + expected, failures);
+
+		// Two arrays facing north, the second three blocks east of the first so they touch; a 60 kW load on the first.
+		BlockPos arrayA = origin.add(2, 30, 6);
+		BlockPos arrayB = arrayA.east(3);
+		for (BlockPos start : List.of(arrayA, arrayB)) {
+			for (int part = 0; part < 6; part++) {
+				world.setBlockState(start.add(dev.rackcraft.block.SolarArrayBlock.offset(Direction.NORTH, part)), RcBlocks.get("solar_array")
+						.getDefaultState().with(MachineBlock.FACING, Direction.NORTH).with(dev.rackcraft.block.SolarArrayBlock.PART, part));
+			}
+		}
+		world.setBlockState(arrayA.south(), RcBlocks.get("creative_rack").getDefaultState());
+		machine(world, arrayA.south()).setCreativeValue(CreativeSettings.DRAW_KW, 60);
+		for (int step = 0; step < 3; step++) SimTicker.stepNow(world);
+		double outA = machine(world, arrayA).powerKw();
+		double outB = machine(world, arrayB).powerKw();
+		check("V2.a", outA > 10 && outB > 10 && outA + outB > 59 && machine(world, arrayA).wear() > 0,
+				"arrayA=" + outA + " arrayB=" + outB + " wear=" + machine(world, arrayA).wear(), failures);
+		BlockPos broken = arrayA.add(dev.rackcraft.block.SolarArrayBlock.offset(Direction.NORTH, 4));
+		world.breakBlock(broken, true);
+		boolean gone = true;
+		for (int part = 0; part < 6; part++) gone &= world.getBlockState(arrayA.add(dev.rackcraft.block.SolarArrayBlock.offset(Direction.NORTH, part))).isAir();
+		int dropped = world.getEntitiesByClass(net.minecraft.entity.ItemEntity.class, new net.minecraft.util.math.Box(arrayA).expand(4),
+				item -> item.getStack().isOf(RcBlocks.get("solar_array").asItem())).stream().mapToInt(item -> item.getStack().getCount()).sum();
+		check("V2.b", gone && dropped == 1 && world.getBlockState(arrayB).isOf(RcBlocks.get("solar_array")),
+				"allGone=" + gone + " dropped=" + dropped, failures);
+
+		// A tower of 12 sections with a load at its foot; a 3-section stub beside it.
+		BlockPos foot = origin.add(10, 0, 14);
+		for (int y = 0; y < 12; y++) place(world, foot.up(y), "tower_section", Direction.NORTH);
+		MachineBlockEntity nacelle = place(world, foot.up(12), "wind_nacelle", Direction.NORTH);
+		world.setBlockState(foot.east(), RcBlocks.get("creative_rack").getDefaultState());
+		machine(world, foot.east()).setCreativeValue(CreativeSettings.DRAW_KW, 200);
+		BlockPos stub = foot.west(6);
+		for (int y = 0; y < 3; y++) place(world, stub.up(y), "tower_section", Direction.NORTH);
+		MachineBlockEntity shortTop = place(world, stub.up(3), "wind_nacelle", Direction.NORTH);
+		for (int step = 0; step < 3; step++) SimTicker.stepNow(world);
+		double towerOut = nacelle.powerKw();
+		check("V3.a", towerOut > 60 && machine(world, foot.east()).powerSatisfaction() > 0.3 && nacelle.workers() == 12
+						&& shortTop.processStatus() == dev.rackcraft.world.Renewables.TowerStatus.TOO_SHORT.ordinal() && shortTop.powerKw() == 0,
+				"tower=" + towerOut + " sections=" + nacelle.workers() + " shortStatus=" + shortTop.processStatus(), failures);
+		BlockPos inTheWay = foot.up(12).north().east(2);
+		world.setBlockState(inTheWay, Blocks.STONE.getDefaultState());
+		SimTicker.stepNow(world);
+		int blocked = nacelle.processStatus();
+		world.setBlockState(inTheWay, Blocks.AIR.getDefaultState());
+
+		// Worn down, then serviced by a drone.
+		nacelle.setWear(0.8);
+		BlockPos dockPos = foot.add(-3, 0, -6);
+		MachineBlockEntity dock = place(world, dockPos, "drone_dock", Direction.NORTH);
+		world.setBlockState(dockPos.west(), RcBlocks.get("creative_power").getDefaultState());
+		dock.setStack(0, new ItemStack(RcItems.ITEMS.get("maintenance_drone")));
+		dock.setStack(1, new ItemStack(RcItems.ITEMS.get("hydrogen_canister")));
+		for (int step = 0; step < 2; step++) SimTicker.stepNow(world);
+		dev.rackcraft.world.DroneDocks.scanNow(world);
+		flyDrones(world, dockPos);
+		check("V3.b", blocked == dev.rackcraft.world.Renewables.TowerStatus.BLOCKED.ordinal() && nacelle.wear() < 0.01
+						&& dock.getStack(0).getCount() == 1,
+				"blockedStatus=" + blocked + " wear=" + nacelle.wear() + " dronesHome=" + dock.getStack(0).getCount(), failures);
+		world.getEntitiesByClass(net.minecraft.entity.ItemEntity.class, new net.minecraft.util.math.Box(origin).expand(60), item -> true)
+				.forEach(net.minecraft.entity.Entity::discard);
+		world.setTimeOfDay(savedTime);
+		clearArea(world, origin, 30, 40, 20);
+	}
+
+	/**
+	 * Storage logistics: a Belt Loader takes items from storage onto a belt and a Belt Unloader files them back, with
+	 * nothing lost; a Drone Dock on the same storage replaces a failed GPU Blade with a GPU Blade from storage (not the
+	 * Pi Node sitting in the dock), and files the dead module away.
+	 */
+	private static void checkStorageLogistics(ServerWorld world, int[] failures) {
+		BlockPos origin = clearArea(world, new BlockPos(-2400, 150, -1536), 20, 6, 12);
+		world.setBlockState(origin, RcBlocks.get("creative_power").getDefaultState());
+		MachineBlockEntity array = place(world, origin.east(), "storage_array", Direction.NORTH);
+		array.setStack(0, new ItemStack(RcItems.ITEMS.get("drive_4k")));
+		CableBlock pipe = (CableBlock) RcBlocks.get("item_pipe");
+		for (int dx = 2; dx <= 12; dx++) {
+			BlockPos pos = origin.east(dx);
+			world.setBlockState(pos, pipe.withConnections(pipe.getDefaultState(), world, pos));
+		}
+		MachineBlockEntity loader = place(world, origin.add(3, 1, 0), "belt_loader", Direction.SOUTH);
+		loader.setStack(0, new ItemStack(RcItems.ITEMS.get("copper_wire")));
+		List<dev.rackcraft.block.BeltBlockEntity> belts = new java.util.ArrayList<>();
+		for (int x = 3; x <= 6; x++) {
+			BlockPos pos = origin.add(x, 1, 1);
+			world.setBlockState(pos, RcBlocks.get("conveyor_belt").getDefaultState()
+					.with(dev.rackcraft.block.ConveyorBeltBlock.FACING, x < 6 ? Direction.EAST : Direction.NORTH));
+			belts.add((dev.rackcraft.block.BeltBlockEntity) world.getBlockEntity(pos));
+		}
+		MachineBlockEntity unloader = place(world, origin.add(6, 1, 0), "belt_unloader", Direction.NORTH);
+		SimTicker.stepNow(world);
+		var storage = dev.rackcraft.storage.StorageService.networkAt(world, array.getPos());
+		var wire = dev.rackcraft.storage.ItemKey.of(RcItems.ITEMS.get("copper_wire"));
+		storage.insert(wire, 3, false);
+		for (int tick = 0; tick < 400; tick++) {
+			for (var belt : belts) belt.serverTick(world);
+			if (tick % 20 == 0) dev.rackcraft.world.ItemPipes.step(world, SimTicker.machines(world));
+		}
+		long stored = storage.count(wire, true);
+		long riding = belts.stream().filter(belt -> belt.stack().isOf(RcItems.ITEMS.get("copper_wire"))).count();
+		long buffered = 0;
+		for (int slot = 0; slot < unloader.size(); slot++) buffered += unloader.getStack(slot).getCount();
+		check("SL1.a", loader.itemsMade() >= 4 && stored + riding + buffered == 3 && loader.getStack(0).getCount() == 1,
+				"loaded=" + loader.itemsMade() + " stored=" + stored + " riding=" + riding + " buffered=" + buffered, failures);
+
+		// The dock: a GPU Blade in storage, a Pi Node in the dock, and a rack whose GPU Blade failed.
+		loader.setStack(0, ItemStack.EMPTY);
+		MachineBlockEntity dock = place(world, origin.add(10, 1, 0), "drone_dock", Direction.NORTH);
+		world.setBlockState(origin.add(10, 2, 0), RcBlocks.get("creative_power").getDefaultState());
+		dock.setStack(0, new ItemStack(RcItems.ITEMS.get("maintenance_drone")));
+		dock.setStack(1, new ItemStack(RcItems.ITEMS.get("hydrogen_canister")));
+		dock.setStack(2, new ItemStack(RcItems.ITEMS.get("pi_node")));
+		storage.insert(dev.rackcraft.storage.ItemKey.of(RcItems.ITEMS.get("gpu_blade")), 1, false);
+		MachineBlockEntity rack = rack(world, origin.add(10, 1, 8), "pi_node");
+		ItemStack dead = new ItemStack(RcItems.ITEMS.get("failed_module"));
+		dead.getOrCreateNbt().putString(dev.rackcraft.world.DroneDocks.FAILED_KEY, "rackcraft:gpu_blade");
+		rack.setStack(5, dead.copy());
+		for (int step = 0; step < 2; step++) SimTicker.stepNow(world);
+		dev.rackcraft.world.DroneDocks.scanNow(world);
+		flyDrones(world, dock.getPos());
+		dev.rackcraft.world.ItemPipes.step(world, SimTicker.machines(world));
+		long deadStored = storage.count(dev.rackcraft.storage.ItemKey.of(dead), true);
+		check("SL2.a", rack.getStack(5).isOf(RcItems.ITEMS.get("gpu_blade")) && dock.getStack(2).isOf(RcItems.ITEMS.get("pi_node"))
+						&& storage.count(dev.rackcraft.storage.ItemKey.of(RcItems.ITEMS.get("gpu_blade")), true) == 0 && deadStored == 1
+						&& dock.getStack(0).getCount() == 1,
+				"slot5=" + rack.getStack(5) + " dockSpare=" + dock.getStack(2) + " deadStored=" + deadStored
+						+ " drones=" + dock.getStack(0).getCount(), failures);
+		array.setStack(0, ItemStack.EMPTY);
+		clearArea(world, origin, 20, 6, 12);
 	}
 
 	/** Steps the simulation through a launch's countdown and flight. */

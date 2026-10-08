@@ -25,6 +25,8 @@ for block in CONTENT["blocks"]:
             require(RESOURCES / f"assets/rackcraft/textures/block/{identifier}_{suffix}.png")
         require(RESOURCES / f"assets/rackcraft/textures/entity/{identifier}.png")
         require(RESOURCES / f"assets/rackcraft/models/block/{identifier}_item.json")
+    elif block.get("model") in ("solar_array", "pole"):
+        require(RESOURCES / f"assets/rackcraft/models/block/{identifier}_on.json")
     elif not block.get("machine"):
         require(RESOURCES / f"assets/rackcraft/textures/block/{identifier}.png")
     if block.get("model") == "pipe":
@@ -54,7 +56,7 @@ require(RESOURCES / "data/rackcraft/tags/blocks/airflow_blocking.json")
 require(ROOT / "src/main/java/dev/rackcraft/generated/ContentIds.java")
 
 for block in CONTENT["blocks"]:
-    if block.get("machine") and block.get("model") != "arm":
+    if block.get("machine") and block.get("model") not in ("arm", "solar_array", "pole"):
         for suffix in ("side", "back", "top", "bottom", "front", "front_on"):
             require(RESOURCES / f"assets/rackcraft/textures/block/{block['id']}_{suffix}.png")
         require(RESOURCES / f"assets/rackcraft/models/block/{block['id']}_on.json")
@@ -72,7 +74,9 @@ require(RESOURCES / "assets/rackcraft/textures/entity/maintenance_drone.png")
 
 require(RESOURCES / "assets/rackcraft/textures/entity/rocket.png")
 
-if len(CONTENT["blocks"]) != 67 or len(CONTENT["items"]) != 62:
-    raise SystemExit("content catalog must contain exactly 67 blocks and 62 standalone items")
+require(RESOURCES / "assets/rackcraft/textures/entity/wind_rotor.png")
+
+if len(CONTENT["blocks"]) != 73 or len(CONTENT["items"]) != 65:
+    raise SystemExit("content catalog must contain exactly 73 blocks and 65 standalone items")
 
 print(f"Rackcraft assets ok: {len(CONTENT['blocks'])} blocks, {len(CONTENT['items'])} standalone items, {len(CONTENT['recipes'])} recipes")

@@ -92,6 +92,8 @@ public final class RackcraftClient implements ClientModInitializer {
 			if (!id.getNamespace().equals("rackcraft")) return;
 			// A half-built workpiece says how far along the Assembly Line it got and what it needs next.
 			for (String line : dev.rackcraft.world.AssemblyLine.describe(stack)) lines.add(Text.literal(line).formatted(Formatting.AQUA));
+			net.minecraft.item.Item was = dev.rackcraft.world.DroneDocks.failedAs(stack);
+			if (was != null) lines.add(Text.literal("Was a " + new net.minecraft.item.ItemStack(was).getName().getString()).formatted(Formatting.GRAY));
 			Integer burnTicks = ContentIds.FUEL_TICKS.get(id.getPath());
 			if (burnTicks != null) {
 				lines.add(Text.translatable("tooltip.rackcraft.fuel", burnTicks / 20).formatted(Formatting.GOLD));

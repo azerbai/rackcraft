@@ -97,6 +97,9 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 	private double cubeDemandKw;
 	// Utility plants: RackCoin per second earned (exported power, sold heat); not saved.
 	private double income;
+	// Solar Arrays and Wind Towers: how worn they are, 0 to 1 (a drone services them back to 0). Saved on the array's
+	// part 0 and on the nacelle; other parts carry a copy for their screens.
+	private double wear;
 	// Cube machines: the size of the whole cube this block is part of, when that size isn't researched yet; not saved.
 	private int lockedCube;
 	// Drone Docks: jobs within range right now; not saved.
@@ -146,7 +149,7 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 	/** Machines an Item Pipe feeds from storage (and empties into it): storage itself, the training stations and generators. */
 	public static final java.util.Set<String> ITEM_MACHINES = java.util.Set.of("storage_array", "tape_library", "art_table",
 			"writing_desk", "diesel_generator", "modular_reactor", "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer", "wafer_fab", "silicon_foundry", "ewaste_recycler",
-			"electrolyser", "assembly_arm", "drone_dock", "launch_control");
+			"electrolyser", "assembly_arm", "drone_dock", "launch_control", "belt_loader", "belt_unloader");
 
 	public static java.util.Set<NetKind> networkKinds(String id) {
 		java.util.EnumSet<NetKind> kinds = java.util.EnumSet.noneOf(NetKind.class);
@@ -154,7 +157,8 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 				"exhaust_fan", "cooling_tower", "crac_unit", "battery_bank", "utility_intake",
 				"facility_controller", "cdu", "modular_reactor", "freshwater_pump", "smog_scrubber",
 				"rear_door_cooler", "dry_cooler", "chiller", "water_heat_exchanger", "desalination_plant", "grid_substation",
-				"welding_arm", "riveting_arm", "assembly_arm", "drone_dock", "launch_control", "rectenna")
+				"welding_arm", "riveting_arm", "assembly_arm", "drone_dock", "launch_control", "rectenna",
+				"solar_array", "solar_array_tracking", "wind_nacelle", "tower_section")
 				.contains(id)) kinds.add(NetKind.POWER);
 		// The coolant loop: racks (liquid-cooled modules) and reactors put heat in; towers, coolers and chillers take it out.
 		if (COOLANT_MACHINES.contains(id)) kinds.add(NetKind.COOLANT);
@@ -218,7 +222,8 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 		if (dev.rackcraft.world.NuclearProcessing.recipe(id) != null) return slot == 2 || slot == 3;
 		// Hoppers under a Drone Dock take away the dead modules its drones bring home, nothing else.
 		if (id.equals("drone_dock")) return stack.isOf(dev.rackcraft.RcItems.ITEMS.get("failed_module"));
-		if (id.equals("assembly_arm")) return false;
+		if (id.equals("assembly_arm") || id.equals("belt_loader")) return false;
+		if (id.equals("belt_unloader")) return true;
 		// A Survey Satellite's map comes out of the payload slot; nothing else does.
 		if (id.equals("launch_control")) return slot == dev.rackcraft.world.LaunchPads.PAYLOAD_SLOT && stack.isOf(net.minecraft.item.Items.FILLED_MAP);
 		return !(id.equals("art_table") || id.equals("writing_desk")) || slot == 2;
@@ -248,7 +253,9 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 			return slot < 4 && stack.getItem() instanceof dev.rackcraft.storage.DriveItem drive && drive.cold();
 		}
 		if (blockId.equals("fire_suppression_tank")) return slot == 0;
-		if (blockId.equals("assembly_arm")) return true;
+		if (blockId.equals("assembly_arm") || blockId.equals("belt_unloader")) return true;
+		// A Belt Loader's one slot holds a sample of what to load; nothing else goes in it.
+		if (blockId.equals("belt_loader")) return slot == 0;
 		if (blockId.equals("drone_dock")) return dev.rackcraft.world.DroneDocks.accepts(slot, stack);
 		if (blockId.equals("launch_control")) return dev.rackcraft.world.LaunchPads.accepts(slot, stack);
 		if (blockId.equals("art_table") || blockId.equals("writing_desk")) {
@@ -373,6 +380,13 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 		arrayFuelCells = fuelCells;
 	}
 	public double income() { return income; }
+	public double wear() { return wear; }
+	public void setWear(double value) {
+		double clamped = Math.max(0, Math.min(1, value));
+		if (clamped != wear) markDirty();
+		wear = clamped;
+	}
+	public void setWearShown(double value) { wear = value; }
 	public int lockedCube() { return lockedCube; }
 	public void setLockedCube(int edge) { lockedCube = edge; }
 	public int dockJobs() { return dockJobs; }
@@ -490,7 +504,7 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 			case "diesel_generator", "fire_suppression_tank" -> MachineScreenHandler.Mode.SINGLE_SLOT;
 			case "modular_reactor" -> MachineScreenHandler.Mode.REACTOR;
 			case "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer", "wafer_fab", "silicon_foundry", "ewaste_recycler", "electrolyser" -> MachineScreenHandler.Mode.PROCESSOR;
-			case "welding_arm", "riveting_arm", "assembly_arm", "drone_dock" -> MachineScreenHandler.Mode.WORKCELL;
+			case "welding_arm", "riveting_arm", "assembly_arm", "drone_dock", "belt_loader", "belt_unloader" -> MachineScreenHandler.Mode.WORKCELL;
 			case "launch_control" -> MachineScreenHandler.Mode.LAUNCH;
 			case "crypto_exchange" -> MachineScreenHandler.Mode.EXCHANGE;
 			case "storage_array" -> MachineScreenHandler.Mode.STORAGE_ARRAY;
@@ -560,6 +574,7 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 		boundVillager = nbt.containsUuid("BoundVillager") ? nbt.getUuid("BoundVillager") : null;
 		pendingWaste = Math.max(0, nbt.getInt("PendingWaste"));
 		bootProgress = Math.max(0, Math.min(1, nbt.getDouble("Boot")));
+		wear = Math.max(0, Math.min(1, nbt.getDouble("Wear")));
 		launchTank = Math.max(0, nbt.getInt("LaunchTank"));
 		launchCountdown = Math.max(0, nbt.getInt("LaunchCountdown"));
 		launchFlight = Math.max(0, nbt.getInt("LaunchFlight"));
@@ -597,6 +612,7 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 		if (boundVillager != null) nbt.putUuid("BoundVillager", boundVillager);
 		if (pendingWaste > 0) nbt.putInt("PendingWaste", pendingWaste);
 		if (bootProgress > 0) nbt.putDouble("Boot", bootProgress);
+		if (wear > 0) nbt.putDouble("Wear", wear);
 		if (launchTank > 0) nbt.putInt("LaunchTank", launchTank);
 		if (!launchPayload.isEmpty()) {
 			nbt.putInt("LaunchCountdown", launchCountdown);

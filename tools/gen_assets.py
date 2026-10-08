@@ -148,6 +148,36 @@ def arm_model(identifier, lit, item=False):
     return model
 
 
+def solar_array_model(identifier, tracking):
+    """One part of a 3x2 array: four posts under a panel. A tracking array stands on a central pivot with its panel
+    tilted toward the sun, so a field of them reads differently from fixed ones."""
+    texture = lambda suffix: f"rackcraft:block/{identifier}_{suffix}"
+    def faces(top):
+        result = {face: {"texture": "#frame"} for face in ("north", "south", "east", "west", "down")}
+        result["up"] = {"texture": top}
+        return result
+    panel = {"from": [0, 6, 0], "to": [16, 8, 16], "faces": faces("#cells")}
+    if tracking:
+        panel["rotation"] = {"origin": [8, 7, 8], "axis": "x", "angle": 22.5}
+        elements = [{"from": [7, 0, 7], "to": [9, 6, 9], "faces": faces("#frame")},
+                    {"from": [5, 4, 5], "to": [11, 5.5, 11], "faces": faces("#frame")}, panel]
+    else:
+        elements = [{"from": [x, 0, z], "to": [x + 1, 6, z + 1], "faces": faces("#frame")} for x in (1, 14) for z in (1, 14)] + [panel]
+    return {"parent": "minecraft:block/block", "textures": {"cells": texture("cells"), "frame": texture("frame"),
+            "particle": texture("frame")}, "elements": elements,
+            "display": {"gui": {"rotation": [30, 225, 0], "scale": [0.625, 0.625, 0.625]}}}
+
+
+def pole_model(identifier):
+    """A Tower Section: a round-ish white column ten pixels across."""
+    texture = lambda suffix: f"rackcraft:block/{identifier}_{suffix}"
+    faces = {face: {"texture": "#side"} for face in ("north", "south", "east", "west")}
+    faces["up"] = {"texture": "#top", "cullface": "up"}
+    faces["down"] = {"texture": "#top", "cullface": "down"}
+    return {"parent": "minecraft:block/block", "textures": {"side": texture("side"), "top": texture("top"), "particle": texture("side")},
+            "elements": [{"from": [3, 0, 3], "to": [13, 16, 13], "faces": faces}]}
+
+
 def validate_guide(blocks, items):
     ids = [entry["id"] for entry in blocks + items]
     listed = [entry for chapter in CONTENT["guide"] for entry in chapter["entries"]]
@@ -421,6 +451,17 @@ def main():
             write_texture(block_textures / f"{identifier}_side.png", textures.belt_side(block))
             write_texture(block_textures / f"{identifier}_bottom.png", textures.belt_bottom(block))
             model = belt_model(identifier)
+        elif block.get("model") == "solar_array":
+            tracking = identifier.endswith("tracking")
+            write_texture(block_textures / f"{identifier}_cells.png", textures.array_cells(block, tracking))
+            write_texture(block_textures / f"{identifier}_frame.png", textures.array_frame_texture(block))
+            model = solar_array_model(identifier, tracking)
+            write_json(RESOURCES / f"assets/rackcraft/models/block/{identifier}_on.json", model)
+        elif block.get("model") == "pole":
+            write_texture(block_textures / f"{identifier}_side.png", textures.pole_side(block))
+            write_texture(block_textures / f"{identifier}_top.png", textures.pole_top(block))
+            model = pole_model(identifier)
+            write_json(RESOURCES / f"assets/rackcraft/models/block/{identifier}_on.json", model)
         elif block.get("model") == "arm":
             write_texture(block_textures / f"{identifier}_base.png", textures.arm_base(block))
             write_texture(block_textures / f"{identifier}_column.png", textures.arm_column(block))
@@ -471,6 +512,9 @@ def main():
                     formed_model(key, port, scale) if formed else value)
                     for key, value in variants.items() for formed in (False, True) for port in (False, True)
                     for scale in (0, 1, 2)}
+            if block.get("model") == "solar_array":
+                # Six parts of one 3x2 array share the model; the blockstate rotates it with the array.
+                variants = {f"{key},part={part}": value for key, value in variants.items() for part in range(6)}
             if identifier == "server_rack":
                 # Health: amber for a slowed rack, red for a stopped one, whether or not it is lit. Only the Server Rack
                 # has the property; the Creative Rack shares its face but not its health.
@@ -509,6 +553,11 @@ def main():
                 ]}],
                 "conditions": [{"condition": "minecraft:survives_explosion"}]
             }]}
+        elif block.get("model") == "solar_array":
+            # One item for the whole 3x2 array: only its first part drops (breaking any part breaks them all).
+            loot = {"type": "minecraft:block", "pools": [{"rolls": 1, "entries": [{"type": "minecraft:item", "name": f"rackcraft:{drops}"}],
+                    "conditions": [{"condition": "minecraft:block_state_property", "block": f"rackcraft:{identifier}",
+                                    "properties": {"part": "0"}}]}]}
         else:
             loot = {"type": "minecraft:block", "pools": [{"rolls": 1, "entries": [{"type": "minecraft:item", "name": f"rackcraft:{drops}"}]}]}
         write_json(RESOURCES / f"data/rackcraft/loot_tables/blocks/{identifier}.json", loot)
@@ -739,6 +788,7 @@ def main():
     entity_textures.mkdir(parents=True, exist_ok=True)
     (entity_textures / "maintenance_drone.png").write_bytes(textures.drone_parts())
     (entity_textures / "rocket.png").write_bytes(textures.rocket_parts())
+    (entity_textures / "wind_rotor.png").write_bytes(textures.rotor_parts())
     (entity_textures / "rocket_first_stage.png").write_bytes(textures.rocket_first_stage())
     (entity_textures / "rocket_second_stage.png").write_bytes(textures.rocket_second_stage())
     (entity_textures / "rocket_third_stage.png").write_bytes(textures.rocket_third_stage())

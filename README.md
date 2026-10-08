@@ -222,7 +222,9 @@ Once RackCoin stops mattering, power is what's left to spend.
 | **Assembly Robot** | Install parts from its nine slots, 3 s per step, several steps in a row if they're all installs | 250 kW |
 
   Arms idle at 1 kW, slow down below full power and stop under 10%. A workpiece remembers its progress (its tooltip says what it needs next), so one that falls off half-built can go round again. The first recipe: a **Drone Frame** gets 4 Electric Motors, a weld, 2 Circuit Boards, a Hydrogen Canister and rivets, and becomes a **Maintenance Drone**.
-- **Drone Dock**: holds up to 8 drones, Hydrogen Canisters and spares (rack modules, Repair Kits). Every two seconds it sends a drone to each job within 32 blocks: swapping a Failed Module out of a rack for a spare (the dead one comes back, and a hopper under the dock can take it away), splicing a cut cable with one of a Repair Kit's repairs, or resetting a tripped PDU breaker. Each trip burns an eighth of a canister; the dock draws 2 kW. Hit a drone and it drops as an item.
+- **Drone Dock**: holds up to 8 drones, Hydrogen Canisters and spares (rack modules, Repair Kits). Every two seconds it sends a drone to each job within 32 blocks: swapping a Failed Module out of a rack for a spare (the dead one comes back, and a hopper under the dock can take it away), splicing a cut cable with one of a Repair Kit's repairs, resetting a tripped PDU breaker, or servicing a worn Solar Array or Wind Tower. Each trip burns an eighth of a canister; the dock draws 2 kW. On an Item Pipe that reaches storage, a dock also draws drones, hydrogen, Repair Kits and replacement modules from it as needed, and files dead modules away. A Failed Module remembers what it was (its tooltip says so), so a burned-out GPU Blade is replaced with a GPU Blade, never just any spare. Hit a drone and it drops as an item.
+
+**Belt Loaders** and **Belt Unloaders** connect a line to storage by Item Pipe: a Loader holds a sample item and puts another from storage onto the belt it faces whenever that belt is empty; an Unloader at the end of the line files whatever arrives back into storage. Neither needs power.
 
 Each belt carries one item, so only one robot works on it at a time; a second robot beside the same belt helps only if it does a different step. Lengthen the line instead. A Satellite Bus can become any of four payloads: the first part an Assembly Robot fits decides which.
 
@@ -297,6 +299,18 @@ A **Modular Reactor** runs on its own too: 500 kW, one Fuel Cell per 30 minutes 
 **Spent Fuel is radioactive**: carrying any gives Radiation Sickness (level II from 8 rods, III from 32), which hurts every two seconds. It's safe inside machines, chests and storage, and a Sealed Waste Cask is safe anywhere.
 
 **Automation:** connect the cubes and a Storage Array with Item Pipe. Each cube is stocked from storage and sends its products and by-products back, and reactors take Fuel Cells and hand back Spent Fuel, so ore in storage ends up as Fuel Cells, and Spent Fuel ends up as casks, without anyone touching it. Hoppers work on any core too.
+
+## Wind and Solar
+
+| Source | Output | Notes |
+| --- | --- | --- |
+| **Solar Panel** | 4 kW | Daytime, open sky, dimmed by smog |
+| **Wind Turbine** | Up to 30 kW | 25% at Y 70 or below, full at Y 130, +50% in thunderstorms; no fuel and no upkeep |
+| **Solar Array** | 36 kW in full sun | A placed 3x2 built on the Assembly Line (6 Solar Panels, 2 Circuit Boards, weld, rivet). Arrays that touch share power with no cables |
+| **Tracking Solar Array** | 47 kW | A Solar Array sent back down the line for 2 Electric Motors and a Circuit Board; it also works at 60% through dawn and dusk |
+| **Wind Tower** | 120 kW at Y 130, up to 150 kW above Y 150 | A Wind Tower Nacelle (built on the line) on at least ten Tower Sections, with a clear 5x5 in front for its blades. Power runs down the tower |
+
+The wind is one for the whole world: it rises and falls by up to a quarter over a few minutes, for every turbine and tower at once, so a battery bank evens out a wind farm. Solar Arrays and Wind Towers wear: over two days of running they lose up to 30% of their output, until a **Maintenance Drone** from a Drone Dock within 32 blocks services them (the dock sends one at 25% wear). The basic panel and turbine never wear, so an early setup never depends on drones. Every number here is in the `renewables` section of the config.
 
 ## Grid-Scale Batteries
 

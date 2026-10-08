@@ -116,6 +116,15 @@ public final class FaultFinder {
 					else if (status == AssemblyLine.Status.NO_POWER.ordinal()) faults.add(new Fault(pos, 2, "Robot: no power"));
 					else if (status == AssemblyLine.Status.LOW_POWER.ordinal()) faults.add(new Fault(pos, 1, "Robot: short of power, working slowly"));
 				}
+				case "wind_nacelle" -> {
+					int status = machine.processStatus();
+					if (status == Renewables.TowerStatus.TOO_SHORT.ordinal()) faults.add(new Fault(pos, 1, "Wind Tower: too few Tower Sections"));
+					else if (status == Renewables.TowerStatus.BLOCKED.ordinal()) faults.add(new Fault(pos, 1, "Wind Tower: something is in the blades' way"));
+					else if (machine.wear() >= 0.5) faults.add(new Fault(pos, 1, worn(machine)));
+				}
+				case "solar_array", "solar_array_tracking" -> {
+					if (Renewables.wearsOut(machine) && machine.wear() >= 0.5) faults.add(new Fault(pos, 1, worn(machine)));
+				}
 				case "launch_control" -> {
 					int status = machine.processStatus();
 					if (status == LaunchPads.Status.NO_PAD.ordinal()) faults.add(new Fault(pos, 1, "Launch Control: not beside a 3x3 Launch Pad"));
@@ -127,7 +136,7 @@ public final class FaultFinder {
 					if (status == DroneDocks.Status.NO_POWER.ordinal()) faults.add(new Fault(pos, 2, "Drone Dock: no power"));
 					else if (status == DroneDocks.Status.NO_FUEL.ordinal()) faults.add(new Fault(pos, 2, "Drone Dock: out of hydrogen"));
 					else if (status == DroneDocks.Status.NO_DRONES.ordinal()) faults.add(new Fault(pos, 1, "Drone Dock: every drone is out"));
-					else if (status == DroneDocks.Status.NO_SPARES.ordinal()) faults.add(new Fault(pos, 1, "Drone Dock: needs spare modules or Repair Kits"));
+					else if (status == DroneDocks.Status.NO_SPARES.ordinal()) faults.add(new Fault(pos, 1, "Drone Dock: needs spares (in it or in its storage)"));
 				}
 				case "desalination_plant" -> {
 					int status = machine.pumpStatus();
@@ -152,6 +161,11 @@ public final class FaultFinder {
 			}
 		}
 		return faults;
+	}
+
+	private static String worn(MachineBlockEntity machine) {
+		return String.format(Locale.ROOT, "Needs servicing: %.0f%% less output (Drone Dock)",
+				(1 - Renewables.wearFactor(machine)) * 100);
 	}
 
 	/** A lone cube machine: not part of a whole cube, or part of one bigger than the research allows. */

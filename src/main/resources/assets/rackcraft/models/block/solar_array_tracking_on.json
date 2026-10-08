@@ -1,0 +1,129 @@
+{
+  "display": {
+    "gui": {
+      "rotation": [
+        30,
+        225,
+        0
+      ],
+      "scale": [
+        0.625,
+        0.625,
+        0.625
+      ]
+    }
+  },
+  "elements": [
+    {
+      "faces": {
+        "down": {
+          "texture": "#frame"
+        },
+        "east": {
+          "texture": "#frame"
+        },
+        "north": {
+          "texture": "#frame"
+        },
+        "south": {
+          "texture": "#frame"
+        },
+        "up": {
+          "texture": "#frame"
+        },
+        "west": {
+          "texture": "#frame"
+        }
+      },
+      "from": [
+        7,
+        0,
+        7
+      ],
+      "to": [
+        9,
+        6,
+        9
+      ]
+    },
+    {
+      "faces": {
+        "down": {
+          "texture": "#frame"
+        },
+        "east": {
+          "texture": "#frame"
+        },
+        "north": {
+          "texture": "#frame"
+        },
+        "south": {
+          "texture": "#frame"
+        },
+        "up": {
+          "texture": "#frame"
+        },
+        "west": {
+          "texture": "#frame"
+        }
+      },
+      "from": [
+        5,
+        4,
+        5
+      ],
+      "to": [
+        11,
+        5.5,
+        11
+      ]
+    },
+    {
+      "faces": {
+        "down": {
+          "texture": "#frame"
+        },
+        "east": {
+          "texture": "#frame"
+        },
+        "north": {
+          "texture": "#frame"
+        },
+        "south": {
+          "texture": "#frame"
+        },
+        "up": {
+          "texture": "#cells"
+        },
+        "west": {
+          "texture": "#frame"
+        }
+      },
+      "from": [
+        0,
+        6,
+        0
+      ],
+      "rotation": {
+        "angle": 22.5,
+        "axis": "x",
+        "origin": [
+          8,
+          7,
+          8
+        ]
+      },
+      "to": [
+        16,
+        8,
+        16
+      ]
+    }
+  ],
+  "parent": "minecraft:block/block",
+  "textures": {
+    "cells": "rackcraft:block/solar_array_tracking_cells",
+    "frame": "rackcraft:block/solar_array_tracking_frame",
+    "particle": "rackcraft:block/solar_array_tracking_frame"
+  }
+}

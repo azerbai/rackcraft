@@ -1,0 +1,20 @@
+{
+  "key": {
+    "B": {
+      "item": "minecraft:iron_bars"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    }
+  },
+  "pattern": [
+    "S S",
+    "SBS",
+    "S S"
+  ],
+  "result": {
+    "count": 4,
+    "item": "rackcraft:tower_frame"
+  },
+  "type": "minecraft:crafting_shaped"
+}

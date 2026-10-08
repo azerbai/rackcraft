@@ -1,0 +1,196 @@
+{
+  "variants": {
+    "facing=east,lit=false,part=0": {
+      "model": "rackcraft:block/solar_array_tracking",
+      "y": 90
+    },
+    "facing=east,lit=false,part=1": {
+      "model": "rackcraft:block/solar_array_tracking",
+      "y": 90
+    },
+    "facing=east,lit=false,part=2": {
+      "model": "rackcraft:block/solar_array_tracking",
+      "y": 90
+    },
+    "facing=east,lit=false,part=3": {
+      "model": "rackcraft:block/solar_array_tracking",
+      "y": 90
+    },
+    "facing=east,lit=false,part=4": {
+      "model": "rackcraft:block/solar_array_tracking",
+      "y": 90
+    },
+    "facing=east,lit=false,part=5": {
+      "model": "rackcraft:block/solar_array_tracking",
+      "y": 90
+    },
+    "facing=east,lit=true,part=0": {
+      "model": "rackcraft:block/solar_array_tracking_on",
+      "y": 90
+    },
+    "facing=east,lit=true,part=1": {
+      "model": "rackcraft:block/solar_array_tracking_on",
+      "y": 90
+    },
+    "facing=east,lit=true,part=2": {
+      "model": "rackcraft:block/solar_array_tracking_on",
+      "y": 90
+    },
+    "facing=east,lit=true,part=3": {
+      "model": "rackcraft:block/solar_array_tracking_on",
+      "y": 90
+    },
+    "facing=east,lit=true,part=4": {
+      "model": "rackcraft:block/solar_array_tracking_on",
+      "y": 90
+    },
+    "facing=east,lit=true,part=5": {
+      "model": "rackcraft:block/solar_array_tracking_on",
+      "y": 90
+    },
+    "facing=north,lit=false,part=0": {
+      "model": "rackcraft:block/solar_array_tracking",
+      "y": 0
+    },
+    "facing=north,lit=false,part=1": {
+      "model": "rackcraft:block/solar_array_tracking",
+      "y": 0
+    },
+    "facing=north,lit=false,part=2": {
+      "model": "rackcraft:block/solar_array_tracking",
+      "y": 0
+    },
+    "facing=north,lit=false,part=3": {
+      "model": "rackcraft:block/solar_array_tracking",
+      "y": 0
+    },
+    "facing=north,lit=false,part=4": {
+      "model": "rackcraft:block/solar_array_tracking",
+      "y": 0
+    },
+    "facing=north,lit=false,part=5": {
+      "model": "rackcraft:block/solar_array_tracking",
+      "y": 0
+    },
+    "facing=north,lit=true,part=0": {
+      "model": "rackcraft:block/solar_array_tracking_on",
+      "y": 0
+    },
+    "facing=north,lit=true,part=1": {
+      "model": "rackcraft:block/solar_array_tracking_on",
+      "y": 0
+    },
+    "facing=north,lit=true,part=2": {
+      "model": "rackcraft:block/solar_array_tracking_on",
+      "y": 0
+    },
+    "facing=north,lit=true,part=3": {
+      "model": "rackcraft:block/solar_array_tracking_on",
+      "y": 0
+    },
+    "facing=north,lit=true,part=4": {
+      "model": "rackcraft:block/solar_array_tracking_on",
+      "y": 0
+    },
+    "facing=north,lit=true,part=5": {
+      "model": "rackcraft:block/solar_array_tracking_on",
+      "y": 0
+    },
+    "facing=south,lit=false,part=0": {
+      "model": "rackcraft:block/solar_array_tracking",
+      "y": 180
+    },
+    "facing=south,lit=false,part=1": {
+      "model": "rackcraft:block/solar_array_tracking",
+      "y": 180
+    },
+    "facing=south,lit=false,part=2": {
+      "model": "rackcraft:block/solar_array_tracking",
+      "y": 180
+    },
+    "facing=south,lit=false,part=3": {
+      "model": "rackcraft:block/solar_array_tracking",
+      "y": 180
+    },
+    "facing=south,lit=false,part=4": {
+      "model": "rackcraft:block/solar_array_tracking",
+      "y": 180
+    },
+    "facing=south,lit=false,part=5": {
+      "model": "rackcraft:block/solar_array_tracking",
+      "y": 180
+    },
+    "facing=south,lit=true,part=0": {
+      "model": "rackcraft:block/solar_array_tracking_on",
+      "y": 180
+    },
+    "facing=south,lit=true,part=1": {
+      "model": "rackcraft:block/solar_array_tracking_on",
+      "y": 180
+    },
+    "facing=south,lit=true,part=2": {
+      "model": "rackcraft:block/solar_array_tracking_on",
+      "y": 180
+    },
+    "facing=south,lit=true,part=3": {
+      "model": "rackcraft:block/solar_array_tracking_on",
+      "y": 180
+    },
+    "facing=south,lit=true,part=4": {
+      "model": "rackcraft:block/solar_array_tracking_on",
+      "y": 180
+    },
+    "facing=south,lit=true,part=5": {
+      "model": "rackcraft:block/solar_array_tracking_on",
+      "y": 180
+    },
+    "facing=west,lit=false,part=0": {
+      "model": "rackcraft:block/solar_array_tracking",
+      "y": 270
+    },
+    "facing=west,lit=false,part=1": {
+      "model": "rackcraft:block/solar_array_tracking",
+      "y": 270
+    },
+    "facing=west,lit=false,part=2": {
+      "model": "rackcraft:block/solar_array_tracking",
+      "y": 270
+    },
+    "facing=west,lit=false,part=3": {
+      "model": "rackcraft:block/solar_array_tracking",
+      "y": 270
+    },
+    "facing=west,lit=false,part=4": {
+      "model": "rackcraft:block/solar_array_tracking",
+      "y": 270
+    },
+    "facing=west,lit=false,part=5": {
+      "model": "rackcraft:block/solar_array_tracking",
+      "y": 270
+    },
+    "facing=west,lit=true,part=0": {
+      "model": "rackcraft:block/solar_array_tracking_on",
+      "y": 270
+    },
+    "facing=west,lit=true,part=1": {
+      "model": "rackcraft:block/solar_array_tracking_on",
+      "y": 270
+    },
+    "facing=west,lit=true,part=2": {
+      "model": "rackcraft:block/solar_array_tracking_on",
+      "y": 270
+    },
+    "facing=west,lit=true,part=3": {
+      "model": "rackcraft:block/solar_array_tracking_on",
+      "y": 270
+    },
+    "facing=west,lit=true,part=4": {
+      "model": "rackcraft:block/solar_array_tracking_on",
+      "y": 270
+    },
+    "facing=west,lit=true,part=5": {
+      "model": "rackcraft:block/solar_array_tracking_on",
+      "y": 270
+    }
+  }
+}

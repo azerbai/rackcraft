@@ -2677,3 +2677,117 @@ def lattice_block(entry):
 
 
 BLOCK_STYLES["lattice"] = lattice_block
+
+
+# ---------------------------------------------------------------- wind and solar, end-game tier
+
+def array_cells(entry, tracking=False):
+    """Blue-black cells in an aluminium frame; the tracking array's cells are a deeper blue."""
+    base = rgb(entry["color"])
+    canvas = Canvas()
+    canvas.rect(0, 0, 15, 15, (190, 196, 202))
+    cell = darken(base, 0.35) if tracking else darken(base, 0.45)
+    for cy in (1, 5, 9, 13):
+        for cx in (1, 5, 9, 13):
+            canvas.rect(cx, cy, cx + 1, cy + 1, cell)
+            canvas.rect(cx + 2, cy, cx + 2, cy + 2, cell)
+            canvas.rect(cx, cy + 2, cx + 1, cy + 2, cell)
+            canvas.set(cx, cy, lighten(cell, 0.35))
+    return canvas
+
+
+def array_frame_texture(entry):
+    canvas = plate((176, 182, 188), entry["id"] + ":frame")
+    canvas.hline(0, 15, 8, (130, 136, 142))
+    return canvas
+
+
+def pole_side(entry):
+    """A white tower in rolled sections, with a seam every half block and the odd rivet."""
+    canvas = plate((226, 228, 226), entry["id"] + ":pole")
+    for y in (0, 8):
+        canvas.hline(0, 15, y, (190, 192, 190))
+    for x in (2, 13):
+        canvas.set(x, 4, (170, 172, 170))
+        canvas.set(x, 12, (170, 172, 170))
+    return canvas
+
+
+def pole_top(entry):
+    canvas = Canvas()
+    canvas.rect(0, 0, 15, 15, (200, 202, 200))
+    canvas.disc(8, 8, 5, (120, 124, 126))
+    canvas.disc(8, 8, 3, (60, 62, 66))
+    return canvas
+
+
+def hub_face(base, key, on):
+    """The nacelle's front: a bolted hub flange; the blades themselves are drawn turning in front of it."""
+    canvas = plate(base, key + ":hub")
+    canvas.disc(8, 8, 6, darken(base, 0.25))
+    canvas.disc(8, 8, 4, lighten(base, 0.1))
+    for angle in range(0, 360, 45):
+        a = math.radians(angle)
+        canvas.set(int(round(8 + math.cos(a) * 5)), int(round(8 + math.sin(a) * 5)), darken(base, 0.5))
+    canvas.disc(8, 8, 1.5, (210, 60, 50) if on else darken(base, 0.4))
+    return [canvas]
+
+
+FRONT_STYLES["hub"] = hub_face
+
+
+def rotor_parts():
+    """Tiles for the Wind Tower's rotor: 0 blade, 1 blade tip (red, for aircraft), 2 hub cone."""
+    blade = plate((236, 238, 236), "rotor:blade")
+    blade.vline(4, 0, 15, (210, 212, 210))
+    tip = plate((236, 238, 236), "rotor:tip")
+    tip.rect(0, 0, 15, 7, (200, 50, 44))
+    hub = plate((214, 218, 220), "rotor:hub")
+    hub.disc(8, 8, 3, (180, 184, 188))
+    return _strip([blade, tip, hub])
+
+
+def item_array_frame(base, key):
+    canvas = Canvas()
+    canvas.frame(1, 4, 14, 11, base)
+    canvas.vline(5, 4, 11, darken(base, 0.2))
+    canvas.vline(10, 4, 11, darken(base, 0.2))
+    canvas.hline(1, 14, 7, darken(base, 0.3))
+    return canvas
+
+
+def item_nacelle_frame(base, key):
+    canvas = Canvas()
+    canvas.rect(3, 5, 12, 10, base)
+    canvas.frame(3, 5, 12, 10, darken(base, 0.4))
+    canvas.disc(2.5, 7.5, 2.4, darken(base, 0.2))
+    canvas.vline(7, 11, 14, darken(STEEL, 0.3))
+    return canvas
+
+
+def item_tower_frame(base, key):
+    canvas = Canvas()
+    canvas.disc(8, 8, 6, base, inner=4)
+    canvas.disc(8, 8, 4.2, darken(base, 0.35), inner=3.6)
+    for x, y in ((8, 2), (2, 8), (13, 8), (8, 13)):
+        canvas.set(x, y, darken(base, 0.4))
+    return canvas
+
+
+ITEM_STYLES.update({"array_frame": item_array_frame, "nacelle_frame": item_nacelle_frame, "tower_frame": item_tower_frame})
+
+
+def _arrow_face(base, key, on, into):
+    """A belt port: a hatch with a chevron pointing out of the block (a loader) or into it (an unloader)."""
+    canvas = plate(base, key + ":port")
+    canvas.inset(2, 2, 13, 13, darken(base, 0.45), lighten(base, 0.1), darken(base, 0.6))
+    chevron = (240, 220, 120) if on else (200, 190, 140)
+    for i in range(4):
+        y = 9 - i if not into else 6 + i
+        canvas.hline(4 + i, 11 - i, y, chevron)
+    canvas.hline(3, 12, 13, darken(base, 0.7))
+    return [canvas]
+
+
+FRONT_STYLES["loader"] = lambda base, key, on: _arrow_face(base, key, on, False)
+FRONT_STYLES["unloader"] = lambda base, key, on: _arrow_face(base, key, on, True)

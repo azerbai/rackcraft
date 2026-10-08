@@ -30,8 +30,12 @@ public final class WorkcellScreen extends RackcraftHandledScreen {
 
 	@Override
 	protected void drawDashboard(DrawContext context) {
-		if (blockId().equals("drone_dock")) drawDock(context);
-		else drawArm(context);
+		switch (blockId()) {
+			case "drone_dock" -> drawDock(context);
+			case "belt_loader" -> drawLoader(context);
+			case "belt_unloader" -> drawUnloader(context);
+			default -> drawArm(context);
+		}
 	}
 
 	private void drawArm(DrawContext context) {
@@ -81,6 +85,37 @@ public final class WorkcellScreen extends RackcraftHandledScreen {
 		// The slots are too narrow to label one by one.
 		lineFit(context, "Slots: drones, Hydrogen Canisters,", 8, 96, 160, MUTED);
 		lineFit(context, "then spare modules and Repair Kits", 8, 105, 160, MUTED);
+	}
+
+	private void drawLoader(DrawContext context) {
+		ItemStack sample = handler.getSlot(0).getStack();
+		boolean belt = !(workpieceBelt() == null);
+		String state = !belt ? "Not facing a Conveyor Belt" : sample.isEmpty() ? "Put a sample of what to load in the slot below"
+				: "Loading " + sample.getName().getString() + " from storage";
+		wrappedClamped(context, Text.literal(state), 8, 30, 160, 2, !belt ? WARN : sample.isEmpty() ? MUTED : GOOD);
+		lineFit(context, "Loaded so far: " + stat(Stat.ITEMS_MADE), 8, 56, 160, TEXT);
+		wrapped(context, Text.literal("Needs an Item Pipe to a Storage Array. It puts one on the belt whenever the belt is empty; the sample stays."),
+				8, 70, 160, MUTED);
+		line(context, "Sample", 8, 105, MUTED);
+	}
+
+	private void drawUnloader(DrawContext context) {
+		boolean waiting = false;
+		for (int slot = 0; slot < 9; slot++) waiting |= !handler.getSlot(slot).getStack().isEmpty();
+		wrappedClamped(context, Text.literal(waiting ? "Holding items: is it on an Item Pipe that reaches storage?"
+				: "Ready: filing everything the belt brings into storage"), 8, 30, 160, 2, waiting ? WARN : GOOD);
+		wrapped(context, Text.literal("Point the last Conveyor Belt into it. Everything goes into storage once a second; hoppers can empty it too."),
+				8, 56, 160, MUTED);
+		line(context, "Buffer", 8, 105, MUTED);
+	}
+
+	/** The belt a loader or arm faces, or null. */
+	private BlockPos workpieceBelt() {
+		if (client == null || client.world == null) return null;
+		var state = client.world.getBlockState(handler.pos());
+		if (!state.contains(MachineBlock.FACING)) return null;
+		BlockPos belt = handler.pos().offset(state.get(MachineBlock.FACING));
+		return client.world.getBlockEntity(belt) instanceof BeltBlockEntity ? belt : null;
 	}
 
 	/** The item on the belt this arm faces, read from the client's copy of the world. */

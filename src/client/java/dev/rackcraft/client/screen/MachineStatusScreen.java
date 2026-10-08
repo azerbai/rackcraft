@@ -35,7 +35,25 @@ public final class MachineStatusScreen extends RackcraftHandledScreen {
 		String id = blockId();
 		breaker.visible = id.equals("pdu");
 		int power = stat(Stat.POWER);
-		if (id.equals("rectenna")) {
+		if (id.equals("solar_array") || id.equals("solar_array_tracking")) {
+			boolean tracking = id.equals("solar_array_tracking");
+			line(context, power > 0 ? "Generating " + kw(power) + " (whole array)" : "Idle: no sun, no sky above, or nothing drawing power",
+					12, 30, power > 0 ? GOOD : MUTED);
+			line(context, "Can make " + kw(stat(Stat.SOURCE_CAPACITY)) + " right now" + (tracking ? ", tracking the sun" : ""), 12, 44, TEXT);
+			wearLine(context, 56);
+		} else if (id.equals("wind_nacelle")) {
+			int status = stat(Stat.PROCESS_STATUS);
+			String state = status == dev.rackcraft.world.Renewables.TowerStatus.TOO_SHORT.ordinal()
+					? "Too short: needs " + dev.rackcraft.RackcraftConfig.values.renewables.windTowerMinSections + " Tower Sections under it"
+					: status == dev.rackcraft.world.Renewables.TowerStatus.BLOCKED.ordinal() ? "Stopped: something is in the blades' 5x5"
+					: power > 0 ? "Generating " + kw(power) : "Idle: nothing drawing power";
+			line(context, state, 12, 30, status != 0 ? WARN : power > 0 ? GOOD : MUTED);
+			line(context, "Tower of " + stat(Stat.WORKERS) + " sections; wind here can give " + kw(stat(Stat.SOURCE_CAPACITY)), 12, 44, TEXT);
+			wearLine(context, 56);
+		} else if (id.equals("tower_section")) {
+			line(context, "Part of a Wind Tower", 12, 30, MUTED);
+			line(context, "It carries the nacelle's power down to the ground", 12, 44, MUTED);
+		} else if (id.equals("rectenna")) {
 			int capacity = stat(Stat.NETWORK_CAPACITY);
 			line(context, power > 0 ? "Receiving " + kw(power) + " from the swarm" : "Idle: no Dyson Mirrors in orbit, or nothing drawing power",
 					12, 30, power > 0 ? GOOD : MUTED);
@@ -178,6 +196,14 @@ public final class MachineStatusScreen extends RackcraftHandledScreen {
 		line(context, "Power network", 12, top, MUTED);
 		line(context, "Delivering " + kw(stat(Stat.NETWORK_DELIVERED)) + " of " + kw(stat(Stat.NETWORK_DEMAND)) + " demand", 12, top + 12, TEXT);
 		line(context, "Generating capacity " + kw(stat(Stat.NETWORK_CAPACITY)), 12, top + 24, TEXT);
+	}
+
+	/** How worn an array or tower is, and that a Maintenance Drone fixes it. */
+	private void wearLine(DrawContext context, int y) {
+		int wear = stat(Stat.WEAR);
+		double loss = wear / 100.0 * dev.rackcraft.RackcraftConfig.values.renewables.wearLoss * 100;
+		line(context, wear < 1 ? "Freshly serviced" : String.format(java.util.Locale.ROOT, "Wear %d%%: %.0f%% less output until a drone services it",
+				wear, loss), 12, y, wear >= 50 ? WARN : MUTED);
 	}
 
 	private String notFormed() {

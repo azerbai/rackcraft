@@ -44,6 +44,7 @@ public final class RackcraftConfig {
 		public Events events = new Events();
 		public HeatOverlay heatOverlay = new HeatOverlay();
 		public Hud hud = new Hud();
+		public Renewables renewables = new Renewables();
 
 		private Values withDefaults() {
 			Values defaults = new Values();
@@ -52,6 +53,7 @@ public final class RackcraftConfig {
 			if (events == null) events = defaults.events;
 			if (heatOverlay == null) heatOverlay = defaults.heatOverlay;
 			if (hud == null) hud = defaults.hud;
+			if (renewables == null) renewables = defaults.renewables;
 			if (sim.stepTicks <= 0) sim.stepTicks = defaults.sim.stepTicks;
 			if (thermal.cellCapacityKjPerK <= 0) thermal.cellCapacityKjPerK = defaults.thermal.cellCapacityKjPerK;
 			if (thermal.maxActiveCells <= 0) thermal.maxActiveCells = defaults.thermal.maxActiveCells;
@@ -86,6 +88,25 @@ public final class RackcraftConfig {
 		public double perHour = 3;
 	}
 	public static final class HeatOverlay { public int maxCells = 2000; }
+	/**
+	 * Wind and solar. {@code turbineKw}: a Wind Turbine at full wind (Y 130). {@code gust}: how far the world's wind
+	 * swings either side of normal over a few minutes. {@code solarArrayKw}: a whole 3x2 Solar Array in full sun, and
+	 * {@code trackingBonus} what a Tracking Solar Array makes on top. {@code windTowerKw}: a Wind Tower's nacelle at
+	 * full wind, rising to {@code windTowerMaxFactor} times that above Y 150; it needs {@code windTowerMinSections}
+	 * Tower Sections under it. Arrays and towers wear down to {@code wearLoss} less output over {@code wearDays}
+	 * in-game days of running, until a Maintenance Drone services them.
+	 */
+	public static final class Renewables {
+		public double turbineKw = 30;
+		public double gust = 0.25;
+		public double solarArrayKw = 36;
+		public double trackingBonus = 1.3;
+		public double windTowerKw = 120;
+		public double windTowerMaxFactor = 1.25;
+		public int windTowerMinSections = 10;
+		public double wearDays = 2;
+		public double wearLoss = 0.3;
+	}
 	/** Client-side: the RackCoin balance shown near racks or while holding a Rackcraft tool. */
 	public static final class Hud { public boolean enabled = true; }
 }

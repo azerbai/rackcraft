@@ -27,9 +27,13 @@ import net.minecraft.util.math.Box;
  *   <li>{@link Job#SWAP}: a rack with a Failed Module gets a spare module from the dock; the dead one comes back.</li>
  *   <li>{@link Job#SPLICE}: a cut cable is spliced, using one of a Repair Kit's eight repairs.</li>
  *   <li>{@link Job#BREAKER}: a PDU's tripped breaker is reset.</li>
+ *   <li>{@link Job#SERVICE}: a worn Solar Array or Wind Tower is serviced back to full output.</li>
  * </ul>
  * Slots: 0 drones, 1 Hydrogen Canisters, 2 to 8 spares (rack modules and Repair Kits; dead modules come back here,
  * and a hopper under the dock can take them away). Each trip burns 1/{@link #TRIPS_PER_CANISTER} of a canister.
+ *
+ * A dock on an Item Pipe that reaches storage also draws on it: the module a job needs (the same kind that failed,
+ * which a Failed Module remembers), a Repair Kit, and room for what drones bring home.
  */
 public final class DroneDocks {
 	public static final int RANGE = 32;
@@ -40,7 +44,7 @@ public final class DroneDocks {
 	public static final int FIRST_SPARE = 2;
 	private static final int SCAN_TICKS = 40;
 
-	public enum Job { SWAP, SPLICE, BREAKER }
+	public enum Job { SWAP, SPLICE, BREAKER, SERVICE }
 
 	/** WORKING: drones are out. The rest say why nothing is: no jobs, or jobs it can't do yet. */
 	public enum Status { WORKING, IDLE, NO_POWER, NO_DRONES, NO_FUEL, NO_SPARES }
@@ -53,6 +57,31 @@ public final class DroneDocks {
 		if (slot == DRONE_SLOT) return stack.isOf(RcItems.ITEMS.get("maintenance_drone"));
 		if (slot == FUEL_SLOT) return stack.isOf(RcItems.ITEMS.get("hydrogen_canister"));
 		return slot < 9 && (isModule(stack) || stack.isOf(RcItems.ITEMS.get("repair_kit")));
+	}
+
+	/** NBT on a Failed Module: the item id of the module it was. */
+	public static final String FAILED_KEY = "Was";
+
+	/** The module a Failed Module used to be, or null if it doesn't say (made before modules remembered). */
+	public static Item failedAs(ItemStack failed) {
+		if (!failed.hasNbt() || !failed.getNbt().contains(FAILED_KEY)) return null;
+		Item item = Registries.ITEM.get(new net.minecraft.util.Identifier(failed.getNbt().getString(FAILED_KEY)));
+		return item == net.minecraft.item.Items.AIR ? null : item;
+	}
+
+	/** The storage on this dock's Item Pipe network, or null if it has none online. */
+	private static dev.rackcraft.storage.StorageNetwork storage(ServerWorld world, MachineBlockEntity dock) {
+		var pipes = NetworkManager.get(world).component(dock.getPos(), NetKind.ITEM);
+		if (pipes.size() <= 1) return null;
+		var network = dev.rackcraft.storage.StorageService.networkOf(world, pipes);
+		return network.isEmpty() ? null : network;
+	}
+
+	/** Takes one of this item from storage, if there is any. */
+	private static ItemStack fromStorage(dev.rackcraft.storage.StorageNetwork storage, Item item) {
+		if (storage == null || item == null) return ItemStack.EMPTY;
+		var key = dev.rackcraft.storage.ItemKey.of(item);
+		return storage.extract(key, 1, true, false) > 0 ? key.toStack(1) : ItemStack.EMPTY;
 	}
 
 	private static boolean isModule(ItemStack stack) {
@@ -114,6 +143,8 @@ public final class DroneDocks {
 				}
 			} else if (machine.blockId().equals("pdu") && machine.isTripped()) {
 				tasks.add(new Task(Job.BREAKER, pos, 0));
+			} else if (Renewables.wearsOut(machine) && machine.wear() >= Renewables.SERVICE_AT) {
+				tasks.add(new Task(Job.SERVICE, pos, 0));
 			}
 		}
 		NetworkManager networks = NetworkManager.get(world);
@@ -130,6 +161,7 @@ public final class DroneDocks {
 	private static Status dispatch(ServerWorld world, MachineBlockEntity dock, List<Task> tasks, double power) {
 		if (power < 0.5) return Status.NO_POWER;
 		if (tasks.isEmpty()) return Status.IDLE;
+		dev.rackcraft.storage.StorageNetwork storage = storage(world, dock);
 		Status blocked = null;
 		for (Task task : tasks) {
 			if (dock.getStack(DRONE_SLOT).isEmpty()) return Status.NO_DRONES;
@@ -141,14 +173,29 @@ public final class DroneDocks {
 			}
 			ItemStack carried = ItemStack.EMPTY;
 			if (task.job() == Job.SWAP) {
-				int spare = findSpare(dock, DroneDocks::isModule);
-				if (spare < 0) {
+				// Replace like with like: the module the failed one was, from the dock or else from storage. Only a
+				// Failed Module that doesn't remember what it was takes whatever spare the dock has.
+				Item wanted = world.getBlockEntity(task.target()) instanceof MachineBlockEntity rack
+						? failedAs(rack.getStack(task.slot())) : null;
+				int spare = findSpare(dock, stack -> wanted == null ? isModule(stack) : stack.isOf(wanted));
+				if (spare >= 0) carried = dock.getStack(spare).split(1);
+				else carried = fromStorage(storage, wanted);
+				if (carried.isEmpty()) {
 					blocked = Status.NO_SPARES;
 					continue;
 				}
-				carried = dock.getStack(spare).split(1);
 			} else if (task.job() == Job.SPLICE) {
 				int kit = findSpare(dock, stack -> stack.isOf(RcItems.ITEMS.get("repair_kit")));
+				if (kit < 0) {
+					ItemStack fetched = fromStorage(storage, RcItems.ITEMS.get("repair_kit"));
+					int free = findSpare(dock, ItemStack::isEmpty);
+					if (!fetched.isEmpty() && free >= 0) {
+						dock.setStack(free, fetched);
+						kit = free;
+					} else if (!fetched.isEmpty()) {
+						storage.insert(dev.rackcraft.storage.ItemKey.of(fetched), 1, false);
+					}
+				}
 				if (kit < 0) {
 					blocked = Status.NO_SPARES;
 					continue;
@@ -196,6 +243,12 @@ public final class DroneDocks {
 					done = true;
 				}
 			}
+			case SERVICE -> {
+				if (world.getBlockEntity(target) instanceof MachineBlockEntity machine && Renewables.wearsOut(machine) && machine.wear() > 0) {
+					machine.setWear(0);
+					done = true;
+				}
+			}
 			case BREAKER -> {
 				if (world.getBlockEntity(target) instanceof MachineBlockEntity pdu && pdu.blockId().equals("pdu") && pdu.isTripped()) {
 					pdu.setTripped(false);
@@ -215,7 +268,7 @@ public final class DroneDocks {
 		ItemStack slot = dock.getStack(DRONE_SLOT);
 		if (slot.isEmpty()) dock.setStack(DRONE_SLOT, drone);
 		else if (slot.isOf(drone.getItem()) && slot.getCount() < slot.getMaxCount()) slot.increment(1);
-		else drop(world, dock, drone);
+		else carried = overflow(world, dock, drone, carried);
 		if (!carried.isEmpty()) {
 			for (int index = FIRST_SPARE; index < dock.size() && !carried.isEmpty(); index++) {
 				ItemStack spare = dock.getStack(index);
@@ -228,9 +281,22 @@ public final class DroneDocks {
 					carried.decrement(moved);
 				}
 			}
+			if (!carried.isEmpty()) {
+				dev.rackcraft.storage.StorageNetwork storage = storage(world, dock);
+				if (storage != null && storage.insert(dev.rackcraft.storage.ItemKey.of(carried), carried.getCount(), false) >= carried.getCount()) {
+					carried = ItemStack.EMPTY;
+				}
+			}
 			if (!carried.isEmpty()) drop(world, dock, carried);
 		}
 		dock.markDirty();
+	}
+
+	/** A drone home to a full dock goes into storage if it can, onto the floor if not. Returns the cargo unchanged. */
+	private static ItemStack overflow(ServerWorld world, MachineBlockEntity dock, ItemStack drone, ItemStack carried) {
+		dev.rackcraft.storage.StorageNetwork storage = storage(world, dock);
+		if (storage == null || storage.insert(dev.rackcraft.storage.ItemKey.of(drone), 1, false) < 1) drop(world, dock, drone);
+		return carried;
 	}
 
 	private static void drop(ServerWorld world, MachineBlockEntity dock, ItemStack stack) {

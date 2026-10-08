@@ -1,0 +1,23 @@
+{
+  "pools": [
+    {
+      "conditions": [
+        {
+          "block": "rackcraft:solar_array_tracking",
+          "condition": "minecraft:block_state_property",
+          "properties": {
+            "part": "0"
+          }
+        }
+      ],
+      "entries": [
+        {
+          "name": "rackcraft:solar_array_tracking",
+          "type": "minecraft:item"
+        }
+      ],
+      "rolls": 1
+    }
+  ],
+  "type": "minecraft:block"
+}

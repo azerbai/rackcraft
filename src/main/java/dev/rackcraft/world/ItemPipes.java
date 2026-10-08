@@ -102,10 +102,28 @@ public final class ItemPipes {
 			}
 			// A Drone Dock takes hydrogen from storage and sends the dead modules its drones bring home back to it.
 			case "drone_dock" -> {
+				// Room is left for the drones still out, so they have somewhere to land.
+				stock(machine, DroneDocks.DRONE_SLOT, ItemKey.of(RcItems.ITEMS.get("maintenance_drone")), 8 - machine.workers(), items);
 				stock(machine, DroneDocks.FUEL_SLOT, ItemKey.of(RcItems.ITEMS.get("hydrogen_canister")), FUEL_CELL_STOCK, items);
 				for (int slot = DroneDocks.FIRST_SPARE; slot < machine.size(); slot++) {
 					if (machine.getStack(slot).isOf(RcItems.ITEMS.get("failed_module"))) store(machine, slot, items);
 				}
+			}
+			// A Belt Loader puts one more of its sample item on the belt in front whenever that belt is empty.
+			case "belt_loader" -> {
+				ItemStack sample = machine.getStack(0);
+				if (sample.isEmpty() || machine.getWorld() == null) return;
+				BlockPos front = machine.getPos().offset(machine.getCachedState().get(dev.rackcraft.block.MachineBlock.FACING));
+				if (!(machine.getWorld().getBlockEntity(front) instanceof dev.rackcraft.block.BeltBlockEntity belt) || !belt.stack().isEmpty()) return;
+				ItemKey key = ItemKey.of(sample);
+				if (items.extract(key, 1, true, false) > 0) {
+					belt.accept(key.toStack(1), 0);
+					machine.setItemsMade(machine.itemsMade() + 1);
+				}
+			}
+			// A Belt Unloader files everything the line hands it.
+			case "belt_unloader" -> {
+				for (int slot = 0; slot < machine.size(); slot++) store(machine, slot, items);
 			}
 			// A Launch Control fills its tank from storage and files Survey maps away.
 			case "launch_control" -> {

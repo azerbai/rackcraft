@@ -1,0 +1,20 @@
+{
+  "key": {
+    "A": {
+      "item": "rackcraft:aluminum_ingot"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    }
+  },
+  "pattern": [
+    "AAA",
+    "S S",
+    "AAA"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:solar_array_frame"
+  },
+  "type": "minecraft:crafting_shaped"
+}

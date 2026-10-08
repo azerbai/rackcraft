@@ -22,7 +22,7 @@ import net.minecraft.util.math.RotationAxis;
 import net.minecraft.world.World;
 
 /**
- * Draws the moving part of a robot arm: a turret on the pedestal, an upper arm and forearm solved with two-link
+ * Draws the moving parts of machines: a Wind Tower's rotor (see {@link RotorRenderer}), and a robot arm: a turret on the pedestal, an upper arm and forearm solved with two-link
  * inverse kinematics so the wrist reaches the middle of the belt in front, and a tool hanging from the wrist. Idle,
  * the arm folds up over its pedestal; working (the block is lit), it reaches over the belt and does its job: the
  * welder sweeps sideways throwing sparks, the riveter hammers, the assembler dips and closes its gripper.
@@ -45,12 +45,27 @@ public final class RobotArmRenderer implements BlockEntityRenderer<MachineBlockE
 
 	@Override
 	public boolean rendersOutsideBoundingBox(MachineBlockEntity machine) {
-		return machine.getCachedState().getBlock() instanceof RobotArmBlock;
+		return machine.getCachedState().getBlock() instanceof RobotArmBlock || isNacelle(machine);
+	}
+
+	/** Wind Tower rotors are big and high up: draw them from much further away than the arms. */
+	@Override
+	public boolean isInRenderDistance(MachineBlockEntity machine, net.minecraft.util.math.Vec3d camera) {
+		double range = isNacelle(machine) ? 256 : getRenderDistance();
+		return net.minecraft.util.math.Vec3d.ofCenter(machine.getPos()).isInRange(camera, range);
+	}
+
+	private static boolean isNacelle(MachineBlockEntity machine) {
+		return machine.getCachedState().isOf(dev.rackcraft.RcBlocks.get("wind_nacelle"));
 	}
 
 	@Override
 	public void render(MachineBlockEntity machine, float tickDelta, MatrixStack matrices, VertexConsumerProvider vertexConsumers,
 			int light, int overlay) {
+		if (isNacelle(machine)) {
+			RotorRenderer.render(machine, tickDelta, matrices, vertexConsumers, light, overlay);
+			return;
+		}
 		if (!(machine.getCachedState().getBlock() instanceof RobotArmBlock) || machine.getWorld() == null) return;
 		String id = Registries.BLOCK.getId(machine.getCachedState().getBlock()).getPath();
 		World world = machine.getWorld();

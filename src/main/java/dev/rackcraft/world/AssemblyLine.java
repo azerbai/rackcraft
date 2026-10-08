@@ -83,6 +83,25 @@ public final class AssemblyLine {
 						new Step(Kind.INSTALL, item("circuit_board"), 2),
 						new Step(Kind.WELD, null, 0),
 						new Step(Kind.RIVET, null, 0)), item("rocket_stage")),
+				// The wind and solar tier.
+				new Recipe("solar_array", item("solar_array_frame"), List.of(
+						new Step(Kind.INSTALL, dev.rackcraft.RcBlocks.get("solar_panel").asItem(), 6),
+						new Step(Kind.INSTALL, item("circuit_board"), 2),
+						new Step(Kind.WELD, null, 0),
+						new Step(Kind.RIVET, null, 0)), dev.rackcraft.RcBlocks.get("solar_array").asItem()),
+				new Recipe("solar_array_tracking", dev.rackcraft.RcBlocks.get("solar_array").asItem(), List.of(
+						new Step(Kind.INSTALL, item("electric_motor"), 2),
+						new Step(Kind.INSTALL, item("circuit_board"), 1),
+						new Step(Kind.RIVET, null, 0)), dev.rackcraft.RcBlocks.get("solar_array_tracking").asItem()),
+				new Recipe("wind_nacelle", item("nacelle_frame"), List.of(
+						new Step(Kind.INSTALL, item("electric_motor"), 8),
+						new Step(Kind.INSTALL, item("circuit_board"), 4),
+						new Step(Kind.WELD, null, 0),
+						new Step(Kind.INSTALL, item("copper_wire"), 16),
+						new Step(Kind.RIVET, null, 0)), dev.rackcraft.RcBlocks.get("wind_nacelle").asItem()),
+				new Recipe("tower_section", item("tower_frame"), List.of(
+						new Step(Kind.WELD, null, 0),
+						new Step(Kind.RIVET, null, 0)), dev.rackcraft.RcBlocks.get("tower_section").asItem()),
 				// Payloads share the Satellite Bus; the first part fitted decides which one it becomes.
 				new Recipe("comms_satellite", item("satellite_bus"), List.of(
 						new Step(Kind.INSTALL, item("copper_wire"), 16),

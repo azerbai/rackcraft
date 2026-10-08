@@ -105,8 +105,10 @@ public final class MachineScreenHandler extends ScreenHandler {
 		} else if (mode == Mode.WORKCELL) {
 			// Assembly Robots and Drone Docks keep their parts in a row of nine; welding and riveting robots have none.
 			String id = net.minecraft.registry.Registries.BLOCK.getId(playerInventory.player.getWorld().getBlockState(pos).getBlock()).getPath();
-			if (id.equals("assembly_arm") || id.equals("drone_dock")) {
+			if (id.equals("assembly_arm") || id.equals("drone_dock") || id.equals("belt_unloader")) {
 				for (int index = 0; index < 9; index++) addSlot(new MachineSlot(machineInventory, index, 8 + index * 18, 116));
+			} else if (id.equals("belt_loader")) {
+				addSlot(new MachineSlot(machineInventory, 0, 80, 116));
 			}
 			addPlayerInventory(playerInventory, 8, 152);
 		} else if (mode == Mode.LAUNCH) {
@@ -253,6 +255,7 @@ public final class MachineScreenHandler extends ScreenHandler {
 			case Stat.CUBE_DEMAND -> tenths(machine.cubeDemandKw());
 			case Stat.DOCK_JOBS -> machine.dockJobs();
 			case Stat.LOCKED_CUBE -> machine.lockedCube();
+			case Stat.WEAR -> (int) Math.round(machine.wear() * 100);
 			case Stat.LAUNCH_TANK -> machine.launchTank();
 			case Stat.LAUNCH_COUNTDOWN -> machine.launchCountdown();
 			case Stat.LAUNCH_FLIGHT -> machine.launchFlight();
@@ -336,7 +339,8 @@ public final class MachineScreenHandler extends ScreenHandler {
 		public static final int ORBIT_MIRRORS = 58;
 		public static final int ORBIT_LAUNCHES = 59;
 		public static final int LOCKED_CUBE = 60;     // edge of a whole cube too big for the research done, else 0
-		static final int COUNT = 61;
+		public static final int WEAR = 61;            // percent an array or tower has worn
+		static final int COUNT = 62;
 
 		private Stat() {}
 	}
