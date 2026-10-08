@@ -73,8 +73,16 @@ public final class ExchangeCatalog {
 		ServerLifecycleEvents.END_DATA_PACK_RELOAD.register((server, resources, success) -> rebuild(server));
 	}
 
+	public static final String TANKER = "tanker_drone";
+
 	public static Long price(Item item) {
 		return prices.get(item);
+	}
+
+	/** Whether the Exchange shows and sells this item in this world: the Tanker Drone needs its research first. */
+	public static boolean listed(Item item, net.minecraft.server.world.ServerWorld world) {
+		if (item == RcItems.ITEMS.get(TANKER)) return dev.rackcraft.compute.ResearchLab.effects(world).hydrogenStorage();
+		return prices.containsKey(item);
 	}
 
 	public static Map<Item, Long> prices() {
@@ -144,6 +152,9 @@ public final class ExchangeCatalog {
 			if (!building(item, useful)) price *= MATERIAL_PREMIUM;
 			built.put(item, Math.max(1, Math.round(price * hardwarePremium(item))));
 		}
+		// The Tanker Drone has no recipe: it's sold, at a fixed and painful price, and only once researched (see listed()).
+		Item tanker = RcItems.ITEMS.get(TANKER);
+		if (tanker != null) built.put(tanker, Math.max(1, RackcraftConfig.values.exchange.tankerDronePrice));
 		prices = Collections.unmodifiableMap(built);
 		Rackcraft.LOGGER.info("[Rackcraft] Exchange catalog priced {} items", built.size());
 	}
@@ -248,8 +259,9 @@ public final class ExchangeCatalog {
 	}
 
 	/** Client copy of the price list, sent when an Exchange screen opens. */
-	public static void write(PacketByteBuf buf) {
-		Map<Item, Long> snapshot = prices;
+	public static void write(PacketByteBuf buf, net.minecraft.server.world.ServerWorld world) {
+		Map<Item, Long> snapshot = new LinkedHashMap<>(prices);
+		snapshot.keySet().removeIf(item -> !listed(item, world));
 		buf.writeVarInt(snapshot.size());
 		snapshot.forEach((item, price) -> {
 			buf.writeVarInt(Registries.ITEM.getRawId(item));

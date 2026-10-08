@@ -12,7 +12,7 @@ import net.minecraft.network.packet.s2c.play.EntitySpawnS2CPacket;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundCategory;
-import net.minecraft.sound.SoundEvents;
+import dev.rackcraft.RcSounds;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
@@ -88,6 +88,46 @@ public final class RocketEntity extends Entity {
 		return Math.min(2.0, 0.00025 * flight * flight);
 	}
 
+	/** Ticks of ignition sound before liftoff (it starts at T-6). */
+	private static final int IGNITION_LEAD = 120;
+	/** Ticks between thrust roars: each lasts five seconds and fades at both ends, so they overlap into one. */
+	private static final int THRUST_EVERY = 80;
+	/** How far away the rest of the world hears a launch as a distant rumble. */
+	public static final int RUMBLE_RANGE = 768;
+
+	/** When stages separate, in ticks after liftoff: twice for a Saturn V, once for a Saturn IB. */
+	public static int[] separations(int stages) {
+		return switch (stages) {
+			case 3 -> new int[] {150, 250};
+			case 2 -> new int[] {190};
+			default -> new int[0];
+		};
+	}
+
+	/**
+	 * A thunder of a launch for everyone further off than the rocket's own sounds reach: played where each player
+	 * stands, quieter with distance, and never for someone already close enough to hear the engines.
+	 */
+	private void rumble(ServerWorld world, float strength) {
+		for (net.minecraft.server.network.ServerPlayerEntity player : world.getPlayers()) {
+			double distance = Math.sqrt(player.squaredDistanceTo(getX(), player.getY(), getZ()));
+			if (distance < 160 || distance > RUMBLE_RANGE) continue;
+			float volume = (float) (strength * (stages() == 3 ? 1.0 : 0.6) * (1 - (distance - 160) / (RUMBLE_RANGE - 160)));
+			player.playSound(RcSounds.ROCKET_DISTANT, SoundCategory.BLOCKS, Math.max(0.05f, volume), 0.9f);
+		}
+	}
+
+	/** A stage separating: a flash and a crack, a ring of smoke, and the spent stage's last fire. */
+	private void separate(ServerWorld world) {
+		double y = getY() + (stages() == 3 ? 13 : 8);
+		world.playSound(null, BlockPos.ofFloored(getX(), y, getZ()), RcSounds.ROCKET_STAGING, SoundCategory.BLOCKS, 6, stages() == 3 ? 0.9f : 1.0f);
+		world.spawnParticles(ParticleTypes.FLASH, getX(), y, getZ(), 2, 0.5, 0.5, 0.5, 0);
+		world.spawnParticles(ParticleTypes.EXPLOSION, getX(), y, getZ(), 12, 2.5, 1, 2.5, 0);
+		world.spawnParticles(ParticleTypes.CLOUD, getX(), y, getZ(), 160, 4, 0.6, 4, 0.25);
+		world.spawnParticles(ParticleTypes.FIREWORK, getX(), y, getZ(), 80, 1.5, 1.5, 1.5, 0.35);
+		world.spawnParticles(ParticleTypes.FLAME, getX(), y - 3, getZ(), 60, 1.5, 2, 1.5, 0.1);
+	}
+
 	@Override
 	public net.minecraft.util.math.Box getVisibilityBoundingBox() {
 		// Seen from anywhere it could be: the collision box is only a stub at its feet.
@@ -103,27 +143,39 @@ public final class RocketEntity extends Entity {
 			return;
 		}
 		ServerWorld world = (ServerWorld) getWorld();
-		if (flight == -40) world.playSound(null, getBlockPos(), SoundEvents.BLOCK_FIRE_EXTINGUISH, SoundCategory.BLOCKS, 4, 0.5f);
+		int stages = stages();
+		// Bigger rockets are louder: the Saturn V's sounds reach the furthest.
+		float loud = stages == 3 ? 5 : stages == 2 ? 3.5f : 2.5f;
+		float pitch = stages == 3 ? 0.85f : stages == 2 ? 0.95f : 1.1f;
+		if (flight == -IGNITION_LEAD) world.playSound(null, getBlockPos(), RcSounds.ROCKET_IGNITION, SoundCategory.BLOCKS, loud * 0.8f, pitch);
 		if (flight == 0) {
-			world.playSound(null, getBlockPos(), SoundEvents.ENTITY_GENERIC_EXPLODE, SoundCategory.BLOCKS, 8, 0.4f);
-			world.playSound(null, getBlockPos(), SoundEvents.ENTITY_LIGHTNING_BOLT_THUNDER, SoundCategory.BLOCKS, 8, 0.5f);
+			world.playSound(null, getBlockPos(), RcSounds.ROCKET_LIFTOFF, SoundCategory.BLOCKS, loud, pitch);
+			rumble(world, 1);
+			if (stages == 3) {
+				// The Saturn V clears the tower in a flash and a ground-shaking wall of exhaust.
+				world.spawnParticles(ParticleTypes.FLASH, getX(), getY() + 1, getZ(), 3, 1.5, 0.5, 1.5, 0);
+				world.spawnParticles(ParticleTypes.EXPLOSION_EMITTER, getX(), getY() + 0.5, getZ(), 4, 4, 0.3, 4, 0);
+			}
 		}
 		if (flight > 0) {
-			// A low roar that follows it up.
-			if (flight % 12 == 0) world.playSound(null, getBlockPos(), SoundEvents.ENTITY_BLAZE_SHOOT, SoundCategory.BLOCKS, 8, 0.3f);
-			if (flight % 40 == 20 && flight < 200) {
-				world.playSound(null, getBlockPos(), SoundEvents.ENTITY_LIGHTNING_BOLT_THUNDER, SoundCategory.BLOCKS, 6, 0.4f);
+			// Overlapping roars follow it up, a little higher-pitched as it draws away.
+			if (flight % THRUST_EVERY == 0) {
+				world.playSound(null, getBlockPos(), RcSounds.ROCKET_THRUST, SoundCategory.BLOCKS, loud, pitch * (1 + flight / 2000f));
 			}
+			if (stages == 3 && flight == 100) rumble(world, 0.6f);
 			climb = speed(flight);
 			setPosition(getX(), getY() + climb, getZ());
 			velocityDirty = true;
+			for (int separation : separations(stages)) if (flight == separation && !doomed) separate(world);
 			if (doomed && flight == FAILS_AFTER) {
-				double middle = getY() + height(stages()) * 0.4;
-				world.spawnParticles(ParticleTypes.EXPLOSION_EMITTER, getX(), middle, getZ(), 6, 2, height(stages()) * 0.3, 2, 0);
-				world.spawnParticles(ParticleTypes.LARGE_SMOKE, getX(), middle, getZ(), 200, 3, height(stages()) * 0.3, 3, 0.15);
-				world.spawnParticles(ParticleTypes.FLAME, getX(), middle, getZ(), 250, 3, height(stages()) * 0.3, 3, 0.3);
-				world.playSound(null, getBlockPos(), SoundEvents.ENTITY_GENERIC_EXPLODE, SoundCategory.BLOCKS, 12, 0.5f);
-				world.playSound(null, getBlockPos(), SoundEvents.ENTITY_LIGHTNING_BOLT_THUNDER, SoundCategory.BLOCKS, 12, 0.6f);
+				double middle = getY() + height(stages) * 0.4;
+				world.spawnParticles(ParticleTypes.EXPLOSION_EMITTER, getX(), middle, getZ(), 6 + stages * 4, 2 + stages, height(stages) * 0.3, 2 + stages, 0);
+				world.spawnParticles(ParticleTypes.FLASH, getX(), middle, getZ(), 4, 2, height(stages) * 0.2, 2, 0);
+				world.spawnParticles(ParticleTypes.LARGE_SMOKE, getX(), middle, getZ(), 200 * stages, 3 + stages, height(stages) * 0.3, 3 + stages, 0.2);
+				world.spawnParticles(ParticleTypes.FLAME, getX(), middle, getZ(), 250 * stages, 3 + stages, height(stages) * 0.3, 3 + stages, 0.35);
+				world.spawnParticles(ParticleTypes.LAVA, getX(), middle, getZ(), 40 * stages, 3, height(stages) * 0.3, 3, 0.5);
+				world.playSound(null, getBlockPos(), RcSounds.ROCKET_EXPLOSION, SoundCategory.BLOCKS, loud * 1.4f, pitch * 0.9f);
+				rumble(world, 1.3f);
 				discard();
 				return;
 			}
@@ -161,8 +213,25 @@ public final class RocketEntity extends Entity {
 			return;
 		}
 		double scale = stages == 3 ? 1.6 : stages == 2 ? 1.2 : 0.8;
+		// The Saturn V's five F-1s: twice the fire and a column of smoke that hangs in the sky behind it.
+		int burn = stages == 3 ? (flight < 100 ? 8 : 4) : (flight < 100 ? 4 : 2);
+		if (stages == 3) {
+			for (int index = 0; index < 3; index++) {
+				world.addParticle(ParticleTypes.CAMPFIRE_SIGNAL_SMOKE, getX() + (random.nextDouble() - 0.5) * 3, getY() - 4 - random.nextDouble() * 6,
+						getZ() + (random.nextDouble() - 0.5) * 3, (random.nextDouble() - 0.5) * 0.04, 0.02, (random.nextDouble() - 0.5) * 0.04);
+			}
+			if (flight < 40) {
+				world.addParticle(ParticleTypes.FLASH, getX(), padY + 1, getZ(), 0, 0, 0);
+				// The water deluge flashing to steam around the pad.
+				for (int index = 0; index < 6; index++) {
+					double angle = random.nextDouble() * Math.PI * 2;
+					world.addParticle(ParticleTypes.CLOUD, getX() + Math.cos(angle) * 3, padY + 0.5, getZ() + Math.sin(angle) * 3,
+							Math.cos(angle) * 0.15, 0.35 + random.nextDouble() * 0.3, Math.sin(angle) * 0.15);
+				}
+			}
+		}
 		for (double[] engine : engines(stages)) {
-			for (int index = 0; index < (flight < 100 ? 4 : 2); index++) {
+			for (int index = 0; index < burn; index++) {
 				double x = getX() + engine[0] + (random.nextDouble() - 0.5) * 0.4 * scale;
 				double z = getZ() + engine[1] + (random.nextDouble() - 0.5) * 0.4 * scale;
 				world.addParticle(ParticleTypes.FLAME, x, getY() - 0.2, z, (random.nextDouble() - 0.5) * 0.08, -0.9 - climb, (random.nextDouble() - 0.5) * 0.08);
@@ -176,7 +245,7 @@ public final class RocketEntity extends Entity {
 		}
 		if (flight < 120) {
 			// The flame trench throws the exhaust out sideways in a great ring across the pad.
-			int ring = (int) (14 * scale * (1 - flight / 120.0)) + 2;
+			int ring = (int) ((stages == 3 ? 30 : 14) * scale * (1 - flight / 120.0)) + 2;
 			for (int index = 0; index < ring; index++) {
 				double angle = random.nextDouble() * Math.PI * 2;
 				double speed = 0.4 + random.nextDouble() * 0.5 * scale;

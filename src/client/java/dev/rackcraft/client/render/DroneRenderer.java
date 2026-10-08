@@ -30,6 +30,7 @@ public final class DroneRenderer<T extends Entity> extends EntityRenderer<T> {
 	private static final Identifier MAINTENANCE = Rackcraft.id("textures/entity/maintenance_drone.png");
 	private static final Identifier CONSTRUCTION = Rackcraft.id("textures/entity/construction_drone.png");
 	private static final Identifier TERRAFORMING = Rackcraft.id("textures/entity/terraforming_drone.png");
+	private static final Identifier TANKER = Rackcraft.id("textures/entity/tanker_drone.png");
 	private static final int TILES = 4;
 	private final Function<T, Identifier> texture;
 	private final Predicate<T> working;
@@ -54,6 +55,10 @@ public final class DroneRenderer<T extends Entity> extends EntityRenderer<T> {
 	public static DroneRenderer<ConstructionDroneEntity> construction(EntityRendererFactory.Context context) {
 		return new DroneRenderer<>(context, drone -> drone.terraformer() ? TERRAFORMING : CONSTRUCTION, ConstructionDroneEntity::working,
 				ConstructionDroneEntity::shown, 1.5f);
+	}
+
+	public static DroneRenderer<dev.rackcraft.entity.TankerDroneEntity> tanker(EntityRendererFactory.Context context) {
+		return new DroneRenderer<>(context, drone -> TANKER, dev.rackcraft.entity.TankerDroneEntity::working, drone -> ItemStack.EMPTY, 1.75f);
 	}
 
 	@Override

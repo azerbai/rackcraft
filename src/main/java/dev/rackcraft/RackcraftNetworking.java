@@ -170,6 +170,7 @@ public final class RackcraftNetworking {
 			if (id == null || !Registries.ITEM.containsId(id)) return false;
 			Item item = Registries.ITEM.get(id);
 			Long price = ExchangeCatalog.price(item);
+			if (!ExchangeCatalog.listed(item, player.getServerWorld())) return false;
 			if (price == null || !FacilityManager.get(player.getServerWorld()).spendCredits(price)) return false;
 			ItemStack bought = new ItemStack(item);
 			if (!player.getInventory().insertStack(bought)) player.dropItem(bought, false);

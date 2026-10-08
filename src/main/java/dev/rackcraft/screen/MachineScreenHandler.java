@@ -108,7 +108,7 @@ public final class MachineScreenHandler extends ScreenHandler {
 			if (id.equals("assembly_arm") || id.equals("drone_dock") || id.equals("belt_unloader")
 					|| id.equals("storage_exporter")) {
 				for (int index = 0; index < 9; index++) addSlot(new MachineSlot(machineInventory, index, 8 + index * 18, 116));
-			} else if (id.equals("belt_loader")) {
+			} else if (id.equals("belt_loader") || id.equals("hydrogen_tank")) {
 				addSlot(new MachineSlot(machineInventory, 0, 80, 116));
 			}
 			addPlayerInventory(playerInventory, 8, 152);
@@ -177,6 +177,8 @@ public final class MachineScreenHandler extends ScreenHandler {
 	public static final int START_BUTTON = 3;
 	/** Button 4 on a Site Planner: buy what's missing from the Crypto Exchange, or stop. */
 	public static final int BUY_BUTTON = 4;
+	/** Button 5 on a Site Planner: place and stock Drone Docks for the site, or stop. */
+	public static final int DOCK_BUTTON = 5;
 
 	@Override
 	public boolean onButtonClick(PlayerEntity player, int id) {
@@ -184,10 +186,11 @@ public final class MachineScreenHandler extends ScreenHandler {
 			player.sendMessage(net.minecraft.text.Text.literal(dev.rackcraft.world.LaunchPads.launch(launchWorld, machine)), true);
 			return true;
 		}
-		if ((id == LAYOUT_BUTTON || id == START_BUTTON || id == BUY_BUTTON) && mode == Mode.SITE && machine != null
+		if ((id == LAYOUT_BUTTON || id == START_BUTTON || id == BUY_BUTTON || id == DOCK_BUTTON) && mode == Mode.SITE && machine != null
 				&& machine.getWorld() instanceof ServerWorld siteWorld) {
 			player.sendMessage(net.minecraft.text.Text.literal(id == LAYOUT_BUTTON ? dev.rackcraft.world.SitePlanner.cycleLayout(machine)
 					: id == BUY_BUTTON ? dev.rackcraft.world.SitePlanner.toggleBuying(machine)
+					: id == DOCK_BUTTON ? dev.rackcraft.world.SitePlanner.toggleDocks(machine)
 					: dev.rackcraft.world.SitePlanner.toggleRunning(machine)), true);
 			dev.rackcraft.world.SitePlanner.scanNow(siteWorld);
 			return true;

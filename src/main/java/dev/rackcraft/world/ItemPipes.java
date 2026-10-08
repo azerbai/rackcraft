@@ -54,7 +54,9 @@ public final class ItemPipes {
 				MachineBlockEntity machine = byPos.get(pos);
 				if (machine == null) continue;
 				String id = machine.blockId();
-				if (id.equals("storage_array") || id.equals("tape_library")) storage |= machine.storageOnline();
+				if (id.equals("storage_array") || id.equals("tape_library") || id.equals("storage_link") || id.equals("auto_buyer")) {
+					storage |= machine.storageOnline();
+				} else if (id.equals("hydrogen_tank")) storage = true;
 				else users.add(machine);
 			}
 			if (!storage || users.isEmpty()) continue;
@@ -89,6 +91,12 @@ public final class ItemPipes {
 					stock(machine, 0, ItemKey.of(fuel), FUEL_STOCK, items);
 					return;
 				}
+				// None in storage: an Auto-Buyer buys the best fuel the Exchange sells.
+				for (Item fuel : dieselFuels()) {
+					if (!items.canBuy(fuel)) continue;
+					stock(machine, 0, ItemKey.of(fuel), FUEL_STOCK, items);
+					return;
+				}
 			}
 			case "modular_reactor" -> {
 				stock(machine, ReactorArrays.FUEL_SLOT, ItemKey.of(RcItems.ITEMS.get("fuel_cell")), FUEL_CELL_STOCK, items);
@@ -116,7 +124,7 @@ public final class ItemPipes {
 				BlockPos front = machine.getPos().offset(machine.getCachedState().get(dev.rackcraft.block.MachineBlock.FACING));
 				if (!(machine.getWorld().getBlockEntity(front) instanceof dev.rackcraft.block.BeltBlockEntity belt) || !belt.stack().isEmpty()) return;
 				ItemKey key = ItemKey.of(sample);
-				if (items.extract(key, 1, true, false) > 0) {
+				if (items.extractOrBuy(key, 1) > 0) {
 					belt.accept(key.toStack(1), 0);
 					machine.setItemsMade(machine.itemsMade() + 1);
 				}
@@ -135,6 +143,11 @@ public final class ItemPipes {
 			default -> {
 				NuclearProcessing.Recipe recipe = NuclearProcessing.recipe(machine.blockId());
 				if (recipe == null) return;
+				// An Electrolyser filling tanks needs no ingots.
+				if (machine.blockId().equals("electrolyser") && items.hasTanks()) {
+					store(machine, NuclearProcessing.OUTPUT_SLOT, items);
+					return;
+				}
 				stock(machine, 0, ItemKey.of(recipe.inputA()), Math.max(PROCESS_STOCK, recipe.countA() * 4), items);
 				if (recipe.inputB() != null) stock(machine, 1, ItemKey.of(recipe.inputB()), Math.max(PROCESS_STOCK, recipe.countB() * 4), items);
 				store(machine, NuclearProcessing.OUTPUT_SLOT, items);
@@ -156,7 +169,7 @@ public final class ItemPipes {
 		if (!stack.isEmpty() && !key.matches(stack)) return;
 		int want = Math.min(target, key.maxStackSize()) - stack.getCount();
 		if (want <= 0) return;
-		long got = items.extract(key, want, true, false);
+		long got = items.extractOrBuy(key, want);
 		if (got <= 0) return;
 		if (stack.isEmpty()) machine.setStack(slot, key.toStack(got));
 		else {
@@ -185,7 +198,7 @@ public final class ItemPipes {
 			for (int index = 0; index < target.size(); index++) if (key.matches(target.getStack(index))) present += target.getStack(index).getCount();
 			int want = key.maxStackSize() - present;
 			if (want <= 0) continue;
-			long got = items.extract(key, want, true, false);
+			long got = items.extractOrBuy(key, want);
 			if (got <= 0) continue;
 			ItemStack left = net.minecraft.block.entity.HopperBlockEntity.transfer(null, target, key.toStack(got), facing.getOpposite());
 			if (!left.isEmpty()) items.insert(key, left.getCount(), false);

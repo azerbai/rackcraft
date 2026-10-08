@@ -38,7 +38,7 @@ public final class RackcraftSelfTest {
 		RackcraftConfig.values.events.enabled = false;
 		dev.rackcraft.compute.ResearchLab.get(server.getOverworld()).reset();
 		dev.rackcraft.world.OrbitState.get(server.getOverworld()).reset();
-		check("S0.a", RcBlocks.BLOCKS.size() == 75 && RcItems.ITEMS.size() == 69,
+		check("S0.a", RcBlocks.BLOCKS.size() == 78 && RcItems.ITEMS.size() == 70,
 				"blocks=" + RcBlocks.BLOCKS.size() + " items=" + RcItems.ITEMS.size(), failures);
 		ServerWorld world = server.getOverworld();
 		BlockPos generatorPos = new BlockPos(0, 80, 0);
@@ -82,6 +82,21 @@ public final class RackcraftSelfTest {
 				.filter(recipe -> madeOnly.contains(recipe.getOutput(server.getRegistryManager()).getItem()))
 				.map(recipe -> recipe.getId().toString()).toList();
 		check("S5.d", shortcuts.isEmpty(), "recipesForMachineOnlyItems=" + shortcuts, failures);
+		// The rocket's own sounds: every event registered, and every file sounds.json names shipped in the jar.
+		java.util.List<String> missingSounds = new java.util.ArrayList<>();
+		try (var stream = RackcraftSelfTest.class.getResourceAsStream("/assets/rackcraft/sounds.json")) {
+			var json = com.google.gson.JsonParser.parseString(new String(stream.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8)).getAsJsonObject();
+			for (String event : json.keySet()) {
+				if (!Registries.SOUND_EVENT.containsId(Rackcraft.id(event))) missingSounds.add("event " + event);
+				for (var sound : json.getAsJsonObject(event).getAsJsonArray("sounds")) {
+					String name = sound.getAsJsonObject().get("name").getAsString().replace("rackcraft:", "");
+					if (RackcraftSelfTest.class.getResource("/assets/rackcraft/sounds/" + name + ".ogg") == null) missingSounds.add(name);
+				}
+			}
+		} catch (Exception exception) {
+			missingSounds.add("sounds.json: " + exception);
+		}
+		check("S5.e", missingSounds.isEmpty() && RcSounds.ROCKET_LIFTOFF != null, "missing=" + missingSounds, failures);
 		var cableState = world.getBlockState(cablePos);
 		check("S6.a", cableState.get(ConnectingBlock.FACING_PROPERTIES.get(Direction.WEST))
 						&& cableState.get(ConnectingBlock.FACING_PROPERTIES.get(Direction.EAST))
@@ -1068,6 +1083,61 @@ public final class RackcraftSelfTest {
 						&& machine(world, dry).powerKw() < 10,
 				"status=" + machine(world, dry).processStatus() + " draw=" + machine(world, dry).powerKw(), failures);
 
+		// A 2x2x2 Hydrogen Tank touching the wet Electrolyser: gas goes into the tank and no more ingots are used, and
+		// storage hands the tank's hydrogen out as canisters.
+		for (BlockPos pos : BlockPos.iterate(origin.add(0, 0, 2), origin.add(1, 1, 3))) place(world, pos.toImmutable(), "hydrogen_tank", Direction.NORTH);
+		var cellMembers = dev.rackcraft.world.ReactorArrays.arrayOf(world, cell).members();
+		// Before Cryogenic Hydrogen Storage the tank is inert: the Electrolyser goes on making canisters, and the Exchange
+		// doesn't offer the Tanker Drone.
+		boolean wasLocked = !dev.rackcraft.world.HydrogenTanks.unlocked(world);
+		cell.setStack(0, new ItemStack(RcItems.ITEMS.get("aluminum_ingot"), 4));
+		for (int step = 0; step < 6; step++) SimTicker.stepNow(world);
+		boolean lockedCanisters = dev.rackcraft.world.NuclearProcessing.tankNetwork(world, cell) == null
+				&& machine(world, origin.add(0, 0, 2)).siteReading(dev.rackcraft.world.HydrogenTanks.R_LOCKED) == 1;
+		boolean tankerHidden = !ExchangeCatalog.listed(RcItems.ITEMS.get("tanker_drone"), world);
+		dev.rackcraft.compute.ResearchLab.get(world).complete(world, dev.rackcraft.compute.Research.get("cryo_hydrogen"));
+		check("I1.d", wasLocked && lockedCanisters && tankerHidden && ExchangeCatalog.listed(RcItems.ITEMS.get("tanker_drone"), world)
+						&& ExchangeCatalog.price(RcItems.ITEMS.get("tanker_drone")) == RackcraftConfig.values.exchange.tankerDronePrice,
+				"wasLocked=" + wasLocked + " lockedMakesCanisters=" + lockedCanisters + " hiddenBefore=" + tankerHidden
+						+ " price=" + ExchangeCatalog.price(RcItems.ITEMS.get("tanker_drone")), failures);
+		for (MachineBlockEntity member : cellMembers) member.setStack(dev.rackcraft.world.NuclearProcessing.OUTPUT_SLOT, ItemStack.EMPTY);
+		for (MachineBlockEntity member : cellMembers) member.setStack(0, ItemStack.EMPTY);
+		cell.setStack(0, new ItemStack(RcItems.ITEMS.get("aluminum_ingot"), 5));
+		for (int step = 0; step < 24; step++) SimTicker.stepNow(world);
+		MachineBlockEntity tank = machine(world, origin.add(0, 0, 2));
+		var gasNetwork = dev.rackcraft.storage.StorageService.networkOf(world,
+				dev.rackcraft.world.NetworkManager.get(world).component(tank.getPos(), dev.rackcraft.sim.NetKind.ITEM));
+		long gas = gasNetwork.hydrogenStored();
+		int ingots = dev.rackcraft.world.ReactorArrays.count(cellMembers, 0, RcItems.ITEMS.get("aluminum_ingot"));
+		int canisters = dev.rackcraft.world.ReactorArrays.count(cellMembers, dev.rackcraft.world.NuclearProcessing.OUTPUT_SLOT,
+				RcItems.ITEMS.get("hydrogen_canister"));
+		var canisterKey = dev.rackcraft.storage.ItemKey.of(RcItems.ITEMS.get("hydrogen_canister"));
+		long counted = gasNetwork.count(canisterKey, true);
+		long taken = gasNetwork.extract(canisterKey, 2, true, false);
+		check("I1.c", gas >= 2 && ingots == 5 && canisters == 0 && counted == gas && taken == 2 && gasNetwork.hydrogenStored() == gas - 2
+						&& tank.reactorArraySize() == 2,
+				"gas=" + gas + " ingots=" + ingots + " canisters=" + canisters + " counted=" + counted + " taken=" + taken
+						+ " edge=" + tank.reactorArraySize(), failures);
+
+		// A Tanker Drone in the tank flies a stack to a Drone Dock 40 blocks off that no pipe reaches, and comes home.
+		for (MachineBlockEntity member : dev.rackcraft.world.ReactorArrays.arrayOf(world, tank).members()) member.setHydrogen(25);
+		tank.setStack(0, new ItemStack(RcItems.ITEMS.get("tanker_drone")));
+		MachineBlockEntity farDock = place(world, origin.add(40, 0, 0), "drone_dock", Direction.NORTH);
+		SimTicker.stepNow(world);
+		dev.rackcraft.world.HydrogenTanks.scanNow(world);
+		boolean tankerLaunched = tank.getStack(0).isEmpty();
+		net.minecraft.util.math.Box sky = new net.minecraft.util.math.Box(origin).expand(300);
+		for (int tick = 0; tick < 1200; tick++) {
+			List<dev.rackcraft.entity.TankerDroneEntity> tankers = world.getEntitiesByClass(dev.rackcraft.entity.TankerDroneEntity.class, sky,
+					net.minecraft.entity.Entity::isAlive);
+			if (tankers.isEmpty()) break;
+			tankers.forEach(dev.rackcraft.entity.TankerDroneEntity::serverTick);
+		}
+		long left = dev.rackcraft.world.ReactorArrays.arrayOf(world, tank).members().stream().mapToLong(MachineBlockEntity::hydrogen).sum();
+		check("HT1.a", tankerLaunched && farDock.getStack(1).isOf(RcItems.ITEMS.get("hydrogen_canister")) && farDock.getStack(1).getCount() == 16
+						&& tank.getStack(0).isOf(RcItems.ITEMS.get("tanker_drone")) && left == 8 * 25 - 16,
+				"launched=" + tankerLaunched + " dockFuel=" + farDock.getStack(1) + " tankerHome=" + tank.getStack(0) + " tankLeft=" + left, failures);
+
 		// Assembly Line: seven belts running east into a chest, four robots on the north side facing the belts.
 		BlockPos line = origin.add(0, 0, 8);
 		List<dev.rackcraft.block.BeltBlockEntity> belts = new java.util.ArrayList<>();
@@ -1471,6 +1541,41 @@ public final class RackcraftSelfTest {
 						&& exporter.getStack(0).getCount() == 1,
 				"plannerCable=" + plannerCable + " drones=" + planner.getStack(0) + " stored=" + storage.count(cable, true), failures);
 		storage.extract(cable, 36, true, false);
+
+		// Storage Links: a second, unconnected array across the room joins the first through a pair of links, and a lone
+		// link with nothing but power reaches both.
+		MachineBlockEntity farArray = place(world, origin.add(16, 1, 8), "storage_array", Direction.NORTH);
+		farArray.setStack(0, new ItemStack(RcItems.ITEMS.get("drive_4k")));
+		world.setBlockState(origin.add(16, 1, 9), RcBlocks.get("storage_link").getDefaultState());
+		world.setBlockState(origin.add(16, 1, 10), RcBlocks.get("creative_power").getDefaultState());
+		world.setBlockState(origin.add(1, 1, 0), RcBlocks.get("storage_link").getDefaultState());
+		world.setBlockState(origin.add(2, 1, 0), RcBlocks.get("creative_power").getDefaultState());
+		BlockPos lonePos = origin.add(18, 1, 2);
+		world.setBlockState(lonePos, RcBlocks.get("storage_link").getDefaultState());
+		world.setBlockState(lonePos.east(), RcBlocks.get("creative_power").getDefaultState());
+		SimTicker.stepNow(world);
+		SimTicker.stepNow(world);
+		var farStorage = dev.rackcraft.storage.StorageService.networkAt(world, farArray.getPos());
+		var redstone = dev.rackcraft.storage.ItemKey.of(Items.REDSTONE);
+		farStorage.insert(redstone, 50, false);
+		long nearSees = dev.rackcraft.storage.StorageService.networkAt(world, array.getPos()).count(redstone, true);
+		long loneSees = dev.rackcraft.storage.StorageService.networkOf(world,
+				dev.rackcraft.world.NetworkManager.get(world).component(lonePos, dev.rackcraft.sim.NetKind.ITEM)).count(redstone, true);
+		check("SL4.a", nearSees == 50 && loneSees == 50 && machine(world, lonePos).siteReading(0) == 3,
+				"nearSees=" + nearSees + " loneSees=" + loneSees + " links=" + machine(world, lonePos).siteReading(0), failures);
+		farStorage.extract(redstone, 50, true, false);
+		farArray.setStack(0, ItemStack.EMPTY);
+
+		// An Exchange Auto-Buyer on the storage: a Diesel Generator on the pipe with no fuel anywhere gets some bought.
+		world.setBlockState(origin.add(0, 1, 0), RcBlocks.get("auto_buyer").getDefaultState());
+		MachineBlockEntity generator = place(world, origin.add(8, 1, 0), "diesel_generator", Direction.NORTH);
+		FacilityManager.get(world).addCredits(1_000_000);
+		SimTicker.stepNow(world);
+		dev.rackcraft.world.ItemPipes.step(world, SimTicker.machines(world));
+		MachineBlockEntity buyer = machine(world, origin.add(0, 1, 0));
+		check("SL5.a", generator.getStack(0).isOf(RcItems.ITEMS.get("biodiesel_canister")) && buyer.site().getLong("Bought") == generator.getStack(0).getCount()
+						&& buyer.site().getLong("Spent") == generator.getStack(0).getCount() * ExchangeCatalog.price(RcItems.ITEMS.get("biodiesel_canister")),
+				"fuel=" + generator.getStack(0) + " bought=" + buyer.site().getLong("Bought") + " spent=" + buyer.site().getLong("Spent"), failures);
 		array.setStack(0, ItemStack.EMPTY);
 		clearArea(world, origin, 20, 6, 12);
 	}
@@ -1529,7 +1634,7 @@ public final class RackcraftSelfTest {
 				&& world.getBlockState(origin.add(5, 2, 4)).isAir();
 		boolean levelled = world.getBlockState(origin.add(8, 0, 6)).isOpaqueFullCube(world, origin.add(8, 0, 6));
 		check("SC1.a", phases.indexOf(1) >= 0 && phases.indexOf(1) < phases.indexOf(2) && phases.indexOf(2) < phases.indexOf(3)
-						&& phases.indexOf(3) < phases.indexOf(4) && phases.get(phases.size() - 1) == 5,
+						&& phases.indexOf(3) < phases.indexOf(4) && phases.get(phases.size() - 1) == dev.rackcraft.world.SitePlanner.Phase.DONE.ordinal(),
 				"phases=" + phases, failures);
 		check("SC1.b", arrays && cleared && levelled && planner.getStack(3).isEmpty(),
 				"arrays=" + arrays + " cleared=" + cleared + " levelled=" + levelled + " arraysLeft=" + planner.getStack(3), failures);
@@ -1557,6 +1662,10 @@ public final class RackcraftSelfTest {
 		planner.setStack(4, new ItemStack(RcBlocks.get("tower_section"), Math.max(1, sections * 2 - 64)));
 		planner.setStack(5, new ItemStack(RcBlocks.get("wind_nacelle"), 1));
 		planner.setStack(6, new ItemStack(RcBlocks.get("power_cable"), 16));
+		planner.setStack(7, new ItemStack(RcItems.ITEMS.get("maintenance_drone"), 8));
+		planner.setStack(8, new ItemStack(RcItems.ITEMS.get("hydrogen_canister"), 16));
+		FacilityManager.get(world).addCredits(10_000_000);
+		dev.rackcraft.world.SitePlanner.toggleDocks(planner);
 		dev.rackcraft.world.SitePlanner.toggleRunning(planner);
 		runSite(world, planner);
 		int waiting = planner.processStatus();
@@ -1577,8 +1686,54 @@ public final class RackcraftSelfTest {
 		check("SC2.a", waiting == dev.rackcraft.world.SitePlanner.Status.NEEDS_MATERIALS.ordinal()
 						&& needItem == net.minecraft.registry.Registries.ITEM.getRawId(RcBlocks.get("wind_nacelle").asItem()),
 				"status=" + waiting + " need=" + needItem, failures);
+		// Docking: one dock covers both towers (the nacelles 30 blocks up included), stocked from the slots; drained, it is topped up.
+		long[] spots = planner.site().getLongArray("DockAt");
+		MachineBlockEntity siteDock = spots.length == 1 && world.getBlockEntity(BlockPos.fromLong(spots[0])) instanceof MachineBlockEntity found
+				&& found.blockId().equals("drone_dock") ? found : null;
+		boolean stocked = siteDock != null && siteDock.getStack(0).getCount() == 8 && siteDock.getStack(1).getCount() == 16
+				&& siteDock.powerSatisfaction() > 0.99;
+		if (siteDock != null) siteDock.setStack(1, new ItemStack(RcItems.ITEMS.get("hydrogen_canister"), 2));
+		planner.setStack(8, new ItemStack(RcItems.ITEMS.get("hydrogen_canister"), 16));
+		runSite(world, planner);
+		check("SC3.a", stocked && siteDock.getStack(1).getCount() == 16 && planner.getStack(8).getCount() == 2,
+				"spots=" + spots.length + " dock=" + (siteDock == null ? "none" : siteDock.getPos() + " drones=" + siteDock.getStack(0)
+						+ " fuel=" + siteDock.getStack(1) + " power=" + siteDock.powerSatisfaction()) + " plannerFuelLeft=" + planner.getStack(8), failures);
 		check("SC2.b", towers && linked && top == 130 && planner.processStatus() == dev.rackcraft.world.SitePlanner.Status.DONE.ordinal(),
 				"towers=" + towers + " linked=" + linked + " top=" + top + " status=" + planner.processStatus(), failures);
+
+		// A Data Hall, bought on the company card: one row pair, four columns wide, sixteen racks of Quantum Cores.
+		for (BlockPos pos : BlockPos.iterate(origin.add(-2, 1, -2), origin.add(14, 34, 10))) {
+			if (!world.getBlockState(pos).isAir() && !pos.equals(plannerPos) && !pos.equals(plannerPos.north())) world.setBlockState(pos, Blocks.AIR.getDefaultState());
+		}
+		// Nothing in the slots but what can't be bought: the hall buys its cable as well.
+		for (int slot = 3; slot < 9; slot++) planner.setStack(slot, ItemStack.EMPTY);
+		machine(world, plannerPos.north()).setCreativeValue(CreativeSettings.OUTPUT_KW, 5_000);
+		dev.rackcraft.world.SitePlanner.toggleRunning(planner);
+		dev.rackcraft.world.SitePlanner.toggleDocks(planner);
+		dev.rackcraft.world.SitePlanner.cycleLayout(planner);
+		dev.rackcraft.world.SitePlanner.setArea(planner, origin.add(2, 0, 2), origin.add(5, 0, 6));
+		FacilityManager.get(world).addCredits(200_000_000);
+		long before = planner.site().getLong("Spent");
+		dev.rackcraft.world.SitePlanner.toggleRunning(planner);
+		runSite(world, planner);
+		for (int step = 0; step < 6; step++) SimTicker.stepNow(world);
+		int racks = 0, mining = 0;
+		double worstInlet = 0, toAir = 0, rate = 0;
+		for (BlockPos pos : BlockPos.iterate(origin.add(2, 1, 3), origin.add(5, 2, 5))) {
+			if (!(world.getBlockEntity(pos) instanceof MachineBlockEntity hallRack) || !hallRack.blockId().equals("server_rack")) continue;
+			racks++;
+			boolean full = true;
+			for (int bay = 0; bay < 8; bay++) full &= hallRack.getStack(bay).isOf(RcItems.ITEMS.get("quantum_core"));
+			if (full && hallRack.rackStatus() == RackStatus.MINING) mining++;
+			worstInlet = Math.max(worstInlet, hallRack.inletCelsius());
+			toAir += hallRack.heatToAirKw();
+			rate += hallRack.miningRate();
+		}
+		check("SC4.a", racks == 16 && mining == 16 && worstInlet < 27 && toAir < 1 && rate >= 16 * 470
+						&& planner.processStatus() == dev.rackcraft.world.SitePlanner.Status.DONE.ordinal()
+						&& planner.site().getLong("Spent") > before + 16 * 8 * 100_000L,
+				"racks=" + racks + " mining=" + mining + " worstInlet=" + worstInlet + " heatToAir=" + toAir + " rate=" + rate
+						+ " status=" + planner.processStatus() + " spent=" + (planner.site().getLong("Spent") - before), failures);
 
 		world.getEntitiesByClass(net.minecraft.entity.ItemEntity.class, new net.minecraft.util.math.Box(origin).expand(60), item -> true)
 				.forEach(net.minecraft.entity.Entity::discard);

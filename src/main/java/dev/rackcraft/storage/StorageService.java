@@ -79,10 +79,21 @@ public final class StorageService {
 		return networkOf(world, NetworkManager.get(world).component(pos, NetKind.DATA));
 	}
 
-	/** Every online drive and tape among these positions, e.g. one Item Pipe network. */
+	/**
+	 * Every online drive and tape among these positions, e.g. one Item Pipe network, plus everything linked to them:
+	 * if the positions reach a powered Storage Link (directly, or through a storage machine on a fiber network that has
+	 * one), the storage behind every powered Storage Link in this dimension joins in.
+	 */
 	public static StorageNetwork networkOf(ServerWorld world, java.util.Collection<BlockPos> positions) {
 		List<StorageNetwork.Member> members = new ArrayList<>();
-		for (BlockPos member : positions) {
+		List<MachineBlockEntity> tanks = new ArrayList<>();
+		List<MachineBlockEntity> buyers = new ArrayList<>();
+		boolean tanksUnlocked = dev.rackcraft.compute.ResearchLab.effects(world).hydrogenStorage();
+		for (BlockPos member : linked(world, positions)) {
+			if (world.getBlockEntity(member) instanceof MachineBlockEntity machine) {
+				if (machine.blockId().equals("hydrogen_tank") && tanksUnlocked) tanks.add(machine);
+				if (machine.blockId().equals("auto_buyer") && machine.storageOnline()) buyers.add(machine);
+			}
 			if (!(world.getBlockEntity(member) instanceof MachineBlockEntity machine) || !machine.storageOnline()) continue;
 			boolean array = machine.blockId().equals("storage_array");
 			if (!array && !machine.blockId().equals("tape_library")) continue;
@@ -93,13 +104,45 @@ public final class StorageService {
 				members.add(new StorageNetwork.Member(data, drive.cold(), stack, machine));
 			}
 		}
-		return new StorageNetwork(world.getServer(), members);
+		return new StorageNetwork(world.getServer(), members).withTanksAndBuyers(world, tanks, buyers);
+	}
+
+	/** Powered Storage Links in this world. */
+	public static List<MachineBlockEntity> links(ServerWorld world) {
+		return dev.rackcraft.world.SimTicker.machines(world).stream()
+				.filter(machine -> machine.blockId().equals("storage_link") && machine.storageOnline()).toList();
+	}
+
+	/**
+	 * These positions, and if they touch the link mesh, every position on the fiber and Item Pipe networks of every powered
+	 * Storage Link. They touch it when they include a link, or a storage machine whose fiber network has one.
+	 */
+	public static java.util.Collection<BlockPos> linked(ServerWorld world, java.util.Collection<BlockPos> positions) {
+		List<MachineBlockEntity> links = links(world);
+		if (links.isEmpty()) return positions;
+		NetworkManager networks = NetworkManager.get(world);
+		java.util.Set<BlockPos> linkPositions = new java.util.HashSet<>();
+		for (MachineBlockEntity link : links) linkPositions.add(link.getPos());
+		boolean joined = positions.stream().anyMatch(linkPositions::contains);
+		for (BlockPos pos : positions) {
+			if (joined) break;
+			if (!(world.getBlockEntity(pos) instanceof MachineBlockEntity machine)) continue;
+			if (!machine.blockId().equals("storage_array") && !machine.blockId().equals("tape_library")) continue;
+			joined = networks.component(pos, NetKind.DATA).stream().anyMatch(linkPositions::contains);
+		}
+		if (!joined) return positions;
+		java.util.Set<BlockPos> all = new java.util.LinkedHashSet<>(positions);
+		for (MachineBlockEntity link : links) {
+			all.addAll(networks.component(link.getPos(), NetKind.DATA));
+			all.addAll(networks.component(link.getPos(), NetKind.ITEM));
+		}
+		return all;
 	}
 
 	/** Refreshes a transmitter's cached drive list; called every simulation step while it is loaded. */
 	public static void updateTransmitter(ServerWorld world, MachineBlockEntity transmitter) {
 		List<StorageState.CachedDrive> drives = new ArrayList<>();
-		for (BlockPos member : NetworkManager.get(world).component(transmitter.getPos(), NetKind.DATA)) {
+		for (BlockPos member : linked(world, NetworkManager.get(world).component(transmitter.getPos(), NetKind.DATA))) {
 			if (!(world.getBlockEntity(member) instanceof MachineBlockEntity machine) || !machine.storageOnline()) continue;
 			for (int slot = 0; slot < machine.size(); slot++) {
 				ItemStack stack = machine.getStack(slot);

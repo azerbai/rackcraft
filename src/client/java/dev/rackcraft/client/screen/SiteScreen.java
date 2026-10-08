@@ -18,10 +18,11 @@ import net.minecraft.text.Text;
  */
 public final class SiteScreen extends RackcraftHandledScreen {
 	private static final int WIDTH = 176;
-	private static final String[] UNITS = {"arrays", "tracking arrays", "towers"};
+	private static final String[] UNITS = {"arrays", "tracking arrays", "towers", "rack columns"};
 	private ButtonWidget start;
 	private ButtonWidget layout;
 	private ButtonWidget buy;
+	private ButtonWidget docks;
 
 	public SiteScreen(MachineScreenHandler handler, PlayerInventory inventory, Text title) {
 		super(handler, inventory, title, WIDTH, 264);
@@ -31,11 +32,13 @@ public final class SiteScreen extends RackcraftHandledScreen {
 	protected void init() {
 		super.init();
 		start = addDrawableChild(ButtonWidget.builder(Text.literal("Start"), button -> click(MachineScreenHandler.START_BUTTON))
-				.dimensions(x + WIDTH - 60, y + 27, 52, 14).build());
+				.dimensions(x + WIDTH - 60, y + 27, 52, 12).build());
 		layout = addDrawableChild(ButtonWidget.builder(Text.literal("Layout"), button -> click(MachineScreenHandler.LAYOUT_BUTTON))
-				.dimensions(x + WIDTH - 60, y + 43, 52, 14).build());
+				.dimensions(x + WIDTH - 60, y + 40, 52, 12).build());
 		buy = addDrawableChild(ButtonWidget.builder(Text.literal("Buy"), button -> click(MachineScreenHandler.BUY_BUTTON))
-				.dimensions(x + WIDTH - 60, y + 59, 52, 14).build());
+				.dimensions(x + WIDTH - 60, y + 53, 52, 12).build());
+		docks = addDrawableChild(ButtonWidget.builder(Text.literal("Docks"), button -> click(MachineScreenHandler.DOCK_BUTTON))
+				.dimensions(x + WIDTH - 60, y + 66, 52, 12).build());
 	}
 
 	private void click(int button) {
@@ -56,6 +59,10 @@ public final class SiteScreen extends RackcraftHandledScreen {
 		start.setMessage(Text.literal(running ? "Pause" : "Start"));
 		start.active = hasSite && phase != SitePlanner.Phase.DONE || running;
 		layout.active = !running;
+		boolean docking = site(SitePlanner.R_DOCKING) != 0;
+		docks.setMessage(Text.literal(docking ? "Docks: On" : "Docks: Off"));
+		docks.setTooltip(net.minecraft.client.gui.tooltip.Tooltip.of(Text.literal(
+				"When on, the finished site gets Drone Docks (from storage, or bought at the Exchange) stocked with drones and hydrogen from storage, and kept topped up.")));
 		boolean buying = site(SitePlanner.R_BUYING) != 0;
 		buy.setMessage(Text.literal(buying ? "Buy: On" : "Buy: Off"));
 		buy.setTooltip(net.minecraft.client.gui.tooltip.Tooltip.of(Text.literal(
@@ -71,6 +78,7 @@ public final class SiteScreen extends RackcraftHandledScreen {
 				case LEVEL -> "Levelling the site";
 				case BUILD -> "Building";
 				case WIRE -> "Laying cable";
+				case DOCK -> "Placing Drone Docks";
 				default -> "Working";
 			};
 			case NO_DRONES -> "Needs Construction Drones (first slot or storage)";
@@ -92,12 +100,15 @@ public final class SiteScreen extends RackcraftHandledScreen {
 		if (hasSite) {
 			String level = site(SitePlanner.R_LEVEL) != 0 || phase.ordinal() >= SitePlanner.Phase.LEVEL.ordinal()
 					? ", level Y " + site(SitePlanner.R_LEVEL) : "";
-			lineFit(context, "Site " + site(SitePlanner.R_WIDTH) + " x " + site(SitePlanner.R_DEPTH) + level, 8, 76, 160, TEXT);
+			lineFit(context, "Site " + site(SitePlanner.R_WIDTH) + " x " + site(SitePlanner.R_DEPTH) + level, 8, 79, 160, TEXT);
 		} else {
 			lineFit(context, "Up to " + RackcraftConfig.values.construction.maxSide + " x " + RackcraftConfig.values.construction.maxSide
-					+ ", within " + RackcraftConfig.values.construction.maxDistance + " blocks", 8, 76, 160, MUTED);
+					+ ", within " + RackcraftConfig.values.construction.maxDistance + " blocks", 8, 79, 160, MUTED);
 		}
-		lineFit(context, "Layout: " + chosen.label + (total > 0 ? " (" + total + " " + UNITS[chosen.ordinal()] + ")" : ""), 8, 87, 160, TEXT);
+		String size = chosen == SitePlanner.Layout.HALL && total > 0
+				? " (" + total * SitePlanner.HALL_RACKS_PER_COLUMN + " racks, " + kw(site(SitePlanner.R_DRAW_KW) * 10) + ")"
+				: total > 0 ? " (" + total + " " + UNITS[chosen.ordinal()] + ")" : "";
+		lineFit(context, "Layout: " + chosen.label + size, 8, 89, 160, TEXT);
 
 		int left = site(SitePlanner.R_LEFT);
 		int built = site(SitePlanner.R_BUILT);
@@ -106,27 +117,29 @@ public final class SiteScreen extends RackcraftHandledScreen {
 			case LEVEL -> "2 Level: " + left + (left == 1 ? " block" : " blocks") + " to move";
 			case BUILD -> "3 Build: " + built + " of " + total + " " + UNITS[chosen.ordinal()] + " up";
 			case WIRE -> "4 Wire: " + left + " cable to lay";
-			case DONE -> "All " + total + " " + UNITS[chosen.ordinal()] + " built and wired";
+			case DOCK -> "5 Dock: " + site(SitePlanner.R_DOCKS_PLACED) + " of " + site(SitePlanner.R_DOCKS) + " Drone Docks placed";
+			case DONE -> "All " + total + " " + UNITS[chosen.ordinal()] + " built and wired"
+					+ (site(SitePlanner.R_DOCKS) > 0 ? ", " + site(SitePlanner.R_DOCKS) + (site(SitePlanner.R_DOCKS) == 1 ? " dock" : " docks") : "");
 			case NONE -> "";
 		};
-		lineFit(context, progress, 8, 98, 160, MUTED);
-		if (phase == SitePlanner.Phase.BUILD || phase == SitePlanner.Phase.DONE) bar(context, 8, 108, 160, total > 0 ? built / (double) total : 0, GOOD);
+		lineFit(context, progress, 8, 99, 160, MUTED);
+		if (phase == SitePlanner.Phase.BUILD || phase == SitePlanner.Phase.DONE) bar(context, 8, 109, 160, total > 0 ? built / (double) total : 0, GOOD);
 
 		int need = site(SitePlanner.R_NEED_ITEM);
 		if (need > 0) {
 			String name = new ItemStack(Registries.ITEM.get(need - 1)).getName().getString();
-			lineFit(context, "Needs " + String.format(Locale.ROOT, "%,d", site(SitePlanner.R_NEED_COUNT)) + " more " + name, 8, 117, 160, WARN);
+			lineFit(context, "Needs " + String.format(Locale.ROOT, "%,d", site(SitePlanner.R_NEED_COUNT)) + " more " + name, 8, 118, 160, WARN);
 		} else if (site(SitePlanner.R_HAS_BLOCKED) != 0) {
 			lineFit(context, "In the way at " + site(SitePlanner.R_BLOCKED_X) + ", " + site(SitePlanner.R_BLOCKED_Y) + ", "
-					+ site(SitePlanner.R_BLOCKED_Z), 8, 117, 160, WARN);
+					+ site(SitePlanner.R_BLOCKED_Z), 8, 118, 160, WARN);
 		} else if (site(SitePlanner.R_SPENT) > 0) {
-			lineFit(context, "Bought from the Exchange: " + String.format(Locale.ROOT, "%,d", site(SitePlanner.R_SPENT)) + " RC", 8, 117, 160, MUTED);
+			lineFit(context, "Bought from the Exchange: " + String.format(Locale.ROOT, "%,d", site(SitePlanner.R_SPENT)) + " RC", 8, 118, 160, MUTED);
 		}
 		int canisters = handler.getSlot(SitePlanner.FUEL_SLOT).getStack().getCount();
 		int trips = stat(Stat.TOOL_USES) + canisters * RackcraftConfig.values.construction.tripsPerCanister;
 		lineFit(context, "Out: " + stat(Stat.WORKERS) + " building, " + site(SitePlanner.R_TERRAFORMERS_OUT) + " levelling.  Fuel: "
 				+ trips + (trips == 1 ? " trip" : " trips"), 8, 127, 160, TEXT);
-		lineFit(context, "Drones, terraformers, hydrogen, materials", 8, 137, 160, MUTED);
+		lineFit(context, "Drones, terraformers, hydrogen, materials", 8, 136, 160, MUTED);
 	}
 
 	private static <E> E enumAt(E[] values, int index) {

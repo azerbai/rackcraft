@@ -2907,4 +2907,22 @@ ITEM_STYLES.update({
     "heavy_drone_frame": item_heavy_drone_frame,
     "construction_drone": lambda base, key: _site_drone_icon(base, key, "gripper"),
     "terraformer": lambda base, key: _site_drone_icon(base, key, "scoop"),
+    "tanker": lambda base, key: _site_drone_icon(base, key, "gripper"),
 })
+
+
+def _tank_face(canvas, base, frame, on):
+    """A formed Hydrogen Tank: a pressure vessel with a sight glass that glows blue while it holds gas."""
+    canvas.rect(3, 2, 12, 13, darken(base, 0.35))
+    canvas.frame(3, 2, 12, 13, darken(base, 0.6))
+    glass = (90, 170, 230) if on else (60, 80, 96)
+    canvas.rect(6, 4, 9, 11, darken(glass, 0.4))
+    level = 4 + (frame % 4) if on else 11
+    canvas.rect(6, level, 9, 11, glass)
+    canvas.set(4, 3, lighten(base, 0.3))
+    canvas.set(11, 3, lighten(base, 0.3))
+    canvas.set(4, 12, darken(base, 0.7))
+    canvas.set(11, 12, darken(base, 0.7))
+
+
+FORMED_FACES["hydrogen_tank"] = _tank_face

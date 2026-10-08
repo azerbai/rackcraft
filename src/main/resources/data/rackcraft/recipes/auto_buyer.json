@@ -1,0 +1,29 @@
+{
+  "key": {
+    "C": {
+      "item": "rackcraft:circuit_board"
+    },
+    "E": {
+      "item": "minecraft:emerald"
+    },
+    "P": {
+      "item": "rackcraft:item_pipe"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    },
+    "X": {
+      "item": "rackcraft:crypto_exchange"
+    }
+  },
+  "pattern": [
+    "SES",
+    "CXC",
+    "SPS"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:auto_buyer"
+  },
+  "type": "minecraft:crafting_shaped"
+}

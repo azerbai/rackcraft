@@ -26,6 +26,7 @@ public final class RackcraftClient implements ClientModInitializer {
 		DizzyView.register();
 		FaultOverlay.register();
 		SurveyOutline.register();
+		RocketShake.register();
 		ScreenRegistry.register(RcScreenHandlers.RACK, RackScreen::new);
 		ScreenRegistry.register(RcScreenHandlers.SINGLE_SLOT, SingleSlotScreen::new);
 		ScreenRegistry.register(RcScreenHandlers.MACHINE_STATUS, MachineStatusScreen::new);
@@ -57,6 +58,8 @@ public final class RackcraftClient implements ClientModInitializer {
 				dev.rackcraft.client.render.DroneRenderer::maintenance);
 		net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry.register(dev.rackcraft.entity.RcEntities.CONSTRUCTION_DRONE,
 				dev.rackcraft.client.render.DroneRenderer::construction);
+		net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry.register(dev.rackcraft.entity.RcEntities.TANKER_DRONE,
+				dev.rackcraft.client.render.DroneRenderer::tanker);
 		net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.registerGlobalReceiver(
 				dev.rackcraft.darknet.DarknetScreenHandler.SYNC, (client, handler, buf, responseSender) -> {
 					int syncId = buf.readVarInt();

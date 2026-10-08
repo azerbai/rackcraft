@@ -138,6 +138,12 @@ public final class FaultFinder {
 					else if (status == DroneDocks.Status.NO_DRONES.ordinal()) faults.add(new Fault(pos, 1, "Drone Dock: every drone is out"));
 					else if (status == DroneDocks.Status.NO_SPARES.ordinal()) faults.add(new Fault(pos, 1, "Drone Dock: needs spares (in it or in its storage)"));
 				}
+				case "auto_buyer" -> {
+					if (!machine.storageOnline()) faults.add(new Fault(pos, 2, "Auto-Buyer: no power"));
+				}
+				case "storage_link" -> {
+					if (!machine.storageOnline()) faults.add(new Fault(pos, 2, "Storage Link: no power"));
+				}
 				case "site_planner" -> {
 					int status = machine.processStatus();
 					if (status == SitePlanner.Status.NO_POWER.ordinal()) faults.add(new Fault(pos, 2, "Site Planner: no power"));

@@ -37,6 +37,8 @@ import net.minecraft.util.math.Box;
  */
 public final class DroneDocks {
 	public static final int RANGE = 32;
+	/** How far up or down a dock reaches: far enough for a Wind Tower's nacelle at Y 130 from a dock on the ground. */
+	public static final int VERTICAL_RANGE = 96;
 	public static final int TRIPS_PER_CANISTER = 8;
 	public static final double DOCK_KW = 2;
 	public static final int DRONE_SLOT = 0;
@@ -50,6 +52,10 @@ public final class DroneDocks {
 	public enum Status { WORKING, IDLE, NO_POWER, NO_DRONES, NO_FUEL, NO_SPARES }
 
 	private record Task(Job job, BlockPos target, int slot) {}
+
+	/** Dock readings (MachineBlockEntity.siteReading): arrays and towers in range, and the most worn of them in percent. */
+	public static final int R_WEARING = 0;
+	public static final int R_MOST_WORN = 1;
 
 	private DroneDocks() {}
 
@@ -81,7 +87,7 @@ public final class DroneDocks {
 	private static ItemStack fromStorage(dev.rackcraft.storage.StorageNetwork storage, Item item) {
 		if (storage == null || item == null) return ItemStack.EMPTY;
 		var key = dev.rackcraft.storage.ItemKey.of(item);
-		return storage.extract(key, 1, true, false) > 0 ? key.toStack(1) : ItemStack.EMPTY;
+		return storage.extractOrBuy(key, 1) > 0 ? key.toStack(1) : ItemStack.EMPTY;
 	}
 
 	private static boolean isModule(ItemStack stack) {
@@ -111,6 +117,15 @@ public final class DroneDocks {
 			for (MaintenanceDroneEntity drone : drones) claimed.add(drone.target());
 			List<Task> tasks = tasks(world, machines, dock.getPos(), claimed);
 			dock.setDockJobs(tasks.size());
+			int wearing = 0;
+			double mostWorn = 0;
+			for (MachineBlockEntity machine : machines) {
+				if (!Renewables.wearsOut(machine) || !inRange(dock.getPos(), machine.getPos())) continue;
+				wearing++;
+				mostWorn = Math.max(mostWorn, machine.wear());
+			}
+			dock.setSiteReading(R_WEARING, wearing);
+			dock.setSiteReading(R_MOST_WORN, (int) Math.round(mostWorn * 100));
 			Status status = dispatch(world, dock, tasks, satisfaction.getOrDefault(dock, 0.0));
 			if (status == Status.IDLE && out > 0) status = Status.WORKING;
 			dock.setProcess(status.ordinal(), out > 0);
@@ -119,11 +134,13 @@ public final class DroneDocks {
 
 	/** Drones in flight near this dock (from any dock: two docks never send drones to the same job). */
 	private static List<MaintenanceDroneEntity> drones(ServerWorld world, BlockPos dock) {
-		return world.getEntitiesByClass(MaintenanceDroneEntity.class, new Box(dock).expand(RANGE * 2), MaintenanceDroneEntity::isAlive);
+		return world.getEntitiesByClass(MaintenanceDroneEntity.class, new Box(dock).expand(RANGE * 2, VERTICAL_RANGE + 16, RANGE * 2),
+				MaintenanceDroneEntity::isAlive);
 	}
 
-	private static boolean inRange(BlockPos dock, BlockPos pos) {
-		return Math.abs(pos.getX() - dock.getX()) <= RANGE && Math.abs(pos.getY() - dock.getY()) <= RANGE
+	/** Whether a dock reaches this block: {@link #RANGE} across, {@link #VERTICAL_RANGE} up or down. */
+	public static boolean inRange(BlockPos dock, BlockPos pos) {
+		return Math.abs(pos.getX() - dock.getX()) <= RANGE && Math.abs(pos.getY() - dock.getY()) <= VERTICAL_RANGE
 				&& Math.abs(pos.getZ() - dock.getZ()) <= RANGE;
 	}
 

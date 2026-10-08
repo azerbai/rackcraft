@@ -35,6 +35,7 @@ public final class WorkcellScreen extends RackcraftHandledScreen {
 			case "belt_loader" -> drawLoader(context);
 			case "belt_unloader" -> drawUnloader(context);
 			case "storage_exporter" -> drawExporter(context);
+			case "hydrogen_tank" -> drawTank(context);
 			default -> drawArm(context);
 		}
 	}
@@ -82,7 +83,10 @@ public final class WorkcellScreen extends RackcraftHandledScreen {
 		int trips = stat(Stat.TOOL_USES) + canisters * DroneDocks.TRIPS_PER_CANISTER;
 		line(context, "Fuel for " + trips + (trips == 1 ? " trip" : " trips"), 8, 63, trips > 0 ? TEXT : BAD);
 		line(context, "Jobs in range: " + stat(Stat.DOCK_JOBS) + "   Fixed: " + stat(Stat.ITEMS_MADE), 8, 74, TEXT);
-		lineFit(context, "Reaches " + DroneDocks.RANGE + " blocks in every direction", 8, 85, 160, MUTED);
+		int wearing = stat(Stat.SITE + DroneDocks.R_WEARING);
+		lineFit(context, wearing == 0 ? "Reaches " + DroneDocks.RANGE + " blocks in every direction"
+				: "Most worn: " + stat(Stat.SITE + DroneDocks.R_MOST_WORN) + "% (drone at "
+						+ Math.round(dev.rackcraft.world.Renewables.SERVICE_AT * 100) + "%)", 8, 85, 160, MUTED);
 		// The slots are too narrow to label one by one.
 		lineFit(context, "Slots: drones, Hydrogen Canisters,", 8, 96, 160, MUTED);
 		lineFit(context, "then spare modules and Repair Kits", 8, 105, 160, MUTED);
@@ -108,6 +112,25 @@ public final class WorkcellScreen extends RackcraftHandledScreen {
 		wrapped(context, Text.literal("Point the last Conveyor Belt into it. Everything goes into storage once a second; hoppers can empty it too."),
 				8, 56, 160, MUTED);
 		line(context, "Buffer", 8, 105, MUTED);
+	}
+
+	private void drawTank(DrawContext context) {
+		if (stat(Stat.SITE + dev.rackcraft.world.HydrogenTanks.R_LOCKED) != 0) {
+			wrappedClamped(context, Text.literal("Locked: research Cryogenic Hydrogen Storage at the Operations Terminal"), 8, 30, 160, 2, BAD);
+			wrapped(context, Text.literal("Until then it holds nothing, and Electrolysers make canisters instead."), 8, 56, 160, MUTED);
+			return;
+		}
+		int stored = stat(Stat.SITE + dev.rackcraft.world.HydrogenTanks.R_STORED);
+		int capacity = Math.max(1, stat(Stat.SITE + dev.rackcraft.world.HydrogenTanks.R_CAPACITY));
+		lineFit(context, String.format(java.util.Locale.ROOT, "Hydrogen: %,d of %,d canisters", stored, capacity), 8, 30, 160, stored > 0 ? GOOD : MUTED);
+		bar(context, 8, 42, 160, stored / (double) capacity, 0xFF7FB8E8);
+		int edge = stat(Stat.ARRAY_EDGE);
+		lineFit(context, edge >= 2 ? "A " + edge + "x" + edge + "x" + edge + " tank" : "One block: a cube holds more per block", 8, 54, 160, MUTED);
+		int home = handler.getSlot(0).getStack().getCount();
+		lineFit(context, "Tankers home " + home + ", out " + stat(Stat.SITE + dev.rackcraft.world.HydrogenTanks.R_TANKERS_OUT), 8, 66, 160, TEXT);
+		wrapped(context, Text.literal("Tankers top up docks, planners and Launch Controls within "
+				+ dev.rackcraft.world.HydrogenTanks.TANKER_RANGE + " blocks."), 8, 78, 160, MUTED);
+		line(context, "Tanker Drones", 8, 105, MUTED);
 	}
 
 	private void drawExporter(DrawContext context) {

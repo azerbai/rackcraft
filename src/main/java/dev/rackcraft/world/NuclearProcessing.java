@@ -93,7 +93,10 @@ public final class NuclearProcessing {
 			} else {
 				double power = members.stream().mapToDouble(member -> satisfaction.getOrDefault(member, 0.0)).average().orElse(0);
 				double progress = controller.workProgress();
-				boolean ready = ready(members, recipe);
+				// An Electrolyser that reaches a Hydrogen Tank pipes gas straight in: no ingots, no canisters.
+				dev.rackcraft.storage.StorageNetwork gas = controller.blockId().equals("electrolyser")
+						? tankNetwork(world, controller) : null;
+				boolean ready = gas != null ? gas.hydrogenRoom() > 0 : ready(members, recipe);
 				active = ready;
 				if (array.controller().blockId().equals("wafer_fab") && !research.lithography()) {
 					status = Status.LOCKED;
@@ -102,13 +105,18 @@ public final class NuclearProcessing {
 					status = Status.NO_WATER;
 					active = false;
 				} else if (!ready) {
-					status = hasInputs(members, recipe) ? Status.OUTPUT_FULL : Status.NO_INPUT;
+					status = gas != null || hasInputs(members, recipe) ? Status.OUTPUT_FULL : Status.NO_INPUT;
 				} else if (power < MIN_POWER) {
 					status = Status.NO_POWER;
 				} else {
 					status = power < 0.995 ? Status.LOW_POWER : Status.RUNNING;
 					progress += dt * array.cores() / recipe.seconds() * Math.min(1, power);
-					while (progress >= 1 && ready(members, recipe)) {
+					while (gas != null && progress >= 1 && gas.hydrogenRoom() > 0) {
+						progress -= 1;
+						gas.insert(dev.rackcraft.storage.ItemKey.of(recipe.output()), recipe.outputCount(), false);
+						controller.setItemsMade(controller.itemsMade() + recipe.outputCount());
+					}
+					while (gas == null && progress >= 1 && ready(members, recipe)) {
 						progress -= 1;
 						ReactorArrays.take(members, 0, recipe.inputA(), recipe.countA());
 						if (recipe.inputB() != null) ReactorArrays.take(members, 1, recipe.inputB(), recipe.countB());
@@ -116,7 +124,7 @@ public final class NuclearProcessing {
 						if (recipe.byproduct() != null) ReactorArrays.put(members, BYPRODUCT_SLOT, recipe.byproduct(), recipe.byproductCount(), 64);
 					}
 					// A stalled cube doesn't bank batches it couldn't finish.
-					progress = Math.min(progress, ready(members, recipe) ? progress : 0.99);
+					progress = Math.min(progress, (gas != null ? gas.hydrogenRoom() > 0 : ready(members, recipe)) ? progress : 0.99);
 				}
 				controller.setWorkProgress(progress);
 			}
@@ -138,6 +146,13 @@ public final class NuclearProcessing {
 			// Every core reports the whole cube's draw, the way reactor cores report the array's output.
 			for (MachineBlockEntity member : members) member.setPowerKw(draw);
 		}
+	}
+
+	/** The tanks an Electrolyser can fill (touching its cube, or on its Item Pipe or Storage Link network), or null if none. */
+	public static dev.rackcraft.storage.StorageNetwork tankNetwork(net.minecraft.server.world.ServerWorld world, MachineBlockEntity controller) {
+		var network = dev.rackcraft.storage.StorageService.networkOf(world,
+				NetworkManager.get(world).component(controller.getPos(), dev.rackcraft.sim.NetKind.ITEM));
+		return network.hasTanks() ? network : null;
 	}
 
 	private static boolean hasInputs(List<MachineBlockEntity> members, Recipe recipe) {

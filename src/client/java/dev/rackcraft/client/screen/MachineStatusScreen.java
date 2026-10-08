@@ -50,6 +50,18 @@ public final class MachineStatusScreen extends RackcraftHandledScreen {
 			line(context, state, 12, 30, status != 0 ? WARN : power > 0 ? GOOD : MUTED);
 			line(context, "Tower of " + stat(Stat.WORKERS) + " sections; wind here can give " + kw(stat(Stat.SOURCE_CAPACITY)), 12, 44, TEXT);
 			wearLine(context, 56);
+		} else if (id.equals("auto_buyer")) {
+			boolean on = stat(Stat.SATISFACTION) >= 50;
+			line(context, on ? "Buying whatever its machines' storage runs out of" : "Offline: needs power", 12, 30, on ? GOOD : BAD);
+			line(context, String.format(java.util.Locale.ROOT, "Bought %,d items for %,dk RC", stat(Stat.SITE), stat(Stat.SITE + 1)), 12, 44, TEXT);
+			line(context, "Works for every machine that restocks from", 12, 58, MUTED);
+			line(context, "this storage; not drones, hydrogen or line parts", 12, 70, MUTED);
+		} else if (id.equals("storage_link")) {
+			int links = stat(Stat.SITE);
+			line(context, links > 0 ? "Linked: " + links + (links == 1 ? " Storage Link" : " Storage Links") + " in this dimension"
+					: "Offline: needs power", 12, 30, links > 0 ? GOOD : BAD);
+			line(context, stat(Stat.SITE + 1) + " drives and tapes on the joined storage", 12, 44, TEXT);
+			line(context, "Machines, pipes and terminals touching any link share it all", 12, 58, MUTED);
 		} else if (id.equals("tower_section")) {
 			line(context, "Part of a Wind Tower", 12, 30, MUTED);
 			line(context, "It carries the nacelle's power down to the ground", 12, 44, MUTED);
@@ -202,8 +214,11 @@ public final class MachineStatusScreen extends RackcraftHandledScreen {
 	private void wearLine(DrawContext context, int y) {
 		int wear = stat(Stat.WEAR);
 		double loss = wear / 100.0 * dev.rackcraft.RackcraftConfig.values.renewables.wearLoss * 100;
-		line(context, wear < 1 ? "Freshly serviced" : String.format(java.util.Locale.ROOT, "Wear %d%%: %.0f%% less output until a drone services it",
-				wear, loss), 12, y, wear >= 50 ? WARN : MUTED);
+		line(context, wear < 1 ? "Freshly serviced" : String.format(java.util.Locale.ROOT, "Wear %d%%: %.1f%% less output", wear, loss),
+				12, y, wear >= 50 ? WARN : MUTED);
+		int serviceAt = (int) Math.round(dev.rackcraft.world.Renewables.SERVICE_AT * 100);
+		line(context, wear >= serviceAt ? "Due for service: a Drone Dock within " + dev.rackcraft.world.DroneDocks.RANGE + " blocks will send a drone"
+				: "Serviced at " + serviceAt + "% wear by a Drone Dock within " + dev.rackcraft.world.DroneDocks.RANGE + " blocks", 12, y + 12, MUTED);
 	}
 
 	private String notFormed() {

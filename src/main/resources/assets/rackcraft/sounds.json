@@ -1,0 +1,82 @@
+{
+  "rocket.ignition": {
+    "subtitle": "subtitles.rackcraft.rocket.ignition",
+    "sounds": [
+      {
+        "name": "rackcraft:rocket/ignition",
+        "attenuation_distance": 64,
+        "stream": false
+      }
+    ]
+  },
+  "rocket.liftoff": {
+    "subtitle": "subtitles.rackcraft.rocket.liftoff",
+    "sounds": [
+      {
+        "name": "rackcraft:rocket/liftoff",
+        "attenuation_distance": 96,
+        "stream": true
+      }
+    ]
+  },
+  "rocket.thrust": {
+    "subtitle": "subtitles.rackcraft.rocket.thrust",
+    "sounds": [
+      {
+        "name": "rackcraft:rocket/thrust",
+        "attenuation_distance": 96,
+        "stream": true
+      }
+    ]
+  },
+  "rocket.staging": {
+    "subtitle": "subtitles.rackcraft.rocket.staging",
+    "sounds": [
+      {
+        "name": "rackcraft:rocket/staging",
+        "attenuation_distance": 128,
+        "stream": false
+      }
+    ]
+  },
+  "rocket.explosion": {
+    "subtitle": "subtitles.rackcraft.rocket.explosion",
+    "sounds": [
+      {
+        "name": "rackcraft:rocket/explosion",
+        "attenuation_distance": 128,
+        "stream": true
+      }
+    ]
+  },
+  "rocket.distant": {
+    "subtitle": "subtitles.rackcraft.rocket.distant",
+    "sounds": [
+      {
+        "name": "rackcraft:rocket/distant",
+        "attenuation_distance": 16,
+        "stream": true
+      }
+    ]
+  },
+  "rocket.beep": {
+    "subtitle": "subtitles.rackcraft.rocket.beep",
+    "sounds": [
+      {
+        "name": "rackcraft:rocket/beep",
+        "attenuation_distance": 24,
+        "stream": false
+      }
+    ]
+  },
+  "rocket.beep_final": {
+    "subtitle": "subtitles.rackcraft.rocket.beep_final",
+    "sounds": [
+      {
+        "name": "rackcraft:rocket/beep_final",
+        "attenuation_distance": 24,
+        "stream": false
+      }
+    ]
+  }
+}

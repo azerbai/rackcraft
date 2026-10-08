@@ -1,0 +1,29 @@
+{
+  "key": {
+    "C": {
+      "item": "rackcraft:circuit_board"
+    },
+    "E": {
+      "item": "minecraft:ender_eye"
+    },
+    "P": {
+      "item": "rackcraft:item_pipe"
+    },
+    "R": {
+      "item": "rackcraft:uplink_router"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    }
+  },
+  "pattern": [
+    "SES",
+    "CRC",
+    "SPS"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:storage_link"
+  },
+  "type": "minecraft:crafting_shaped"
+}

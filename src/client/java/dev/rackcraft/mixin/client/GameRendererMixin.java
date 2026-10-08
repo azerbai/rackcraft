@@ -14,5 +14,6 @@ abstract class GameRendererMixin {
 	@Inject(method = "tiltViewWhenHurt", at = @At("HEAD"))
 	private void rackcraft$smogSway(MatrixStack matrices, float tickDelta, CallbackInfo info) {
 		DizzyView.sway(matrices, tickDelta);
+		dev.rackcraft.client.RocketShake.shake(matrices, tickDelta);
 	}
 }

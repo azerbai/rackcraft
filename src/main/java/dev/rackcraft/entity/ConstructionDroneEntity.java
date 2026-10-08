@@ -53,7 +53,7 @@ public final class ConstructionDroneEntity extends Entity {
 	private BlockPos home = BlockPos.ORIGIN;
 	private final List<SitePlanner.Step> steps = new ArrayList<>();
 	private int stepIndex;
-	private final SimpleInventory hold = new SimpleInventory(27);
+	private final SimpleInventory hold = new SimpleInventory(54);
 	private Phase phase = Phase.FLYING;
 	private int workTicks;
 	private int flightTicks;
@@ -177,6 +177,7 @@ public final class ConstructionDroneEntity extends Entity {
 			case PLACE -> 5;
 			case ARRAY -> 30;
 			case CABLE -> 4;
+			case SUPPLY -> 20;
 		};
 	}
 

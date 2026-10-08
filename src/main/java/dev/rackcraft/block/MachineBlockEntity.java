@@ -100,6 +100,8 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 	// Solar Arrays and Wind Towers: how worn they are, 0 to 1 (a drone services them back to 0). Saved on the array's
 	// part 0 and on the nacelle; other parts carry a copy for their screens.
 	private double wear;
+	// Hydrogen Tanks: canisters' worth of hydrogen in this block (a cube shares it evenly). Saved.
+	private long hydrogen;
 	// Cube machines: the size of the whole cube this block is part of, when that size isn't researched yet; not saved.
 	private int lockedCube;
 	// Drone Docks: jobs within range right now; not saved.
@@ -152,7 +154,8 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 	/** Machines an Item Pipe feeds from storage (and empties into it): storage itself, the training stations and generators. */
 	public static final java.util.Set<String> ITEM_MACHINES = java.util.Set.of("storage_array", "tape_library", "art_table",
 			"writing_desk", "diesel_generator", "modular_reactor", "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer", "wafer_fab", "silicon_foundry", "ewaste_recycler",
-			"electrolyser", "assembly_arm", "drone_dock", "launch_control", "belt_loader", "belt_unloader", "site_planner", "storage_exporter");
+			"electrolyser", "assembly_arm", "drone_dock", "launch_control", "belt_loader", "belt_unloader", "site_planner", "storage_exporter", "storage_link",
+			"hydrogen_tank", "auto_buyer");
 
 	public static java.util.Set<NetKind> networkKinds(String id) {
 		java.util.EnumSet<NetKind> kinds = java.util.EnumSet.noneOf(NetKind.class);
@@ -169,9 +172,10 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 		if (List.of("server_rack", "uplink_router", "core_router", "facility_controller",
 				"monitoring_wall", "creative_router").contains(id)) kinds.add(NetKind.DATA);
 		if (List.of("creative_power", "creative_rack").contains(id)) kinds.add(NetKind.POWER);
-		if (List.of("storage_array", "tape_library", "wireless_transmitter").contains(id)) kinds.add(NetKind.POWER);
+		if (List.of("storage_array", "tape_library", "wireless_transmitter", "storage_link", "auto_buyer").contains(id)) kinds.add(NetKind.POWER);
 		if (dev.rackcraft.world.NuclearProcessing.recipe(id) != null) kinds.add(NetKind.POWER);
-		if (List.of("storage_array", "tape_library", "storage_terminal", "wireless_transmitter").contains(id)) kinds.add(NetKind.DATA);
+		if (List.of("storage_array", "tape_library", "storage_terminal", "wireless_transmitter", "storage_link", "hydrogen_tank", "auto_buyer")
+				.contains(id)) kinds.add(NetKind.DATA);
 		return kinds;
 	}
 
@@ -225,7 +229,7 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 		if (dev.rackcraft.world.NuclearProcessing.recipe(id) != null) return slot == 2 || slot == 3;
 		// Hoppers under a Drone Dock take away the dead modules its drones bring home, nothing else.
 		if (id.equals("drone_dock")) return stack.isOf(dev.rackcraft.RcItems.ITEMS.get("failed_module"));
-		if (id.equals("assembly_arm") || id.equals("belt_loader") || id.equals("storage_exporter")) return false;
+		if (id.equals("assembly_arm") || id.equals("belt_loader") || id.equals("storage_exporter") || id.equals("hydrogen_tank")) return false;
 		// Hoppers can empty a Site Planner's material slots, never its drones or hydrogen.
 		if (id.equals("site_planner")) return slot >= dev.rackcraft.world.SitePlanner.FIRST_MATERIAL;
 		if (id.equals("belt_unloader")) return true;
@@ -264,6 +268,7 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 		if (blockId.equals("drone_dock")) return dev.rackcraft.world.DroneDocks.accepts(slot, stack);
 		if (blockId.equals("launch_control")) return dev.rackcraft.world.LaunchPads.accepts(slot, stack);
 		if (blockId.equals("site_planner")) return dev.rackcraft.world.SitePlanner.accepts(slot, stack);
+		if (blockId.equals("hydrogen_tank")) return slot == dev.rackcraft.world.HydrogenTanks.TANKER_SLOT && stack.isOf(dev.rackcraft.RcItems.ITEMS.get("tanker_drone"));
 		if (blockId.equals("art_table") || blockId.equals("writing_desk")) {
 			if (slot == 0) return stack.isOf(net.minecraft.item.Items.PAPER);
 			if (slot == 1) return blockId.equals("art_table") ? stack.isOf(dev.rackcraft.RcItems.ITEMS.get("crayons"))
@@ -386,6 +391,8 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 		arrayFuelCells = fuelCells;
 	}
 	public double income() { return income; }
+	public long hydrogen() { return hydrogen; }
+	public void setHydrogen(long value) { hydrogen = Math.max(0, value); markDirty(); }
 	public double wear() { return wear; }
 	public void setWear(double value) {
 		double clamped = Math.max(0, Math.min(1, value));
@@ -514,7 +521,7 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 			case "diesel_generator", "fire_suppression_tank" -> MachineScreenHandler.Mode.SINGLE_SLOT;
 			case "modular_reactor" -> MachineScreenHandler.Mode.REACTOR;
 			case "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer", "wafer_fab", "silicon_foundry", "ewaste_recycler", "electrolyser" -> MachineScreenHandler.Mode.PROCESSOR;
-			case "welding_arm", "riveting_arm", "assembly_arm", "drone_dock", "belt_loader", "belt_unloader", "storage_exporter" -> MachineScreenHandler.Mode.WORKCELL;
+			case "welding_arm", "riveting_arm", "assembly_arm", "drone_dock", "belt_loader", "belt_unloader", "storage_exporter", "hydrogen_tank" -> MachineScreenHandler.Mode.WORKCELL;
 			case "launch_control" -> MachineScreenHandler.Mode.LAUNCH;
 			case "site_planner" -> MachineScreenHandler.Mode.SITE;
 			case "crypto_exchange" -> MachineScreenHandler.Mode.EXCHANGE;
@@ -546,7 +553,7 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 			return;
 		}
 		buf.writeBlockPos(pos);
-		if (blockId().equals("crypto_exchange")) dev.rackcraft.ExchangeCatalog.write(buf);
+		if (blockId().equals("crypto_exchange")) dev.rackcraft.ExchangeCatalog.write(buf, (ServerWorld) world);
 		if (dev.rackcraft.generated.ContentIds.CREATIVE_IDS.contains(blockId())) {
 			var settings = dev.rackcraft.CreativeSettings.forBlock(blockId());
 			buf.writeBoolean(dev.rackcraft.CreativeSettings.canEdit(player));
@@ -587,6 +594,7 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 		bootProgress = Math.max(0, Math.min(1, nbt.getDouble("Boot")));
 		wear = Math.max(0, Math.min(1, nbt.getDouble("Wear")));
 		site = nbt.getCompound("Site").copy();
+		hydrogen = Math.max(0, nbt.getLong("Hydrogen"));
 		launchTank = Math.max(0, nbt.getInt("LaunchTank"));
 		launchCountdown = Math.max(0, nbt.getInt("LaunchCountdown"));
 		launchFlight = Math.max(0, nbt.getInt("LaunchFlight"));
@@ -626,6 +634,7 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 		if (bootProgress > 0) nbt.putDouble("Boot", bootProgress);
 		if (wear > 0) nbt.putDouble("Wear", wear);
 		if (!site.isEmpty()) nbt.put("Site", site.copy());
+		if (hydrogen > 0) nbt.putLong("Hydrogen", hydrogen);
 		if (launchTank > 0) nbt.putInt("LaunchTank", launchTank);
 		if (!launchPayload.isEmpty()) {
 			nbt.putInt("LaunchCountdown", launchCountdown);

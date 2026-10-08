@@ -108,7 +108,7 @@ public final class RackcraftConfig {
 		public double windTowerKw = 120;
 		public double windTowerMaxFactor = 1.25;
 		public int windTowerMinSections = 10;
-		public double wearDays = 2;
+		public double wearDays = 3;
 		public double wearLoss = 0.3;
 	}
 	/**
@@ -132,6 +132,8 @@ public final class RackcraftConfig {
 	public static final class Exchange {
 		public double componentPremium = 4;
 		public double machinePremium = 6;
+		/** The one drone the Exchange sells, once Cryogenic Hydrogen Storage is researched. */
+		public long tankerDronePrice = 50_000_000;
 	}
 	/** Client-side: the RackCoin balance shown near racks or while holding a Rackcraft tool. */
 	public static final class Hud { public boolean enabled = true; }

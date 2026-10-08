@@ -78,7 +78,8 @@ public final class SitePlanner {
 	public enum Layout {
 		SOLAR("Solar Field", "solar_array"),
 		TRACKING("Tracking Solar Field", "solar_array_tracking"),
-		WIND("Wind Farm", "wind_nacelle");
+		WIND("Wind Farm", "wind_nacelle"),
+		HALL("Data Hall", "server_rack");
 
 		public final String label;
 		public final String block;
@@ -89,7 +90,7 @@ public final class SitePlanner {
 		}
 	}
 
-	public enum Phase { NONE, CLEAR, LEVEL, BUILD, WIRE, DONE }
+	public enum Phase { NONE, CLEAR, LEVEL, BUILD, WIRE, DOCK, DONE }
 
 	/** What the planner is doing, or why it isn't. */
 	public enum Status { NO_AREA, NOT_LOADED, PAUSED, NO_POWER, WORKING, NO_DRONES, NO_TERRAFORMERS, NO_FUEL, NEEDS_MATERIALS, BLOCKED, DONE }
@@ -113,24 +114,41 @@ public final class SitePlanner {
 	public static final int R_HAS_BLOCKED = 15;
 	public static final int R_BUYING = 16;
 	public static final int R_SPENT = 17;
-	public static final int READINGS = 18;
+	public static final int R_DOCKING = 18;
+	public static final int R_DOCKS = 19;
+	public static final int R_DOCKS_PLACED = 20;
+	public static final int R_DRAW_KW = 21;
+	public static final int READINGS = 22;
+	/** What the planner stocks each of its docks to, and when it tops them up. */
+	public static final int DOCK_DRONES = 8;
+	public static final int DOCK_FUEL = 16;
+	public static final int DOCK_FUEL_LOW = 8;
+	/** At most this many docks for one site; two cover the biggest. */
+	private static final int MAX_DOCKS = 6;
 
 	/** What a drone does at one stop. */
-	public enum Action { CLEAR, DIG, FILL, PLACE, ARRAY, CABLE }
+	public enum Action { CLEAR, DIG, FILL, PLACE, ARRAY, CABLE, SUPPLY }
 
-	public record Step(BlockPos pos, Action action, String block) {
+	/** One stop: where, what to do, and for a placement which block and which way it faces. */
+	public record Step(BlockPos pos, Action action, String block, Direction facing) {
+		public Step(BlockPos pos, Action action, String block) {
+			this(pos, action, block, Direction.NORTH);
+		}
+
 		public NbtCompound write() {
 			NbtCompound nbt = new NbtCompound();
 			nbt.putLong("Pos", pos.asLong());
 			nbt.putInt("Action", action.ordinal());
 			if (block != null) nbt.putString("Block", block);
+			nbt.putInt("Facing", facing.getHorizontal());
 			return nbt;
 		}
 
 		public static Step read(NbtCompound nbt) {
 			Action[] actions = Action.values();
 			return new Step(BlockPos.fromLong(nbt.getLong("Pos")), actions[Math.max(0, Math.min(actions.length - 1, nbt.getInt("Action")))],
-					nbt.contains("Block") ? nbt.getString("Block") : null);
+					nbt.contains("Block") ? nbt.getString("Block") : null,
+					nbt.contains("Facing") ? Direction.fromHorizontal(nbt.getInt("Facing")) : Direction.NORTH);
 		}
 	}
 
@@ -146,7 +164,17 @@ public final class SitePlanner {
 		BlockPos base() { return pieces.get(0).pos(); }
 	}
 
-	private record Piece(BlockPos pos, String block) {}
+	/** One block to place, the way it faces, and for a rack the module to fill all eight bays with (else null). */
+	private record Piece(BlockPos pos, String block, Direction facing, String module) {
+		Piece(BlockPos pos, String block) {
+			this(pos, block, Direction.NORTH, null);
+		}
+	}
+
+	/** What fills a Data Hall's racks: the best module for mining per kilowatt, and the one with the most AI compute a crafting table can make. */
+	public static final String HALL_MODULE = "quantum_core";
+	/** Racks per Data Hall column, and what one column draws when full, roughly: four racks plus its chillers. */
+	public static final int HALL_RACKS_PER_COLUMN = 4;
 
 	/** One column of the site: where its ground is, and the soft blocks above it. */
 	private record Survey(Site site, int[][] ground, List<BlockPos> soft) {
@@ -202,6 +230,7 @@ public final class SitePlanner {
 		data.putInt("Z1", site.z1());
 		data.putBoolean("Running", false);
 		data.remove("Level");
+		data.remove("DockAt");
 		planner.markDirty();
 		return "Site set: " + site.width() + " x " + site.depth() + ". Pick a layout and press Start.";
 	}
@@ -210,6 +239,7 @@ public final class SitePlanner {
 		if (running(planner)) return "Pause the planner before changing the layout";
 		Layout next = Layout.values()[(layout(planner).ordinal() + 1) % Layout.values().length];
 		planner.site().putInt("Layout", next.ordinal());
+		planner.site().remove("DockAt");
 		planner.markDirty();
 		return "Layout: " + next.label;
 	}
@@ -225,6 +255,23 @@ public final class SitePlanner {
 		planner.markDirty();
 		return buy ? "Buying from the Crypto Exchange: anything it sells that the site needs is paid for in RackCoin"
 				: "No longer buying from the Exchange";
+	}
+
+	public static boolean docking(MachineBlockEntity planner) {
+		return planner.site().getBoolean("Docks");
+	}
+
+	/**
+	 * Turns docking on or off: once the site is built and wired, the planner places Drone Docks so every array or tower
+	 * is in a dock's reach (buying the docks at the Exchange if it has none), stocks them with Maintenance Drones and
+	 * hydrogen from storage, and keeps them topped up.
+	 */
+	public static String toggleDocks(MachineBlockEntity planner) {
+		boolean docks = !docking(planner);
+		planner.site().putBoolean("Docks", docks);
+		planner.markDirty();
+		return docks ? "Docks: the planner will place Drone Docks to cover the site and keep them stocked"
+				: "Docks: the planner won't place or stock docks";
 	}
 
 	public static String toggleRunning(MachineBlockEntity planner) {
@@ -265,6 +312,7 @@ public final class SitePlanner {
 		planner.setSiteReading(R_LAYOUT, layout.ordinal());
 		planner.setSiteReading(R_RUNNING, running ? 1 : 0);
 		planner.setSiteReading(R_BUYING, buying(planner) ? 1 : 0);
+		planner.setSiteReading(R_DOCKING, docking(planner) ? 1 : 0);
 		planner.setSiteReading(R_SPENT, (int) Math.min(Integer.MAX_VALUE, planner.site().getLong("Spent")));
 		List<ConstructionDroneEntity> out = drones(world, planner.getPos());
 		int builders = (int) out.stream().filter(drone -> !drone.terraformer()).count();
@@ -307,6 +355,7 @@ public final class SitePlanner {
 			if (levelling.blocked() != null) blocked(planner, levelling.blocked());
 			List<Structure> structures = structures(world, site, layout, level);
 			planner.setSiteReading(R_TOTAL, structures.size());
+			planner.setSiteReading(R_DRAW_KW, (int) Math.min(Integer.MAX_VALUE, Math.round(fullDrawKw(structures))));
 			if (levelling.left() > 0 || terraformers > 0) {
 				phase = Phase.LEVEL;
 				planner.setSiteReading(R_LEFT, levelling.left());
@@ -319,7 +368,7 @@ public final class SitePlanner {
 					phase = Phase.BUILD;
 					planner.setSiteReading(R_LEFT, unbuilt.size());
 					status = act ? dispatch(world, planner, storage, false, builders,
-							() -> buildTrip(world, planner, storage, unbuilt, claimed)) : Status.WORKING;
+							() -> buildTrip(world, planner, storage, unbuilt, claimed, layout == Layout.HALL)) : Status.WORKING;
 				} else {
 					List<BlockPos> cables = cables(world, planner.getPos(), site, layout, structures, level);
 					List<BlockPos> missing = cables.stream().filter(pos -> !world.getBlockState(pos).isOf(RcBlocks.get("power_cable"))).toList();
@@ -327,10 +376,23 @@ public final class SitePlanner {
 						phase = Phase.WIRE;
 						planner.setSiteReading(R_LEFT, missing.size());
 						status = act ? dispatch(world, planner, storage, false, builders,
-								() -> wireTrip(world, planner, storage, missing, claimed)) : Status.WORKING;
+								() -> wireTrip(world, planner, storage, missing, claimed, layout == Layout.HALL)) : Status.WORKING;
 					} else {
-						phase = Phase.DONE;
-						status = Status.DONE;
+						List<BlockPos> docks = docking(planner) ? dockSpots(world, planner, site, layout, structures, cables, level) : List.of();
+						List<BlockPos> unplaced = docks.stream().filter(pos -> !world.getBlockState(pos).isOf(RcBlocks.get("drone_dock"))).toList();
+						planner.setSiteReading(R_DOCKS, docks.size());
+						planner.setSiteReading(R_DOCKS_PLACED, docks.size() - unplaced.size());
+						if (!unplaced.isEmpty()) {
+							phase = Phase.DOCK;
+							planner.setSiteReading(R_LEFT, unplaced.size());
+							status = act ? dispatch(world, planner, storage, false, builders,
+									() -> dockTrip(world, planner, storage, unplaced, claimed)) : Status.WORKING;
+						} else {
+							phase = Phase.DONE;
+							status = Status.DONE;
+							// Keep the site's docks in drones and hydrogen.
+							if (act && !docks.isEmpty()) dispatch(world, planner, storage, false, builders, () -> supplyTrip(world, planner, storage, docks, claimed));
+						}
 					}
 				}
 			}
@@ -507,24 +569,35 @@ public final class SitePlanner {
 		return network.isEmpty() ? null : network;
 	}
 
-	/** How many of this item the planner can get: its material slots, its storage, and what the Exchange can sell it. */
 	private static long available(MachineBlockEntity planner, StorageNetwork storage, Item item) {
+		return available(planner, storage, item, false);
+	}
+
+	/**
+	 * How many of this item the planner can get: its material slots, its storage, and what the Exchange can sell it
+	 * (when buying is on, or {@code buy} says to buy anyway).
+	 */
+	private static long available(MachineBlockEntity planner, StorageNetwork storage, Item item, boolean buy) {
 		long count = 0;
 		for (int slot = FIRST_MATERIAL; slot < planner.size(); slot++) if (planner.getStack(slot).isOf(item)) count += planner.getStack(slot).getCount();
 		if (storage != null) count += storage.count(ItemKey.of(item), true);
-		return count + affordable(planner, item);
+		return count + affordable(planner, item, buy);
 	}
 
 	/** How many of this item the RackCoin balance buys at the Exchange, if the planner is buying and the Exchange sells it. */
-	private static long affordable(MachineBlockEntity planner, Item item) {
-		if (!buying(planner) || !(planner.getWorld() instanceof ServerWorld world)) return 0;
+	private static long affordable(MachineBlockEntity planner, Item item, boolean buy) {
+		if (!(buying(planner) || buy) || !(planner.getWorld() instanceof ServerWorld world)) return 0;
 		Long price = dev.rackcraft.ExchangeCatalog.price(item);
 		if (price == null || price <= 0) return 0;
 		return FacilityManager.get(world).credits() / price;
 	}
 
-	/** Takes up to this many of an item, slots first; returns them as stacks. */
 	private static List<ItemStack> take(MachineBlockEntity planner, StorageNetwork storage, Item item, int count) {
+		return take(planner, storage, item, count, false);
+	}
+
+	/** Takes up to this many of an item, slots first, then storage, then the Exchange; returns them as stacks. */
+	private static List<ItemStack> take(MachineBlockEntity planner, StorageNetwork storage, Item item, int count, boolean buy) {
 		List<ItemStack> taken = new ArrayList<>();
 		int left = count;
 		for (int slot = FIRST_MATERIAL; slot < planner.size() && left > 0; slot++) {
@@ -535,17 +608,17 @@ public final class SitePlanner {
 			left -= moved;
 		}
 		if (left > 0 && storage != null) {
-			long got = storage.extract(ItemKey.of(item), left, true, false);
+			long got = storage.extractOrBuy(ItemKey.of(item), left);
 			left -= (int) got;
 			addStacks(taken, item, got);
 		}
 		// Whatever is still short comes straight from the Crypto Exchange, at its prices.
-		long buy = Math.min(left, affordable(planner, item));
-		if (buy > 0 && planner.getWorld() instanceof ServerWorld world) {
-			long cost = buy * dev.rackcraft.ExchangeCatalog.price(item);
+		long bought = Math.min(left, affordable(planner, item, buy));
+		if (bought > 0 && planner.getWorld() instanceof ServerWorld world) {
+			long cost = bought * dev.rackcraft.ExchangeCatalog.price(item);
 			if (FacilityManager.get(world).spendCredits(cost)) {
 				planner.site().putLong("Spent", planner.site().getLong("Spent") + cost);
-				addStacks(taken, item, buy);
+				addStacks(taken, item, bought);
 			}
 		}
 		planner.markDirty();
@@ -700,6 +773,30 @@ public final class SitePlanner {
 					structures.add(new Structure(pieces));
 				}
 			}
+		} else if (layout == Layout.HALL) {
+			// Data Hall: rows run east-west in pairs, back to back with CDUs between them, so every rack's back is on a CDU
+			// (which Quantum Cores need beside them, and which catches the exhaust into the coolant loop) and its front
+			// faces a cold aisle shared with the next pair. Two tiers of racks; Core Routers over the racks and two
+			// Chillers over the CDUs. Everything touches, so power, coolant and fiber need no cables. One column is a
+			// structure: z+1 rack facing north, z+2 CDU, z+3 rack facing south, with aisles at z and z+4.
+			for (int z = site.z0(); z + 4 <= site.z1(); z += 4) {
+				for (int x = site.x0(); x <= site.x1(); x++) {
+					BlockPos front = new BlockPos(x, base, z + 1);
+					BlockPos middle = front.south();
+					BlockPos back = middle.south();
+					List<Piece> pieces = new ArrayList<>();
+					for (int tier = 0; tier < 2; tier++) {
+						pieces.add(new Piece(front.up(tier), "server_rack", Direction.NORTH, HALL_MODULE));
+						pieces.add(new Piece(middle.up(tier), "cdu", Direction.NORTH, null));
+						pieces.add(new Piece(back.up(tier), "server_rack", Direction.SOUTH, HALL_MODULE));
+					}
+					pieces.add(new Piece(front.up(2), "core_router", Direction.NORTH, null));
+					pieces.add(new Piece(middle.up(2), "chiller", Direction.NORTH, null));
+					pieces.add(new Piece(back.up(2), "core_router", Direction.SOUTH, null));
+					pieces.add(new Piece(middle.up(3), "chiller", Direction.NORTH, null));
+					structures.add(new Structure(pieces));
+				}
+			}
 		} else {
 			// Arrays face north: each takes three blocks east and two north of its part 0, packed edge to edge.
 			for (int z = site.z1(); z - 1 >= site.z0(); z -= SolarArrayBlock.DEPTH) {
@@ -717,14 +814,40 @@ public final class SitePlanner {
 	}
 
 	private static boolean built(ServerWorld world, Structure structure) {
-		for (Piece piece : structure.pieces()) if (!placed(world, piece)) return false;
+		for (Piece piece : structure.pieces()) if (!placed(world, piece) || emptyBays(world, piece) > 0) return false;
 		return true;
 	}
 
 	private static boolean placed(ServerWorld world, Piece piece) {
 		BlockState state = world.getBlockState(piece.pos());
 		if (!state.isOf(RcBlocks.get(piece.block()))) return false;
-		return !state.contains(SolarArrayBlock.PART) || state.get(SolarArrayBlock.PART) == 0 && state.get(MachineBlock.FACING) == Direction.NORTH;
+		if (state.contains(SolarArrayBlock.PART)) return state.get(SolarArrayBlock.PART) == 0 && state.get(MachineBlock.FACING) == Direction.NORTH;
+		return !state.contains(MachineBlock.FACING) || state.get(MachineBlock.FACING) == piece.facing();
+	}
+
+	/** Bays a rack piece still needs filled (all eight if it isn't placed yet); a Failed Module counts as filled. */
+	private static int emptyBays(ServerWorld world, Piece piece) {
+		if (piece.module() == null) return 0;
+		if (!placed(world, piece) || !(world.getBlockEntity(piece.pos()) instanceof MachineBlockEntity rack)) return dev.rackcraft.sim.ServerModel.BAYS;
+		int empty = 0;
+		for (int slot = 0; slot < dev.rackcraft.sim.ServerModel.BAYS; slot++) if (rack.getStack(slot).isEmpty()) empty++;
+		return empty;
+	}
+
+	/** What a layout's structures draw when everything is running, in kW: the planner's screen shows it. */
+	private static double fullDrawKw(List<Structure> structures) {
+		double kw = 0;
+		for (Structure structure : structures) {
+			for (Piece piece : structure.pieces()) {
+				kw += switch (piece.block()) {
+					case "server_rack" -> 72;
+					case "chiller" -> CoolingLoops.CHILLER_BASE_KW + CoolingLoops.CHILLER_KW_PER_KW * 144;
+					case "cdu" -> 0.5;
+					default -> 0;
+				};
+			}
+		}
+		return kw;
 	}
 
 	/** The blocks a piece takes up: six for an array, one otherwise. */
@@ -752,7 +875,8 @@ public final class SitePlanner {
 		return null;
 	}
 
-	private static Trip buildTrip(ServerWorld world, MachineBlockEntity planner, StorageNetwork storage, List<Structure> unbuilt, Set<BlockPos> claimed) {
+	private static Trip buildTrip(ServerWorld world, MachineBlockEntity planner, StorageNetwork storage, List<Structure> unbuilt, Set<BlockPos> claimed,
+			boolean buy) {
 		BlockPos home = planner.getPos();
 		List<Structure> open = new ArrayList<>();
 		for (Structure structure : unbuilt) {
@@ -765,23 +889,33 @@ public final class SitePlanner {
 		open.sort(Comparator.comparingDouble(structure -> structure.base().getSquaredDistance(home)));
 		Structure structure = open.get(0);
 		// What it needs, piece by piece; say what is short across everything still to build.
-		Map<String, Integer> wanted = new LinkedHashMap<>();
-		for (Piece piece : structure.pieces()) if (!placed(world, piece)) wanted.merge(piece.block(), 1, Integer::sum);
-		for (Map.Entry<String, Integer> entry : wanted.entrySet()) {
-			Item item = RcBlocks.get(entry.getKey()).asItem();
-			if (available(planner, storage, item) < entry.getValue()) {
+		Map<Item, Integer> wanted = new LinkedHashMap<>();
+		for (Piece piece : structure.pieces()) {
+			if (!placed(world, piece)) wanted.merge(RcBlocks.get(piece.block()).asItem(), 1, Integer::sum);
+			int bays = emptyBays(world, piece);
+			if (bays > 0) wanted.merge(RcItems.ITEMS.get(piece.module()), bays, Integer::sum);
+		}
+		for (Map.Entry<Item, Integer> entry : wanted.entrySet()) {
+			Item item = entry.getKey();
+			if (available(planner, storage, item, buy) < entry.getValue()) {
 				long total = 0;
-				for (Structure other : unbuilt) for (Piece piece : other.pieces()) if (piece.block().equals(entry.getKey()) && !placed(world, piece)) total++;
-				needs(planner, item, total - available(planner, storage, item));
+				for (Structure other : unbuilt) {
+					for (Piece piece : other.pieces()) {
+						if (!placed(world, piece) && RcBlocks.get(piece.block()).asItem() == item) total++;
+						if (piece.module() != null && RcItems.ITEMS.get(piece.module()) == item) total += emptyBays(world, piece);
+					}
+				}
+				needs(planner, item, total - available(planner, storage, item, buy));
 				return Trip.none(Status.NEEDS_MATERIALS);
 			}
 		}
 		List<ItemStack> cargo = new ArrayList<>();
-		wanted.forEach((block, count) -> cargo.addAll(take(planner, storage, RcBlocks.get(block).asItem(), count)));
+		wanted.forEach((item, count) -> cargo.addAll(take(planner, storage, item, count, buy)));
 		List<Step> steps = new ArrayList<>();
 		for (Piece piece : structure.pieces()) {
-			if (placed(world, piece)) continue;
-			steps.add(new Step(piece.pos(), Renewables.isArray(piece.block()) ? Action.ARRAY : Action.PLACE, piece.block()));
+			boolean place = !placed(world, piece);
+			if (place) steps.add(new Step(piece.pos(), Renewables.isArray(piece.block()) ? Action.ARRAY : Action.PLACE, piece.block(), piece.facing()));
+			if (emptyBays(world, piece) > 0) steps.add(new Step(piece.pos(), Action.SUPPLY, null));
 			claimed.add(piece.pos());
 		}
 		return new Trip(steps, cargo, Status.WORKING);
@@ -818,7 +952,8 @@ public final class SitePlanner {
 		BlockPos target = null;
 		int best = Integer.MAX_VALUE;
 		for (Structure structure : structures) {
-			for (BlockPos cell : footprint(structure.pieces().get(0))) {
+			for (BlockPos cell : structure.pieces().stream().flatMap(piece -> footprint(piece).stream())
+					.filter(cell -> cell.getY() == base).toList()) {
 				int distance = Math.abs(cell.getX() - planner.getX()) + Math.abs(cell.getZ() - planner.getZ());
 				if (distance < best) {
 					best = distance;
@@ -862,7 +997,8 @@ public final class SitePlanner {
 		return cells;
 	}
 
-	private static Trip wireTrip(ServerWorld world, MachineBlockEntity planner, StorageNetwork storage, List<BlockPos> missing, Set<BlockPos> claimed) {
+	private static Trip wireTrip(ServerWorld world, MachineBlockEntity planner, StorageNetwork storage, List<BlockPos> missing, Set<BlockPos> claimed,
+			boolean buy) {
 		Site site = site(planner);
 		List<BlockPos> run = new ArrayList<>();
 		boolean anyClaimed = false;
@@ -884,19 +1020,153 @@ public final class SitePlanner {
 		}
 		if (run.isEmpty()) return Trip.none(planner.siteReading(R_HAS_BLOCKED) != 0 && !anyClaimed ? Status.BLOCKED : Status.WORKING);
 		Item cable = RcBlocks.get("power_cable").asItem();
-		long have = available(planner, storage, cable);
+		long have = available(planner, storage, cable, buy);
 		if (have <= 0) {
 			needs(planner, cable, missing.size());
 			return Trip.none(Status.NEEDS_MATERIALS);
 		}
 		if (have < run.size()) run = run.subList(0, (int) have);
-		List<ItemStack> cargo = take(planner, storage, cable, run.size());
+		List<ItemStack> cargo = take(planner, storage, cable, run.size(), buy);
 		List<Step> steps = new ArrayList<>();
 		for (BlockPos pos : run) {
 			steps.add(new Step(pos, Action.CABLE, "power_cable"));
 			claimed.add(pos);
 		}
 		return new Trip(steps, cargo, Status.WORKING);
+	}
+
+	// ---------------------------------------------------------------- docks
+
+	/**
+	 * Where the site's Drone Docks go, chosen once and remembered: as few as cover every array (its part 0, where the wear
+	 * is kept) or nacelle, each on level ground at the site's foot and touching an array, a tower or a site cable, so the
+	 * site powers it.
+	 */
+	private static List<BlockPos> dockSpots(ServerWorld world, MachineBlockEntity planner, Site site, Layout layout, List<Structure> structures,
+			List<BlockPos> cables, int level) {
+		NbtCompound data = planner.site();
+		if (data.contains("DockAt")) {
+			List<BlockPos> spots = new ArrayList<>();
+			for (long packed : data.getLongArray("DockAt")) spots.add(BlockPos.fromLong(packed));
+			return spots;
+		}
+		int base = level + 1;
+		Set<BlockPos> taken = new HashSet<>(cables);
+		Set<BlockPos> attach = new HashSet<>();
+		List<BlockPos> targets = new ArrayList<>();
+		for (Structure structure : structures) {
+			for (Piece piece : structure.pieces()) for (BlockPos cell : footprint(piece)) {
+				taken.add(cell);
+				if (cell.getY() == base) attach.add(cell);
+			}
+			targets.add(layout == Layout.HALL ? structure.base() : structure.pieces().get(structure.pieces().size() - 1).pos());
+		}
+		for (BlockPos cable : cables) if (cable.getY() == base) attach.add(cable);
+		List<BlockPos> candidates = new ArrayList<>();
+		for (int x = site.x0() - 1; x <= site.x1() + 1; x++) {
+			for (int z = site.z0() - 1; z <= site.z1() + 1; z++) {
+				BlockPos pos = new BlockPos(x, base, z);
+				if (taken.contains(pos)) continue;
+				// A dock in a Data Hall's aisle would block the racks' air: those go round the outside.
+				if (layout == Layout.HALL && site.contains(x, z)) continue;
+				boolean touching = false;
+				for (Direction side : Direction.Type.HORIZONTAL) touching |= attach.contains(pos.offset(side));
+				if (!touching) continue;
+				Cell cell = classify(world, pos, world.getBlockState(pos));
+				if ((cell == Cell.ROOM || cell == Cell.SOFT) && classify(world, pos.down(), world.getBlockState(pos.down())) == Cell.GROUND) candidates.add(pos);
+			}
+		}
+		// Greedy cover: each dock goes where it reaches the most of what isn't covered yet.
+		List<BlockPos> uncovered = new ArrayList<>(targets);
+		List<BlockPos> spots = new ArrayList<>();
+		while (!uncovered.isEmpty() && spots.size() < MAX_DOCKS) {
+			BlockPos best = null;
+			int bestCount = 0;
+			for (BlockPos candidate : candidates) {
+				int count = (int) uncovered.stream().filter(target -> DroneDocks.inRange(candidate, target)).count();
+				if (count > bestCount) {
+					best = candidate;
+					bestCount = count;
+				}
+			}
+			if (best == null) break;
+			BlockPos chosen = best;
+			spots.add(chosen);
+			uncovered.removeIf(target -> DroneDocks.inRange(chosen, target));
+			candidates.removeIf(candidate -> candidate.getManhattanDistance(chosen) <= 1);
+		}
+		if (!uncovered.isEmpty()) blocked(planner, uncovered.get(0));
+		if (!spots.isEmpty()) {
+			data.putLongArray("DockAt", spots.stream().mapToLong(BlockPos::asLong).toArray());
+			planner.markDirty();
+		}
+		return spots;
+	}
+
+	private static Trip dockTrip(ServerWorld world, MachineBlockEntity planner, StorageNetwork storage, List<BlockPos> unplaced, Set<BlockPos> claimed) {
+		Item dock = RcBlocks.get("drone_dock").asItem();
+		boolean anyClaimed = false;
+		for (BlockPos pos : unplaced) {
+			if (claimed.contains(pos)) {
+				anyClaimed = true;
+				continue;
+			}
+			Cell cell = classify(world, pos, world.getBlockState(pos));
+			if (cell != Cell.ROOM && cell != Cell.SOFT) {
+				blocked(planner, pos);
+				continue;
+			}
+			// The dock itself comes from the slots or storage, or else the Exchange, whether or not Buy is on.
+			if (available(planner, storage, dock, true) < 1) {
+				needs(planner, dock, unplaced.size());
+				return Trip.none(Status.NEEDS_MATERIALS);
+			}
+			List<ItemStack> cargo = new ArrayList<>(take(planner, storage, dock, 1, true));
+			cargo.addAll(take(planner, storage, RcItems.ITEMS.get("maintenance_drone"),
+					(int) Math.min(DOCK_DRONES, available(planner, storage, RcItems.ITEMS.get("maintenance_drone")))));
+			cargo.addAll(take(planner, storage, RcItems.ITEMS.get("hydrogen_canister"),
+					(int) Math.min(DOCK_FUEL, available(planner, storage, RcItems.ITEMS.get("hydrogen_canister")))));
+			claimed.add(pos);
+			return new Trip(List.of(new Step(pos, Action.PLACE, "drone_dock"), new Step(pos, Action.SUPPLY, null)), cargo, Status.WORKING);
+		}
+		return Trip.none(planner.siteReading(R_HAS_BLOCKED) != 0 && !anyClaimed ? Status.BLOCKED : Status.WORKING);
+	}
+
+	/** A trip topping up one of the site's docks that is short of drones or low on hydrogen, if any is. */
+	private static Trip supplyTrip(ServerWorld world, MachineBlockEntity planner, StorageNetwork storage, List<BlockPos> docks, Set<BlockPos> claimed) {
+		Item drone = RcItems.ITEMS.get("maintenance_drone");
+		Item fuel = RcItems.ITEMS.get("hydrogen_canister");
+		for (BlockPos pos : docks) {
+			if (claimed.contains(pos) || !(world.getBlockEntity(pos) instanceof MachineBlockEntity dock) || !dock.blockId().equals("drone_dock")) continue;
+			int drones = dock.getStack(DroneDocks.DRONE_SLOT).getCount() + dock.workers();
+			int canisters = dock.getStack(DroneDocks.FUEL_SLOT).getCount();
+			int wantDrones = (int) Math.min(Math.max(0, DOCK_DRONES - drones), available(planner, storage, drone));
+			int wantFuel = canisters >= DOCK_FUEL_LOW ? 0 : (int) Math.min(DOCK_FUEL - canisters, available(planner, storage, fuel));
+			if (wantDrones + wantFuel <= 0) continue;
+			List<ItemStack> cargo = new ArrayList<>(take(planner, storage, drone, wantDrones));
+			cargo.addAll(take(planner, storage, fuel, wantFuel));
+			claimed.add(pos);
+			return new Trip(List.of(new Step(pos, Action.SUPPLY, null)), cargo, Status.WORKING);
+		}
+		return Trip.none(Status.DONE);
+	}
+
+	/** Moves whatever of one item the hold has into a dock's slot, up to the item's stack size. */
+	private static void unload(Inventory hold, MachineBlockEntity dock, int slot, Item item) {
+		for (int index = 0; index < hold.size(); index++) {
+			ItemStack stack = hold.getStack(index);
+			if (!stack.isOf(item)) continue;
+			ItemStack there = dock.getStack(slot);
+			if (there.isEmpty()) {
+				int moved = Math.min(stack.getCount(), item.getMaxCount());
+				dock.setStack(slot, stack.split(moved));
+			} else if (there.isOf(item)) {
+				int moved = Math.min(stack.getCount(), there.getMaxCount() - there.getCount());
+				there.increment(moved);
+				stack.decrement(moved);
+			}
+		}
+		dock.markDirty();
 	}
 
 	// ---------------------------------------------------------------- what drones do
@@ -909,6 +1179,25 @@ public final class SitePlanner {
 		BlockPos pos = step.pos();
 		BlockState state = world.getBlockState(pos);
 		switch (step.action()) {
+			case SUPPLY -> {
+				if (world.getBlockEntity(pos) instanceof MachineBlockEntity rack && rack.blockId().equals("server_rack")) {
+					// Fill every empty bay with whatever modules the drone carries.
+					for (int bay = 0; bay < dev.rackcraft.sim.ServerModel.BAYS; bay++) {
+						if (!rack.getStack(bay).isEmpty()) continue;
+						for (int index = 0; index < hold.size(); index++) {
+							ItemStack stack = hold.getStack(index);
+							if (stack.isEmpty() || !rack.isValid(bay, stack)) continue;
+							rack.setStack(bay, stack.split(1));
+							break;
+						}
+					}
+					rack.markDirty();
+					return;
+				}
+				if (!(world.getBlockEntity(pos) instanceof MachineBlockEntity dock) || !dock.blockId().equals("drone_dock")) return;
+				unload(hold, dock, DroneDocks.DRONE_SLOT, RcItems.ITEMS.get("maintenance_drone"));
+				unload(hold, dock, DroneDocks.FUEL_SLOT, RcItems.ITEMS.get("hydrogen_canister"));
+			}
 			case CLEAR -> {
 				if (soft(world, pos, state)) dig(world, pos, state, hold);
 			}
@@ -944,7 +1233,7 @@ public final class SitePlanner {
 						((SolarArrayBlock) block).placeAll(world, pos, Direction.NORTH);
 					}
 					case CABLE -> world.setBlockState(pos, ((CableBlock) block).withConnections(block.getDefaultState(), world, pos), Block.NOTIFY_ALL);
-					default -> world.setBlockState(pos, block.getDefaultState().with(MachineBlock.FACING, Direction.NORTH), Block.NOTIFY_ALL);
+					default -> world.setBlockState(pos, block.getDefaultState().with(MachineBlock.FACING, step.facing()), Block.NOTIFY_ALL);
 				}
 				placeSound(world, pos);
 			}

@@ -209,6 +209,7 @@ public final class SimTicker {
 						ReactorArrays.count(array.members(), ReactorArrays.WASTE_SLOT, ReactorArrays.spentFuel()), 0, 0);
 			}
 		}
+		HydrogenTanks.step(world, arrays);
 		NuclearProcessing.step(world, arrays, satisfaction, dt, research);
 		AssemblyLine.step(world, machines, satisfaction, dt);
 		DroneDocks.step(world, machines, satisfaction);
@@ -485,7 +486,8 @@ public final class SimTicker {
 				case "creative_rack" -> machine.creativeValue(CreativeSettings.MINING_RATE) > 0;
 				case "creative_cooler" -> true;
 				case "storage_array", "tape_library" -> machine.storageOnline();
-				case "wireless_transmitter" -> satisfaction.getOrDefault(machine, 0.0) >= 0.5;
+				case "wireless_transmitter", "storage_link", "auto_buyer" -> satisfaction.getOrDefault(machine, 0.0) >= 0.5;
+				case "hydrogen_tank" -> machine.hydrogen() > 0;
 				case "storage_terminal" -> networks.component(machine.getPos(), NetKind.DATA).stream()
 						.map(world::getBlockEntity).anyMatch(entity -> entity instanceof MachineBlockEntity member
 								&& (member.blockId().equals("storage_array") || member.blockId().equals("tape_library"))
@@ -596,6 +598,8 @@ public final class SimTicker {
 					"electrolyser" -> NuclearProcessing.demandKw(machine);
 			case "welding_arm", "riveting_arm", "assembly_arm" -> AssemblyLine.demandKw(machine);
 			case "drone_dock" -> DroneDocks.DOCK_KW;
+			case "storage_link" -> 4;
+			case "auto_buyer" -> 2;
 			case "site_planner" -> SitePlanner.PLANNER_KW;
 			case "launch_control" -> LaunchPads.CONTROL_KW;
 			case "cdu" -> 0.5;
@@ -739,8 +743,22 @@ public final class SimTicker {
 					machine.setStorageOnline(supplied >= 0.5 && thermal > 0);
 				}
 				case "wireless_transmitter" -> StorageService.updateTransmitter(world, machine);
+				case "storage_link", "auto_buyer" -> machine.setStorageOnline(supplied >= 0.5);
 				default -> {}
 			}
+		}
+		// Auto-Buyers report what they have bought, all time.
+		for (MachineBlockEntity machine : machines) {
+			if (!machine.blockId().equals("auto_buyer")) continue;
+			machine.setSiteReading(0, (int) Math.min(Integer.MAX_VALUE, machine.site().getLong("Bought")));
+			machine.setSiteReading(1, (int) Math.min(Integer.MAX_VALUE, machine.site().getLong("Spent") / 1000));
+		}
+		// Storage Links report how many links are up and how many drives and tapes they join.
+		for (MachineBlockEntity machine : machines) {
+			if (!machine.blockId().equals("storage_link")) continue;
+			var joined = StorageService.networkOf(world, List.of(machine.getPos()));
+			machine.setSiteReading(0, machine.storageOnline() ? StorageService.links(world).size() : 0);
+			machine.setSiteReading(1, machine.storageOnline() ? joined.hotDrives() + joined.tapes() : 0);
 		}
 		if (world.getTime() % 600 >= Math.max(1, RackcraftConfig.values.sim.stepTicks)) return;
 		Set<BlockPos> visited = new HashSet<>();

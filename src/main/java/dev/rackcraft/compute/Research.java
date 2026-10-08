@@ -83,6 +83,9 @@ public final class Research {
 			project("lithography", "Extreme UV Lithography", Kind.GENERAL, 2_000_000, 2.5e7, List.of("psu_titanium", "coolant_chemistry"),
 					"Unlocks the Wafer Fab, which makes Wafer-Scale Engines",
 					"Tin droplets, lasers and a machine the size of a bus. Now you can make your own chips."),
+			project("cryo_hydrogen", "Cryogenic Hydrogen Storage", Kind.GENERAL, 1_500_000, 2e7, List.of("psu_titanium"),
+					"Unlocks Hydrogen Tanks, and Tanker Drones at the Crypto Exchange",
+					"Keep it at minus 253 C and don't think too hard about what happens if you stop."),
 			// Megastructures: bigger cube multiblocks, so a new world can't build a 10-cube on day one.
 			project("structural_engineering", "Structural Engineering", Kind.GENERAL, 5_000_000, 1e8, List.of("reactor_uprate"),
 					"Cube multiblocks can be built up to 7x7x7",
@@ -154,9 +157,9 @@ public final class Research {
 	public record Effects(double mining, double aiCompute, double generalCompute, double rackPower, double sinkCapacity,
 			double thermalOffset, double bootScale, double trainingWork, double contractWork, double contractPay,
 			double leasePay, int leaseSlots, double reactorOutput, boolean leases, boolean lithography,
-			boolean safeHardware, boolean agi, int maxCubeEdge) {
+			boolean safeHardware, boolean agi, int maxCubeEdge, boolean hydrogenStorage) {
 		public static final Effects NONE = new Effects(1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, false, false, false, false,
-				dev.rackcraft.world.ReactorArrays.BASE_EDGE);
+				dev.rackcraft.world.ReactorArrays.BASE_EDGE, false);
 	}
 
 	/** The combined effect of these finished levels (0 for not done; a repeatable's level otherwise). */
@@ -187,6 +190,7 @@ public final class Research {
 				level.applyAsInt("predictive_maintenance") > 0,
 				agi,
 				level.applyAsInt("arcology") > 0 ? 10 : level.applyAsInt("space_frames") > 0 ? 9
-						: level.applyAsInt("structural_engineering") > 0 ? 7 : dev.rackcraft.world.ReactorArrays.BASE_EDGE);
+						: level.applyAsInt("structural_engineering") > 0 ? 7 : dev.rackcraft.world.ReactorArrays.BASE_EDGE,
+				level.applyAsInt("cryo_hydrogen") > 0);
 	}
 }

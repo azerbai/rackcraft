@@ -235,8 +235,8 @@ public final class LaunchPads {
 		for (ServerPlayerEntity player : world.getPlayers()) {
 			if (!player.getBlockPos().isWithinDistance(pos, 160)) continue;
 			player.sendMessage(text, true);
-			player.playSound(seconds > 0 ? net.minecraft.sound.SoundEvents.BLOCK_NOTE_BLOCK_PLING.value()
-					: net.minecraft.sound.SoundEvents.BLOCK_BELL_USE, net.minecraft.sound.SoundCategory.BLOCKS, 0.8f, seconds > 0 ? 1.2f : 0.8f);
+			player.playSound(seconds > 0 ? dev.rackcraft.RcSounds.COUNTDOWN_BEEP : dev.rackcraft.RcSounds.COUNTDOWN_FINAL,
+					net.minecraft.sound.SoundCategory.BLOCKS, 0.9f, 1.0f);
 		}
 	}
 
