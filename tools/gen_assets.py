@@ -591,6 +591,8 @@ def main():
         "guide.rackcraft.page": "%s / %s",
         "guide.rackcraft.recipes": "Recipes",
         "guide.rackcraft.recipes_next": "Recipes continue on the next page.",
+        "guide.rackcraft.assembly_line": "Example assembly line",
+        "guide.rackcraft.line_next": "The assembly line continues on the next page.",
         "guide.rackcraft.continued": "%s (continued)",
         "guide.rackcraft.no_recipe": "No recipe. Found in the world or produced by machines.",
         "guide.rackcraft.crafting": "Crafting",

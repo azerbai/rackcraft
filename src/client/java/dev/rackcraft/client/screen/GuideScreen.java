@@ -3,6 +3,7 @@ package dev.rackcraft.client.screen;
 import dev.rackcraft.Rackcraft;
 import dev.rackcraft.generated.ContentIds;
 import dev.rackcraft.generated.ContentIds.GuideChapter;
+import dev.rackcraft.world.AssemblyLine;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -46,6 +47,7 @@ public final class GuideScreen extends Screen {
 	private final List<Page> pages = new ArrayList<>();
 	private final Map<String, Integer> entryPages = new HashMap<>();
 	private final Map<Item, List<Recipe<?>>> recipesByOutput = new HashMap<>();
+	private final Map<Item, AssemblyLine.Recipe> lineRecipes = new HashMap<>();
 	private final List<Hotspot> hotspots = new ArrayList<>();
 	private final Deque<Integer> history = new ArrayDeque<>();
 	private int page;
@@ -80,6 +82,7 @@ public final class GuideScreen extends Screen {
 
 	private void indexRecipes() {
 		recipesByOutput.clear();
+		indexAssemblyLines();
 		if (client == null || client.world == null) return;
 		var registries = client.world.getRegistryManager();
 		for (Recipe<?> recipe : client.world.getRecipeManager().values()) {
@@ -94,6 +97,18 @@ public final class GuideScreen extends Screen {
 				.thenComparing(recipe -> recipe.getId().toString())));
 	}
 
+	/** Every Assembly Line product by item; a diced wafer makes all three chiplet bins, so each gets the wafer's line. */
+	private void indexAssemblyLines() {
+		lineRecipes.clear();
+		for (AssemblyLine.Recipe recipe : AssemblyLine.recipes()) {
+			lineRecipes.putIfAbsent(recipe.product(), recipe);
+			if (recipe.binned()) {
+				lineRecipes.putIfAbsent(stackOf("chiplet_silver").getItem(), recipe);
+				lineRecipes.putIfAbsent(stackOf("chiplet_gold").getItem(), recipe);
+			}
+		}
+	}
+
 	/**
 	 * Pages are laid out by lines of text, so nothing ever runs under the buttons: a chapter's introduction or an
 	 * entry's description that doesn't fit continues on the next page, followed by the chapter's item grid or the
@@ -105,7 +120,7 @@ public final class GuideScreen extends Screen {
 		// The contents run over as many pages as the chapters need, a full-size row each.
 		int chapters = ContentIds.GUIDE_CHAPTERS.size();
 		for (int first = 0; first < chapters; first += CONTENTS_ROWS) {
-			pages.add(new Page(null, null, first > 0, first, Math.min(CONTENTS_ROWS, chapters - first), 0, 0, false));
+			pages.add(new Page(null, null, first > 0, first, Math.min(CONTENTS_ROWS, chapters - first), 0, 0, false, false));
 		}
 		for (GuideChapter chapter : ContentIds.GUIDE_CHAPTERS) {
 			int body = bodyHeight(CHAPTER_HEADER_HEIGHT);
@@ -120,6 +135,14 @@ public final class GuideScreen extends Screen {
 				Layout entryLayout = new Layout(chapter, entry);
 				for (int line = 0; line < entryLines(entry).size(); line++) entryLayout.line(body);
 				List<Recipe<?>> recipes = recipesByOutput.getOrDefault(stackOf(entry).getItem(), List.of());
+				AssemblyLine.Recipe line = lineRecipes.get(stackOf(entry).getItem());
+				// An Assembly Line product has no crafting recipe to speak of, so its diagram stands in for the recipes.
+				boolean lineOnly = line != null && recipes.isEmpty();
+				if (lineOnly) {
+					entryLayout.reserve(lineHeight(line), body);
+					entryLayout.close(0, 0, true, true);
+					continue;
+				}
 				entryLayout.reserve(RECIPE_HEADER_HEIGHT + (recipes.isEmpty() ? 10 : recipeHeight(recipes.get(0))), body);
 				entryLayout.used += RECIPE_HEADER_HEIGHT;
 				int first = 0;
@@ -135,7 +158,13 @@ public final class GuideScreen extends Screen {
 					entryLayout.used += height;
 					count++;
 				}
-				entryLayout.close(first, count, true);
+				// Crafting recipes first; the line it is also built on follows them, on a page of its own if need be.
+				if (line != null && entryLayout.used + lineHeight(line) > body) {
+					entryLayout.close(first, count, true);
+					first = 0;
+					count = 0;
+				}
+				entryLayout.close(first, count, true, line != null);
 			}
 		}
 	}
@@ -166,7 +195,11 @@ public final class GuideScreen extends Screen {
 		}
 
 		void close(int firstRecipe, int recipeCount, boolean extras) {
-			pages.add(new Page(chapter, entry, continuation, firstLine, lineCount, firstRecipe, recipeCount, extras));
+			close(firstRecipe, recipeCount, extras, false);
+		}
+
+		void close(int firstRecipe, int recipeCount, boolean extras, boolean diagram) {
+			pages.add(new Page(chapter, entry, continuation, firstLine, lineCount, firstRecipe, recipeCount, extras, diagram));
 			continuation = true;
 			firstLine += lineCount;
 			lineCount = 0;
@@ -355,21 +388,125 @@ public final class GuideScreen extends Screen {
 		y = drawLines(context, entryLines(entry), current, x, y);
 		if (!current.extras()) {
 			// The text fills this page; recipes follow, and say so if there's a line to spare.
-			if (y + 16 <= top + PANEL_HEIGHT - 31) context.drawText(textRenderer, Text.translatable("guide.rackcraft.recipes_next"), x, y + 6, COLOR_MUTED, false);
+			boolean lineNext = lineRecipes.containsKey(stack.getItem()) && !recipesByOutput.containsKey(stack.getItem());
+			if (y + 16 <= top + PANEL_HEIGHT - 31) {
+				context.drawText(textRenderer, Text.translatable(lineNext ? "guide.rackcraft.line_next" : "guide.rackcraft.recipes_next"),
+						x, y + 6, COLOR_MUTED, false);
+			}
 			return;
 		}
 		List<Recipe<?>> recipes = recipesByOutput.getOrDefault(stack.getItem(), List.of());
+		AssemblyLine.Recipe line = lineRecipes.get(stack.getItem());
 		y += 6;
-		context.drawText(textRenderer, Text.translatable("guide.rackcraft.recipes"), x, y, COLOR_MUTED, false);
-		y += 12;
-		if (recipes.isEmpty()) {
-			paragraph(context, Text.translatable("guide.rackcraft.no_recipe"), x, y, COLOR_MUTED);
-			return;
+		// Recipes are listed unless this page only carries the assembly line (a product with no crafting recipe, or
+		// the line that follows the recipes on a page of its own).
+		if (recipes.isEmpty() ? line == null : current.recipeCount() > 0) {
+			context.drawText(textRenderer, Text.translatable("guide.rackcraft.recipes"), x, y, COLOR_MUTED, false);
+			y += 12;
+			if (recipes.isEmpty()) {
+				paragraph(context, Text.translatable("guide.rackcraft.no_recipe"), x, y, COLOR_MUTED);
+				return;
+			}
+			for (Recipe<?> recipe : recipes.subList(current.firstRecipe(), current.firstRecipe() + current.recipeCount())) {
+				if (recipe instanceof AbstractCookingRecipe cooking) renderCooking(context, cooking, x, y);
+				else if (recipe instanceof CraftingRecipe crafting) renderCrafting(context, crafting, x, y);
+				y += recipeHeight(recipe);
+			}
+			y += 2;
 		}
-		for (Recipe<?> recipe : recipes.subList(current.firstRecipe(), current.firstRecipe() + current.recipeCount())) {
-			if (recipe instanceof AbstractCookingRecipe cooking) renderCooking(context, cooking, x, y);
-			else if (recipe instanceof CraftingRecipe crafting) renderCrafting(context, crafting, x, y);
-			y += recipeHeight(recipe);
+		if (current.diagram() && line != null) renderLine(context, line, stack, x, y);
+	}
+
+	/** One robot on an example line, with the parts it fits (none for a Welding or Riveting Robot). */
+	private record Station(AssemblyLine.Kind kind, List<AssemblyLine.Step> steps) {}
+
+	/**
+	 * The robots an Assembly Line recipe needs, in belt order. Consecutive installs share one Assembly Robot, which
+	 * holds all their parts at once; welds and rivets each get their own robot.
+	 */
+	private static List<Station> stations(AssemblyLine.Recipe recipe) {
+		List<Station> stations = new ArrayList<>();
+		for (AssemblyLine.Step step : recipe.steps()) {
+			Station last = stations.isEmpty() ? null : stations.get(stations.size() - 1);
+			if (step.kind() == AssemblyLine.Kind.INSTALL && last != null && last.kind() == AssemblyLine.Kind.INSTALL) last.steps().add(step);
+			else stations.add(new Station(step.kind(), new ArrayList<>(List.of(step))));
+		}
+		return stations;
+	}
+
+	private static int partColumns(int stations) {
+		return (TEXT_WIDTH - LINE_MARGIN * 2) / stations >= 38 ? 2 : 1;
+	}
+
+	private static int partRows(List<Station> stations) {
+		int columns = partColumns(stations.size());
+		int most = 0;
+		for (Station station : stations) {
+			if (station.kind() == AssemblyLine.Kind.INSTALL) most = Math.max(most, station.steps().size());
+		}
+		return (most + columns - 1) / columns;
+	}
+
+	/** The diagram: its heading, the rows of parts, the arms, the belt and the verbs under it. */
+	private static int lineHeight(AssemblyLine.Recipe recipe) {
+		return RECIPE_HEADER_HEIGHT + partRows(stations(recipe)) * 18 + LINE_BODY_HEIGHT;
+	}
+
+	private static final int LINE_MARGIN = 22;
+	/** Arm (18), reach (3), belt (18) and verb row (11), after the parts and a 3 pixel gap. */
+	private static final int LINE_BODY_HEIGHT = 3 + 18 + 3 + 18 + 2 + 9;
+
+	/**
+	 * A top-down example of the line for a product: the base item enters at the left, a Conveyor Belt carries it past
+	 * the robots in order (each sits above the belt facing it, with its parts above it), and the product leaves at the
+	 * right. Parts and robots are slots, so they can be hovered and clicked like anywhere else in the manual.
+	 */
+	private void renderLine(DrawContext context, AssemblyLine.Recipe recipe, ItemStack product, int x, int y) {
+		context.drawText(textRenderer, Text.translatable("guide.rackcraft.assembly_line"), x, y, COLOR_MUTED, false);
+		y += 12;
+		List<Station> stations = stations(recipe);
+		int columnWidth = (TEXT_WIDTH - LINE_MARGIN * 2) / stations.size();
+		int partColumns = partColumns(stations.size());
+		int partRows = partRows(stations);
+		int armY = y + partRows * 18 + 3;
+		int beltY = armY + 18 + 3;
+		ItemStack base = new ItemStack(recipe.base());
+
+		// The belt runs between the two end slots, with dashes to show which way it goes.
+		int beltLeft = x + 18;
+		int beltRight = x + TEXT_WIDTH - 18;
+		context.fill(beltLeft, beltY + 1, beltRight, beltY + 17, COLOR_SLOT_EDGE);
+		context.fill(beltLeft, beltY + 2, beltRight, beltY + 16, COLOR_SLOT);
+		for (int dash = beltLeft + 3; dash + 4 < beltRight - 6; dash += 8) {
+			context.fill(dash, beltY + 8, dash + 4, beltY + 10, COLOR_SLOT_EDGE);
+		}
+		for (int step = 0; step < 4; step++) {
+			context.fill(beltRight - 6 + step, beltY + 5 + step, beltRight - 5 + step, beltY + 13 - step, COLOR_ACCENT);
+		}
+		slot(context, x, beltY, base, targetOf(base));
+		slot(context, x + TEXT_WIDTH - 18, beltY, new ItemStack(product.getItem(), recipe.count()), targetOf(product));
+
+		for (int index = 0; index < stations.size(); index++) {
+			Station station = stations.get(index);
+			int centre = x + LINE_MARGIN + index * columnWidth + columnWidth / 2;
+			// The workpiece waits in the middle of the belt in front of its robot.
+			context.drawItem(base, centre - 8, beltY + 1);
+			context.fill(centre - 1, armY + 18, centre + 1, beltY + 1, COLOR_ACCENT);
+			ItemStack arm = stackOf(station.kind().blockId);
+			slot(context, centre - 9, armY, arm, targetOf(arm));
+			if (station.kind() == AssemblyLine.Kind.INSTALL) {
+				int rows = (station.steps().size() + partColumns - 1) / partColumns;
+				// Parts sit against the robot, filling from the bottom row up.
+				int partsLeft = centre - partColumns * 9;
+				int partsTop = armY - 3 - rows * 18;
+				for (int part = 0; part < station.steps().size(); part++) {
+					AssemblyLine.Step step = station.steps().get(part);
+					ItemStack stack = new ItemStack(step.part(), Math.min(step.count(), 64));
+					slot(context, partsLeft + part % partColumns * 18, partsTop + part / partColumns * 18, stack, targetOf(stack));
+				}
+			}
+			Text verb = Text.literal(station.kind().verb);
+			context.drawText(textRenderer, verb, centre - textRenderer.getWidth(verb) / 2, beltY + 20, COLOR_MUTED, false);
 		}
 	}
 
@@ -489,10 +626,11 @@ public final class GuideScreen extends Screen {
 
 	/**
 	 * A page: the lines of its chapter's or entry's text it shows, and whether it carries the extras (the chapter's
-	 * item grid, or the entry's recipes from {@code firstRecipe}).
+	 * item grid, or the entry's recipes from {@code firstRecipe}), and whether it ends with the entry's example
+	 * assembly line.
 	 */
 	private record Page(GuideChapter chapter, String entry, boolean continuation, int firstLine, int lineCount,
-			int firstRecipe, int recipeCount, boolean extras) {}
+			int firstRecipe, int recipeCount, boolean extras, boolean diagram) {}
 
 	private record Hotspot(int x, int y, int width, int height, ItemStack stack, int target, boolean slot) {
 		boolean contains(double mouseX, double mouseY) {
