@@ -1,0 +1,29 @@
+{
+  "key": {
+    "C": {
+      "item": "rackcraft:cryo_coil"
+    },
+    "J": {
+      "item": "rackcraft:photonic_chip"
+    },
+    "P": {
+      "item": "rackcraft:pdu"
+    },
+    "S": {
+      "item": "rackcraft:steel_block"
+    },
+    "W": {
+      "item": "rackcraft:superconducting_wire"
+    }
+  },
+  "pattern": [
+    "SJS",
+    "WCW",
+    "SPS"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:teleport_pad"
+  },
+  "type": "minecraft:crafting_shaped"
+}

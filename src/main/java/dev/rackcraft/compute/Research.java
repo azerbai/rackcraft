@@ -133,6 +133,16 @@ public final class Research {
 			project("compute_pods", "Compute Pods", Kind.GENERAL, 10_000_000, 1.2e8, List.of("immersion_cooling"),
 					"Solid blocks of High-Density Racks or better fuse into one Compute Pod",
 					"Stop thinking of them as racks. Think of them as one very large, very warm computer."),
+			// Getting around.
+			project("personal_propulsion", "Personal Propulsion", Kind.GENERAL, 5_000_000, 6e7, List.of("cryo_hydrogen"),
+					"Unlocks the Hydrogen Jetpack",
+					"Strap a rocket to your back. The paperwork called it \"personal propulsion\" so nobody would ask."),
+			project("maglev", "Magnetic Levitation", Kind.GENERAL, 8_000_000, 1e8, List.of("advanced_materials"),
+					"Unlocks Mag-Lev Rails and Stations",
+					"No wheels, no friction, no excuses for being late."),
+			project("quantum_entanglement", "Quantum Entanglement", Kind.GENERAL, 30_000_000, 3e8, List.of("quantum_annealing"),
+					"Unlocks Quantum Teleport Pads",
+					"Spooky action at a distance, now with a power bill and a waiver."),
 			// The Assembly Line: each one doubles the speed of every Conveyor Belt and every Welding, Riveting and Assembly Robot.
 			project("line_speed_1", "Brisk Belts", Kind.GENERAL, 1_500_000, 2e7, List.of("predictive_maintenance", "psu_titanium"),
 					"Conveyor Belts and Assembly Line robots work twice as fast",

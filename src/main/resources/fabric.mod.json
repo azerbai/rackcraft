@@ -16,6 +16,7 @@
 		]
 	},
 	"mixins": [
+		"rackcraft.mixins.json",
 		{
 			"config": "rackcraft.client.mixins.json",
 			"environment": "client"

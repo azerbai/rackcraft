@@ -69,7 +69,9 @@ public final class ExchangeCatalog {
 			// The postgame tools are built from that hardware and are not for sale either.
 			"power_beacon", "beacon_receiver", "constructor_gauntlet", "terraformer_cannon", "superconducting_pylon",
 			// Compute Pods and Blueprints are built from that hardware too.
-			"pod_port", "blueprint_scanner");
+			"pod_port", "blueprint_scanner",
+			// Getting around is made from that hardware as well.
+			"teleport_pad", "linked_shard", "dimensional_shard", "hydrogen_jetpack", "maglev_rail", "maglev_station");
 
 	private static volatile Map<Item, Long> prices = Map.of();
 

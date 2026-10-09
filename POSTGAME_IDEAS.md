@@ -2,7 +2,7 @@
 
 Written 2026-10-09 after a ~20 hour (cheated) clear. Nothing here is built. The late game today ends at HEROBRINE-1, a Saturn V and a lot of hydrogen, and then there's nothing left to *do* with any of it. These ideas give the finished facility a use: tools to build and wire faster, ways to move around it, hydrogen and energy weapons, and something worth defending against.
 
-**Built:** Batches A and B (2026-10-09), see "Building and Wiring" in the README. Build specs for each batch live in [docs/postgame/](docs/postgame/README.md).
+**Built:** Batches A, B and C (2026-10-09), see "Building and Wiring" in the README. Build specs for each batch live in [docs/postgame/](docs/postgame/README.md).
 
 ## Decisions (2026-10-09, after review)
 

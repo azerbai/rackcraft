@@ -54,3 +54,13 @@ README: new "Getting Around" section; Field Manual chapter "Movement". Textures:
 
 ## Acceptance
 Self-test passes; test and build pass. Mag-Lev motion, jetpack feel (thrust/hover tuning) and the grapple's rope are **unverified in-client**: expect the owner to tune the numbers; expose them in config (`jetpack.thrust`, `jetpack.hoverCostFactor`, `maglev.speed`).
+
+## As built (2026-10-09)
+
+Built with 267 self-test checks passing (`MV*`, `TP*`, `ML*`), `./gradlew test` and `build`. Where it departs from the spec above:
+
+- **Teleport Pads:** a pad is entangled by using a Linked Shard on one pad and then another (the shard is used up), not by crafting two halves with a UUID. A Dimensional Shard (Linked Shard, Nether Star, Eye of Ender) does the same across dimensions. No custom names; the screen shows the partner's coordinates. Only players teleport (not pets or minecarts). Research counts if done in the pad's dimension or the Overworld. Teleporting into the Nether and back wasn't jump-tested (only the linking rules and the 20x cost); the same-dimension jump is.
+- **Mag-Lev:** rails and stations are blocks you connect by touching, with no slope or curve shapes; the car finds its way by searching the connected blocks, so any shape of line works. A rail is a power-network block (it joins power cables it touches). One seat, not four. Station destinations cycle by sneak-right-click instead of a menu. The car model and renderer are unverified visually. The harness's fake player can't board vehicles, so the ride tests use a pig as the rider.
+- **Grapple:** server-side velocity pull, rope drawn as particles, no client rendering.
+- **Jetpack:** input comes from a small client packet (jump, sneak, sprint); the server applies the thrust. The "flying kick" is avoided with a mixin accessor on the server's floating counter. The Tier 2 Fuel Cell version was skipped. Fuel comes from carried canisters or a Wireless Terminal's storage, not a separate tank item. The wearable texture, the item textures and the car are procedural and unverified.
+- The Wireless Power Beacon's gear hook (`WirelessPower.inBeaconRange`) is not wired to the jetpack, since there is no battery in it.

@@ -11,4 +11,4 @@ Self-contained build specs, written so a fresh Claude Code session can implement
 | E | batch-E-strike-and-bomb.md | Destructive launch failures, Strike Platform, Burner Phone and plane-dropped Warhead, space debris |
 | F | batch-F-the-ending.md | Hiccups, the IPO, the haze, the HEROBRINE-1 fight, shutdown, scrub, credits |
 
-**Batches A and B are built** (see the notes at the end of its file). Suggested order is A, B, C, D, E, F; each is independent in code except F, which works best last. Background and the owner's decisions are in `/POSTGAME_IDEAS.md`. Not planned: orbit as a place, a Fusion Reactor (a maybe, only if it fails safe), the Exo-Suit, corporate raids, overworld PvE.
+**Batches A, B and C are built** (see the notes at the end of its file). Suggested order is A, B, C, D, E, F; each is independent in code except F, which works best last. Background and the owner's decisions are in `/POSTGAME_IDEAS.md`. Not planned: orbit as a place, a Fusion Reactor (a maybe, only if it fails safe), the Exo-Suit, corporate raids, overworld PvE.

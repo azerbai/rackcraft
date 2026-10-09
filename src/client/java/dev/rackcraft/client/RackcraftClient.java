@@ -28,6 +28,7 @@ public final class RackcraftClient implements ClientModInitializer {
 		FaultOverlay.register();
 		SurveyOutline.register();
 		CableGhost.register();
+		JetpackInput.register();
 		RocketShake.register();
 		ScreenRegistry.register(RcScreenHandlers.RACK, RackScreen::new);
 		ScreenRegistry.register(RcScreenHandlers.SINGLE_SLOT, SingleSlotScreen::new);
@@ -57,6 +58,8 @@ public final class RackcraftClient implements ClientModInitializer {
 				dev.rackcraft.client.render.BeltRenderer::new);
 		net.minecraft.client.render.block.entity.BlockEntityRendererFactories.register(dev.rackcraft.RcBlocks.MACHINE_ENTITY,
 				dev.rackcraft.client.render.RobotArmRenderer::new);
+		net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry.register(dev.rackcraft.entity.RcEntities.MAGLEV_CAR,
+				dev.rackcraft.client.render.MaglevCarRenderer::new);
 		net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry.register(dev.rackcraft.entity.RcEntities.MAINTENANCE_DRONE,
 				dev.rackcraft.client.render.DroneRenderer::maintenance);
 		net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry.register(dev.rackcraft.entity.RcEntities.CONSTRUCTION_DRONE,

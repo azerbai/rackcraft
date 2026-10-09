@@ -1,0 +1,23 @@
+{
+  "key": {
+    "C": {
+      "item": "rackcraft:power_cable"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    },
+    "W": {
+      "item": "rackcraft:superconducting_wire"
+    }
+  },
+  "pattern": [
+    "SCS",
+    "SWS",
+    "SCS"
+  ],
+  "result": {
+    "count": 4,
+    "item": "rackcraft:maglev_rail"
+  },
+  "type": "minecraft:crafting_shaped"
+}

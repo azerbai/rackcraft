@@ -1,0 +1,30 @@
+{
+  "ingredients": [
+    {
+      "item": "rackcraft:steel_ingot"
+    },
+    {
+      "item": "rackcraft:steel_ingot"
+    },
+    {
+      "item": "rackcraft:steel_ingot"
+    },
+    {
+      "item": "rackcraft:electric_motor"
+    },
+    {
+      "item": "rackcraft:battery_cell"
+    },
+    {
+      "item": "rackcraft:copper_wire"
+    },
+    {
+      "item": "rackcraft:copper_wire"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:grapple_hook"
+  },
+  "type": "minecraft:crafting_shapeless"
+}

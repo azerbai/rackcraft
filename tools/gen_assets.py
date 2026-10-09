@@ -11,7 +11,7 @@ RESOURCES = ROOT / "src/main/resources"
 CONTENT = json.loads((ROOT / "tools/content.json").read_text(encoding="utf-8"))
 MACHINE_IDS = {entry["id"] for entry in CONTENT["blocks"] if entry.get("machine")}
 AIRFLOW_BLOCKING = {entry["id"] for entry in CONTENT["blocks"] if entry.get("blocksAirflow")}
-CABLE_IDS = {"power_cable", "coolant_pipe", "fiber_cable", "item_pipe", "trunk_bundle"}
+CABLE_IDS = {"power_cable", "coolant_pipe", "fiber_cable", "item_pipe", "trunk_bundle", "maglev_rail"}
 # Cubes that make no items, so they have no port core.
 NO_PORT = ("battery_bank", "desalination_plant", "grid_substation", "heat_recovery_plant", "hydrogen_tank")
 ANIMATION_FRAMETIME = 4
@@ -38,7 +38,7 @@ def write_json(path, value):
 
 
 # Must match CableBlock#halfWidth.
-CABLE_HALF_WIDTH = {"power_cable": 2, "coolant_pipe": 3, "fiber_cable": 1, "item_pipe": 2.5, "trunk_bundle": 3.5}
+CABLE_HALF_WIDTH = {"power_cable": 2, "coolant_pipe": 3, "fiber_cable": 1, "item_pipe": 2.5, "trunk_bundle": 3.5, "maglev_rail": 3}
 ARM_ROTATIONS = {"north": {}, "east": {"y": 90}, "south": {"y": 180}, "west": {"y": 270}, "up": {"x": 270}, "down": {"x": 90}}
 
 
@@ -721,6 +721,7 @@ def main():
         "entity.rackcraft.maintenance_drone": "Maintenance Drone",
         "entity.rackcraft.construction_drone": "Construction Drone",
         "entity.rackcraft.tanker_drone": "Tanker Drone",
+        "entity.rackcraft.maglev_car": "Mag-Lev Car",
         "subtitles.rackcraft.rocket.ignition": "Rocket engines igniting",
         "subtitles.rackcraft.rocket.liftoff": "Rocket lifts off",
         "subtitles.rackcraft.rocket.thrust": "Rocket roars",
@@ -796,6 +797,8 @@ def main():
     armor = RESOURCES / "assets/minecraft/textures/models/armor/rackcraft_respirator_layer_1.png"
     armor.parent.mkdir(parents=True, exist_ok=True)
     armor.write_bytes(textures.respirator_armor_layer())
+    jetpack_layer = RESOURCES / "assets/minecraft/textures/models/armor/rackcraft_jetpack_layer_1.png"
+    jetpack_layer.write_bytes(textures.jetpack_armor_layer())
     write_json(RESOURCES / "data/rackcraft/tags/blocks/airflow_blocking.json", {
         "replace": False,
         "values": [f"rackcraft:{identifier}" for identifier in sorted(AIRFLOW_BLOCKING)]
@@ -806,6 +809,7 @@ def main():
     (entity_textures / "rocket.png").write_bytes(textures.rocket_parts())
     (entity_textures / "wind_rotor.png").write_bytes(textures.rotor_parts())
     (entity_textures / "construction_drone.png").write_bytes(textures.site_drone_parts((232, 192, 48), "construction_drone", False))
+    (entity_textures / "maglev_car.png").write_bytes(textures.maglev_car_parts())
     (entity_textures / "tanker_drone.png").write_bytes(textures.site_drone_parts((84, 150, 214), "tanker_drone", False))
     (entity_textures / "terraforming_drone.png").write_bytes(textures.site_drone_parts((122, 106, 72), "terraforming_drone", True))
     (entity_textures / "rocket_first_stage.png").write_bytes(textures.rocket_first_stage())

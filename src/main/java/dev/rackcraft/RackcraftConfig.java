@@ -96,6 +96,9 @@ public final class RackcraftConfig {
 		/** Lowest rack tier a Compute Pod takes (0 Server, 1 High-Density, 2 Immersion, 3 Exascale), and the most racks in one. */
 		public int podMinTier = 1;
 		public int podMaxRacks = 64;
+		/** Teleport Pads: megawatt-seconds a jump needs per 100 blocks, and Hydrogen Canisters it burns. */
+		public double teleportMwsPer100Blocks = 1;
+		public int teleportCanisters = 1;
 		/** Most blocks in a Blueprint (64 x 64 x 64 is 262,144). */
 		public int blueprintMaxVolume = 64 * 64 * 64;
 	}

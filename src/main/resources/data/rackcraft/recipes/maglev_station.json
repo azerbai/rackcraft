@@ -1,0 +1,26 @@
+{
+  "key": {
+    "B": {
+      "item": "rackcraft:circuit_board"
+    },
+    "P": {
+      "item": "rackcraft:pdu"
+    },
+    "R": {
+      "item": "rackcraft:maglev_rail"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    }
+  },
+  "pattern": [
+    "RBR",
+    "SPS",
+    "SSS"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:maglev_station"
+  },
+  "type": "minecraft:crafting_shaped"
+}

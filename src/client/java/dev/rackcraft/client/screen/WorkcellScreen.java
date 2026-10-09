@@ -52,6 +52,7 @@ public final class WorkcellScreen extends RackcraftHandledScreen {
 	protected void drawDashboard(DrawContext context) {
 		switch (blockId()) {
 			case "pod_port" -> drawPod(context);
+			case "teleport_pad" -> drawPad(context);
 			case "drone_dock" -> drawDock(context);
 			case "belt_loader" -> drawLoader(context);
 			case "belt_unloader" -> drawUnloader(context);
@@ -159,6 +160,33 @@ public final class WorkcellScreen extends RackcraftHandledScreen {
 		wrapped(context, Text.literal("Tankers top up docks, planners and Launch Controls within "
 				+ dev.rackcraft.world.HydrogenTanks.TANKER_RANGE + " blocks."), 8, 78, 160, MUTED);
 		line(context, "Tanker Drones", 8, 105, MUTED);
+	}
+
+	private void drawPad(DrawContext context) {
+		var states = dev.rackcraft.world.TeleportPads.State.values();
+		var shown = states[Math.max(0, Math.min(states.length - 1, stat(Stat.SITE + dev.rackcraft.world.TeleportPads.R_STATE)))];
+		String headline = switch (shown) {
+			case LOCKED -> "Locked: research Quantum Entanglement at the Operations Terminal";
+			case UNLINKED -> "Not entangled: use a Linked Shard on this pad and then another";
+			case NO_ANNEALER -> "Needs a Quantum Annealer in the slot below";
+			case NO_CRYOSTAT -> "Needs a cold Cryostat touching it, with hydrogen";
+			case NO_POWER -> "Not enough power on the grid";
+			case PARTNER_GONE -> "The other pad is gone";
+			case READY -> "Ready: stand on it for two seconds";
+		};
+		wrappedClamped(context, Text.literal(headline), 8, 30, 160, 2, shown == dev.rackcraft.world.TeleportPads.State.READY ? GOOD
+				: shown == dev.rackcraft.world.TeleportPads.State.UNLINKED ? MUTED : WARN);
+		int distance = stat(Stat.SITE + dev.rackcraft.world.TeleportPads.R_DISTANCE);
+		if (distance > 0) {
+			boolean cross = stat(Stat.SITE + dev.rackcraft.world.TeleportPads.R_CROSS) != 0;
+			lineFit(context, "Other pad at " + stat(Stat.SITE + dev.rackcraft.world.TeleportPads.R_PARTNER_X) + ", "
+					+ stat(Stat.SITE + dev.rackcraft.world.TeleportPads.R_PARTNER_Y) + ", " + stat(Stat.SITE + dev.rackcraft.world.TeleportPads.R_PARTNER_Z)
+					+ (cross ? " (other dimension)" : ""), 8, 56, 160, TEXT);
+			lineFit(context, String.format(java.util.Locale.ROOT, "A jump costs %,d kW for two seconds", stat(Stat.SITE + dev.rackcraft.world.TeleportPads.R_KW)),
+					8, 67, 160, MUTED);
+		}
+		lineFit(context, "Draws " + kw(stat(Stat.POWER)) + ", grid covers " + stat(Stat.SATISFACTION) + "%", 8, 78, 160, MUTED);
+		line(context, "Quantum Annealer", 8, 105, MUTED);
 	}
 
 	private void drawPod(DrawContext context) {

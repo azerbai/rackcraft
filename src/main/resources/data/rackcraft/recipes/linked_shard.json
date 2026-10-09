@@ -1,0 +1,21 @@
+{
+  "ingredients": [
+    {
+      "item": "minecraft:ender_eye"
+    },
+    {
+      "item": "minecraft:ender_eye"
+    },
+    {
+      "item": "rackcraft:chiplet_gold"
+    },
+    {
+      "item": "rackcraft:graphene_sheet"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:linked_shard"
+  },
+  "type": "minecraft:crafting_shapeless"
+}

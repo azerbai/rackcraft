@@ -1,0 +1,18 @@
+{
+  "ingredients": [
+    {
+      "item": "rackcraft:linked_shard"
+    },
+    {
+      "item": "minecraft:nether_star"
+    },
+    {
+      "item": "minecraft:ender_eye"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:dimensional_shard"
+  },
+  "type": "minecraft:crafting_shapeless"
+}

@@ -114,7 +114,7 @@ public final class MachineScreenHandler extends ScreenHandler {
 			if (id.equals("assembly_arm") || id.equals("drone_dock") || id.equals("belt_unloader")
 					|| id.equals("storage_exporter")) {
 				for (int index = 0; index < 9; index++) addSlot(new MachineSlot(machineInventory, index, 8 + index * 18, 116));
-			} else if (id.equals("belt_loader") || id.equals("hydrogen_tank") || id.equals("cryostat") || id.equals("pod_port")) {
+			} else if (id.equals("belt_loader") || id.equals("hydrogen_tank") || id.equals("cryostat") || id.equals("pod_port") || id.equals("teleport_pad")) {
 				addSlot(new MachineSlot(machineInventory, 0, 80, 116));
 			}
 			addPlayerInventory(playerInventory, 8, 152);

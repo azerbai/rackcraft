@@ -1,0 +1,29 @@
+{
+  "key": {
+    "B": {
+      "item": "rackcraft:circuit_board"
+    },
+    "G": {
+      "item": "rackcraft:graphene_sheet"
+    },
+    "M": {
+      "item": "rackcraft:electric_motor"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    },
+    "T": {
+      "item": "rackcraft:hydrogen_tank"
+    }
+  },
+  "pattern": [
+    "MSM",
+    "GTG",
+    "MBM"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:hydrogen_jetpack"
+  },
+  "type": "minecraft:crafting_shaped"
+}

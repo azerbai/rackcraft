@@ -1245,6 +1245,14 @@ def cable_side(entry, cut=False):
                 canvas.set(x, y, mix(canvas.get(x, y), STEEL, 0.7))
         for x in range(2, 14, 4):
             canvas.set(x, 6, lighten(base, 0.6))
+    elif identifier == "maglev_rail":
+        # Two bright guide strips either side of a dark spine.
+        canvas.hline(0, 15, 6, (150, 220, 230))
+        canvas.hline(0, 15, 9, (150, 220, 230))
+        canvas.hline(0, 15, 7, darken(base, 0.5))
+        canvas.hline(0, 15, 8, darken(base, 0.5))
+        for x in range(0, SIZE, 4):
+            canvas.vline(x, 5, 10, darken(base, 0.6))
     elif identifier == "trunk_bundle":
         # Three lanes in one conduit: a power stripe, a coolant stripe and a fibre stripe, with steel banding.
         for y, lane in ((4, (199, 67, 56)), (7, (80, 150, 210)), (10, (183, 101, 160))):
@@ -1274,7 +1282,7 @@ def cable_end(entry, cut=False):
     canvas.disc(8, 8, 3.2, lighten(STEEL, 0.1))
     canvas.disc(8, 8, 2.2, darken(base, 0.1))
     core = {"power_cable": COPPER, "coolant_pipe": (150, 225, 245), "fiber_cable": (255, 214, 250), "item_pipe": (240, 214, 150),
-            "trunk_bundle": (210, 218, 226)}[entry["id"]]
+            "trunk_bundle": (210, 218, 226), "maglev_rail": (150, 220, 230)}[entry["id"]]
     canvas.disc(8, 8, 1.2, LED_RED if cut else core)
     canvas.frame(4, 4, 11, 11, darken(base, 0.55))
     return canvas
@@ -3039,7 +3047,99 @@ def item_scanner(base, key):
     return canvas
 
 
+def item_shard(base, key):
+    """A faceted crystal shard with a glint."""
+    canvas = Canvas()
+    canvas.poly([(8, 1), (12, 6), (10, 14), (6, 14), (4, 6)], base)
+    canvas.poly([(8, 1), (12, 6), (8, 8)], lighten(base, 0.35))
+    canvas.poly([(8, 8), (12, 6), (10, 14)], darken(base, 0.25))
+    canvas.line(8, 1, 6, 14, lighten(base, 0.5))
+    canvas.set(7, 4, (255, 255, 255))
+    return canvas
+
+
+def item_dshard(base, key):
+    """The same shard, ringed with portal sparks."""
+    canvas = item_shard(base, key)
+    for x, y in ((2, 3), (13, 3), (2, 11), (13, 11), (8, 0), (8, 15)):
+        canvas.set(x, y, (200, 120, 255))
+    return canvas
+
+
+def item_grapple(base, key):
+    """A grappling hook on a short line: a three-pronged head and a coil."""
+    canvas = Canvas()
+    canvas.line(2, 14, 8, 6, darken(base, 0.35))
+    canvas.line(3, 14, 9, 6, darken(base, 0.2))
+    canvas.line(8, 6, 8, 1, base)
+    canvas.line(8, 1, 4, 3, base)
+    canvas.line(8, 1, 12, 3, base)
+    canvas.set(4, 4, lighten(base, 0.4))
+    canvas.set(12, 4, lighten(base, 0.4))
+    canvas.rect(1, 12, 4, 15, COPPER)
+    canvas.frame(1, 12, 4, 15, darken(COPPER, 0.5))
+    return canvas
+
+
+def item_jetpack(base, key):
+    """A twin-bottle jetpack with a flame under each bottle."""
+    canvas = Canvas()
+    for x0 in (3, 9):
+        canvas.rect(x0, 2, x0 + 3, 11, base)
+        canvas.bevel(x0, 2, x0 + 3, 11, lighten(base, 0.4), darken(base, 0.55))
+        canvas.rect(x0 + 1, 11, x0 + 2, 12, darken(base, 0.6))
+        canvas.set(x0 + 1, 13, (255, 190, 60))
+        canvas.set(x0 + 1, 14, (255, 110, 30))
+    canvas.rect(6, 4, 9, 6, STEEL)
+    canvas.hline(3, 12, 7, darken(base, 0.4))
+    return canvas
+
+
+def jetpack_armor_layer():
+    """The worn jetpack on the 64 x 32 armor layout: a steel torso plate, a belt, and twin bottles on the back."""
+    pixels = [[None] * 64 for _ in range(32)]
+    plate = (96, 102, 112, 255)
+    dark = (56, 60, 68, 255)
+    bottle = (127, 184, 232, 255)
+    bright = (190, 225, 250, 255)
+    # Chest: front u 20..27, back u 32..39, sides u 16..19 and 28..31, rows 20..31; top and bottom rows 16..19.
+    for y in range(20, 32):
+        for x in range(16, 40):
+            pixels[y][x] = plate if (x + y) % 7 else dark
+    for x in range(20, 28):
+        pixels[29][x] = dark
+        pixels[30][x] = (200, 160, 60, 255)
+    for x0 in (33, 37):
+        for y in range(21, 30):
+            for x in range(x0, x0 + 2):
+                pixels[y][x] = bottle
+            pixels[y][x0] = bright
+        pixels[30][x0] = (255, 150, 40, 255)
+        pixels[30][x0 + 1] = (255, 90, 30, 255)
+    for y in range(16, 20):
+        for x in range(20, 36):
+            pixels[y][x] = plate
+    return png_rgba(64, 32, pixels)
+
+
+def maglev_car_parts():
+    """Three 16x16 tiles for the car's boxes: body panel, window glass, and the dark undercarriage."""
+    body = noisy((70, 130, 140), "maglev:body", 0.05)
+    body.bevel(0, 0, 15, 15, lighten((70, 130, 140), 0.3), darken((70, 130, 140), 0.45))
+    body.hline(1, 14, 7, (230, 235, 240))
+    glass = Canvas((40, 80, 110, 200))
+    glass.bevel(0, 0, 15, 15, (140, 200, 230, 255), (20, 40, 60, 255))
+    glass.line(2, 13, 13, 2, (180, 225, 245, 160))
+    under = noisy((40, 48, 56), "maglev:under", 0.05)
+    under.hline(0, 15, 8, (110, 220, 235))
+    return _strip([body, glass, under])
+
+
 ITEM_STYLES.update({
+    "shard": item_shard,
+    "dshard": item_dshard,
+    "grapple": item_grapple,
+    "jetpack": item_jetpack,
     "blueprint": item_blueprint,
     "scanner": item_scanner,
     "planner_tool": item_planner_tool,

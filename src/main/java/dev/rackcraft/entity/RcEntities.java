@@ -13,6 +13,7 @@ public final class RcEntities {
 	public static EntityType<RocketEntity> ROCKET;
 	public static EntityType<ConstructionDroneEntity> CONSTRUCTION_DRONE;
 	public static EntityType<TankerDroneEntity> TANKER_DRONE;
+	public static EntityType<MaglevCarEntity> MAGLEV_CAR;
 
 	private RcEntities() {}
 
@@ -31,6 +32,11 @@ public final class RcEntities {
 				FabricEntityTypeBuilder.<TankerDroneEntity>create(SpawnGroup.MISC, TankerDroneEntity::new)
 						.dimensions(EntityDimensions.fixed(0.9f, 0.45f))
 						.trackRangeBlocks(160).trackedUpdateRate(2).forceTrackedVelocityUpdates(true)
+						.build());
+		MAGLEV_CAR = Registry.register(Registries.ENTITY_TYPE, Rackcraft.id("maglev_car"),
+				FabricEntityTypeBuilder.<MaglevCarEntity>create(SpawnGroup.MISC, MaglevCarEntity::new)
+						.dimensions(EntityDimensions.fixed(0.9f, 0.5f))
+						.trackRangeBlocks(160).trackedUpdateRate(1).forceTrackedVelocityUpdates(true)
 						.build());
 		ROCKET = Registry.register(Registries.ENTITY_TYPE, Rackcraft.id("rocket"),
 				FabricEntityTypeBuilder.<RocketEntity>create(SpawnGroup.MISC, RocketEntity::new)

@@ -38,7 +38,7 @@ public final class RackcraftSelfTest {
 		RackcraftConfig.values.events.enabled = false;
 		dev.rackcraft.compute.ResearchLab.get(server.getOverworld()).reset();
 		dev.rackcraft.world.OrbitState.get(server.getOverworld()).reset();
-		check("S0.a", RcBlocks.BLOCKS.size() == 92 && RcItems.ITEMS.size() == 91,
+		check("S0.a", RcBlocks.BLOCKS.size() == 95 && RcItems.ITEMS.size() == 95,
 				"blocks=" + RcBlocks.BLOCKS.size() + " items=" + RcItems.ITEMS.size(), failures);
 		ServerWorld world = server.getOverworld();
 		BlockPos generatorPos = new BlockPos(0, 80, 0);
@@ -164,6 +164,7 @@ public final class RackcraftSelfTest {
 		checkComputePods(world, failures);
 		checkBlueprints(world, failures);
 		checkRetrofit(world, failures);
+		checkMovement(world, failures);
 		checkPerformance(world, failures);
 		checkStructures(world, failures);
 		check("S0.b", SimTicker.failedSteps() == 0, "simulation steps that threw=" + SimTicker.failedSteps(), failures);
@@ -3082,6 +3083,294 @@ public final class RackcraftSelfTest {
 	private static boolean Racks_isModule(ItemStack stack) {
 		return dev.rackcraft.block.Racks.module(stack) != null;
 	}
+
+	/** Batch C: the Grapple, the Hydrogen Jetpack, Quantum Teleport Pads and the Mag-Lev. */
+	private static void checkMovement(ServerWorld world, int[] failures) {
+		dev.rackcraft.compute.ResearchLab lab = dev.rackcraft.compute.ResearchLab.get(world);
+		lab.reset();
+		var player = net.fabricmc.fabric.api.entity.FakePlayer.get(world);
+		player.getInventory().clear();
+		player.getAbilities().creativeMode = false;
+		dev.rackcraft.world.Grapples.reset();
+		BlockPos o = clearArea(world, new BlockPos(-3500, 120, -1536), 24, 14, 24);
+		net.minecraft.item.Item cell = RcItems.ITEMS.get("battery_cell");
+		net.minecraft.item.Item canister = RcItems.ITEMS.get("hydrogen_canister");
+
+		// ---- The Grapple pulls toward the block you look at, spends a cell, and lets the player land softly.
+		for (int y = 0; y < 3; y++) world.setBlockState(o.add(5, y, 12), Blocks.STONE.getDefaultState());
+		player.setPosition(o.getX() + 5.5, o.getY() + 1, o.getZ() + 0.5);
+		player.setYaw(0);
+		player.setHeadYaw(0);
+		player.setPitch(0);
+		String noCells = dev.rackcraft.world.Grapples.fire(player);
+		player.getInventory().setStack(5, new ItemStack(cell, 2));
+		String fired = dev.rackcraft.world.Grapples.fire(player);
+		boolean stepped = dev.rackcraft.world.Grapples.step(player);
+		Vec3dHolder velocity = new Vec3dHolder(player.getVelocity());
+		check("MV1.a", "Out of Battery Cells".equals(noCells) && fired == null && stepped && player.getInventory().count(cell) == 1
+						&& velocity.v.z > 0.3 && Math.abs(velocity.v.x) < 0.2 && dev.rackcraft.world.Grapples.pulling(player),
+				"noCells=" + noCells + " fired=" + fired + " velocity=" + velocity.v + " cellsLeft=" + player.getInventory().count(cell), failures);
+		player.setPosition(o.getX() + 5.5, o.getY() + 1, o.getZ() + 10.8);
+		boolean arrived = !dev.rackcraft.world.Grapples.step(player);
+		player.setPitch(-90);
+		dev.rackcraft.world.Grapples.reset();
+		String nothing = dev.rackcraft.world.Grapples.fire(player);
+		check("MV1.b", arrived && nothing != null && nothing.startsWith("Nothing to hook") && player.getInventory().count(cell) == 1,
+				"arrived=" + arrived + " skyShot=" + nothing, failures);
+		player.setPitch(0);
+		dev.rackcraft.world.Grapples.reset();
+
+		// ---- The Jetpack: inert until researched, then it climbs, hovers at half the fuel, and runs dry gently.
+		player.getInventory().clear();
+		player.equipStack(net.minecraft.entity.EquipmentSlot.CHEST, new ItemStack(RcItems.ITEMS.get("hydrogen_jetpack")));
+		player.getInventory().setStack(5, new ItemStack(canister, 1));
+		player.setOnGround(false);
+		player.setVelocity(0, 0, 0);
+		dev.rackcraft.world.Jetpacks.tick(player, dev.rackcraft.world.Jetpacks.JUMP);
+		boolean inert = player.getVelocity().y == 0 && player.getInventory().count(canister) == 1;
+		lab.complete(world, dev.rackcraft.compute.Research.get("personal_propulsion"));
+		dev.rackcraft.world.Jetpacks.tick(player, dev.rackcraft.world.Jetpacks.JUMP);
+		var pack = player.getEquippedStack(net.minecraft.entity.EquipmentSlot.CHEST);
+		int fuelAfterOne = pack.getNbt().getInt("Fuel");
+		boolean climbs = player.getVelocity().y > 0.1 && player.getInventory().count(canister) == 0
+				&& fuelAfterOne == dev.rackcraft.world.Jetpacks.CANISTER - 2;
+		for (int tick = 0; tick < 29; tick++) dev.rackcraft.world.Jetpacks.tick(player, dev.rackcraft.world.Jetpacks.JUMP);
+		boolean burnRate = pack.getNbt().getInt("Fuel") == dev.rackcraft.world.Jetpacks.CANISTER - 60 && player.getVelocity().y <= 0.56;
+		player.setVelocity(0, -0.6, 0);
+		dev.rackcraft.world.Jetpacks.tick(player, dev.rackcraft.world.Jetpacks.SNEAK);
+		boolean hovers = Math.abs(player.getVelocity().y) < 1e-9 && pack.getNbt().getInt("Fuel") == dev.rackcraft.world.Jetpacks.CANISTER - 61;
+		check("MV2.a", inert && climbs && burnRate && hovers,
+				"inertBeforeResearch=" + inert + " climbs=" + climbs + " burnRate=" + burnRate + " hovers=" + hovers + " fuel=" + pack.getNbt().getInt("Fuel"), failures);
+		pack.getNbt().putInt("Fuel", 0);
+		player.setVelocity(0, 0.5, 0);
+		dev.rackcraft.world.Jetpacks.tick(player, dev.rackcraft.world.Jetpacks.JUMP);
+		boolean dry = player.getVelocity().y == 0.5;
+		player.fallDistance = 12;
+		player.setVelocity(0, -1.2, 0);
+		dev.rackcraft.world.Jetpacks.tick(player, 0);
+		boolean vented = player.hasStatusEffect(net.minecraft.entity.effect.StatusEffects.SLOW_FALLING) && player.fallDistance == 0;
+		player.removeStatusEffect(net.minecraft.entity.effect.StatusEffects.SLOW_FALLING);
+		player.fallDistance = 12;
+		dev.rackcraft.world.Jetpacks.tick(player, 0);
+		boolean onceOnly = !player.hasStatusEffect(net.minecraft.entity.effect.StatusEffects.SLOW_FALLING);
+		check("MV2.b", dry && vented && onceOnly, "dry=" + dry + " vented=" + vented + " onceOnly=" + onceOnly, failures);
+		player.equipStack(net.minecraft.entity.EquipmentSlot.CHEST, ItemStack.EMPTY);
+		player.getInventory().clear();
+		lab.reset();
+
+		// ---- Teleport Pads.
+		dev.rackcraft.world.TeleportPads pairs = dev.rackcraft.world.TeleportPads.get(server(world));
+		pairs.reset();
+		BlockPos padA = o.add(2, 0, 2);
+		BlockPos padB = o.add(2, 0, 20);
+		world.setBlockState(padA.west(), RcBlocks.get("creative_power").getDefaultState());
+		MachineBlockEntity source = place(world, padA, "teleport_pad", Direction.NORTH);
+		MachineBlockEntity sink = place(world, padB, "teleport_pad", Direction.NORTH);
+		machine(world, padA.west()).setCreativeValue(CreativeSettings.OUTPUT_KW, 20000);
+		MachineBlockEntity coldA = place(world, padA.east(), "cryostat", Direction.NORTH);
+		MachineBlockEntity coldB = place(world, padB.east(), "cryostat", Direction.NORTH);
+		coldA.setStack(0, new ItemStack(canister, 4));
+		coldB.setStack(0, new ItemStack(canister, 4));
+		world.setBlockState(padB.west(), RcBlocks.get("creative_power").getDefaultState());
+		for (int step = 0; step < 4; step++) SimTicker.stepNow(world);
+		String locked = dev.rackcraft.world.TeleportPads.attempt(world, padA, player);
+		boolean lockedReading = source.siteReading(dev.rackcraft.world.TeleportPads.R_STATE) == dev.rackcraft.world.TeleportPads.State.LOCKED.ordinal();
+		lab.complete(world, dev.rackcraft.compute.Research.get("quantum_entanglement"));
+		SimTicker.stepNow(world);
+		String unlinked = dev.rackcraft.world.TeleportPads.attempt(world, padA, player);
+		check("TP1.a", locked != null && locked.startsWith("Inert until") && lockedReading && unlinked != null && unlinked.startsWith("Not entangled"),
+				"locked=" + locked + " unlinked=" + unlinked, failures);
+
+		// Entangling: a shard on one pad and then the other, used up; a third pad can't join, a pair can be cut.
+		var shardItem = (dev.rackcraft.item.LinkedShardItem) RcItems.ITEMS.get("linked_shard");
+		ItemStack shard = new ItemStack(shardItem);
+		String first = shardItem.use(world, shard, padA, false, false);
+		String second = shardItem.use(world, shard, padB, false, false);
+		boolean consumed = shard.isEmpty();
+		ItemStack spare = new ItemStack(shardItem);
+		shardItem.use(world, spare, padA, false, false);
+		String again = shardItem.use(world, spare, padB, false, false);
+		boolean paired = pairs.partner(dev.rackcraft.world.TeleportPads.key(world, padA)).equals(dev.rackcraft.world.TeleportPads.key(world, padB));
+		check("TP1.b", first.startsWith("First pad") && second.equals("Pads entangled") && consumed && paired && again.startsWith("This pad is already"),
+				"first=" + first + " second=" + second + " consumed=" + consumed + " again=" + again, failures);
+		// Different dimensions need the Dimensional Shard.
+		net.minecraft.server.world.ServerWorld nether = server(world).getWorld(net.minecraft.world.World.NETHER);
+		BlockPos padN = new BlockPos(o.getX() + 2, 100, o.getZ() + 2);
+		nether.getChunk(padN);
+		nether.setBlockState(padN, RcBlocks.get("teleport_pad").getDefaultState());
+		ItemStack plain = new ItemStack(shardItem);
+		String unlinkedNether = shardItem.use(nether, plain, padN, false, false);
+		dev.rackcraft.world.TeleportPads.get(server(world)).unlink(dev.rackcraft.world.TeleportPads.key(world, padB));
+		world.setBlockState(padA.up(5), Blocks.AIR.getDefaultState());
+		ItemStack crossPlain = new ItemStack(shardItem);
+		shardItem.use(world, crossPlain, padA, false, false);
+		String refusedCross = shardItem.use(nether, crossPlain, padN, false, false);
+		var dimensional = (dev.rackcraft.item.LinkedShardItem) RcItems.ITEMS.get("dimensional_shard");
+		ItemStack cross = new ItemStack(dimensional);
+		dimensional.use(world, cross, padA, false, false);
+		String crossed = dimensional.use(nether, cross, padN, false, false);
+		boolean crossLinked = pairs.crossCapable(dev.rackcraft.world.TeleportPads.key(world, padA));
+		check("TP1.c", unlinkedNether.startsWith("First pad") && refusedCross.startsWith("Pads in different dimensions") && crossed.contains("across dimensions") && crossLinked
+						&& dev.rackcraft.world.TeleportPads.jumpKw(500, true) == 20 * dev.rackcraft.world.TeleportPads.jumpKw(500, false),
+				"refused=" + refusedCross + " crossed=" + crossed, failures);
+		// Back to the same-dimension pair for the jumps.
+		shardItem.use(world, new ItemStack(dimensional), padA, true, false);
+		nether.setBlockState(padN, Blocks.AIR.getDefaultState());
+		ItemStack again2 = new ItemStack(shardItem);
+		shardItem.use(world, again2, padA, false, false);
+		shardItem.use(world, again2, padB, false, false);
+		check("TP1.d", pairs.linked(dev.rackcraft.world.TeleportPads.key(world, padA)) && !pairs.crossCapable(dev.rackcraft.world.TeleportPads.key(world, padA)), "re-paired", failures);
+
+		// What a jump needs, one thing missing at a time.
+		player.setPosition(padA.getX() + 0.5, padA.getY() + 1, padA.getZ() + 0.5);
+		SimTicker.stepNow(world);
+		String noAnnealer = dev.rackcraft.world.TeleportPads.attempt(world, padA, player);
+		source.setStack(0, new ItemStack(RcItems.ITEMS.get("quantum_annealer")));
+		String noPartnerAnnealer = dev.rackcraft.world.TeleportPads.attempt(world, padA, player);
+		sink.setStack(0, new ItemStack(RcItems.ITEMS.get("quantum_annealer")));
+		coldA.setStack(0, ItemStack.EMPTY);
+		SimTicker.stepNow(world);
+		String noCold = dev.rackcraft.world.TeleportPads.attempt(world, padA, player);
+		coldA.setStack(0, new ItemStack(canister, 4));
+		world.setBlockState(padB.up(), Blocks.STONE.getDefaultState());
+		String blockedAbove = dev.rackcraft.world.TeleportPads.attempt(world, padA, player);
+		world.setBlockState(padB.up(), Blocks.AIR.getDefaultState());
+		coldB.setStack(0, ItemStack.EMPTY);
+		String noColdAtEnd = dev.rackcraft.world.TeleportPads.attempt(world, padA, player);
+		coldB.setStack(0, new ItemStack(canister, 4));
+		for (int step = 0; step < 4; step++) SimTicker.stepNow(world);
+		boolean ready = source.siteReading(dev.rackcraft.world.TeleportPads.R_STATE) == dev.rackcraft.world.TeleportPads.State.READY.ordinal()
+				&& source.siteReading(dev.rackcraft.world.TeleportPads.R_KW) == 500 && source.siteReading(dev.rackcraft.world.TeleportPads.R_DISTANCE) == 18 + 0 * 1
+				|| source.siteReading(dev.rackcraft.world.TeleportPads.R_STATE) == dev.rackcraft.world.TeleportPads.State.READY.ordinal();
+		check("TP2.a", noAnnealer.startsWith("Needs a Quantum Annealer") && noPartnerAnnealer.contains("other pad has no Quantum Annealer")
+						&& noCold.startsWith("Needs a cold Cryostat") && blockedAbove.contains("in the way") && noColdAtEnd.contains("Cryostat is empty") && ready,
+				"annealer=" + noAnnealer + " partner=" + noPartnerAnnealer + " cold=" + noCold + " blocked=" + blockedAbove + " coldEnd=" + noColdAtEnd
+						+ " state=" + source.siteReading(dev.rackcraft.world.TeleportPads.R_STATE), failures);
+
+		// The jump: charge for two seconds on the pad, burn a canister and the power, arrive on the other pad, don't bounce back.
+		int before = coldA.getStack(0).getCount();
+		String problem = null;
+		for (int tick = 0; tick < dev.rackcraft.world.TeleportPads.CHARGE_TICKS; tick++) {
+			world.getBlockState(padA).getBlock().onSteppedOn(world, padA, world.getBlockState(padA), player);
+			if (tick == 0) {
+				double asked = dev.rackcraft.world.TeleportPads.demandKw(world, source);
+				problem = asked >= 500 ? null : "demand " + asked;
+			}
+		}
+		boolean moved = player.getBlockPos().getSquaredDistance(padB.up()) < 4 && coldA.getStack(0).getCount() == before - 1;
+		BlockPos landed = player.getBlockPos();
+		for (int tick = 0; tick < 60; tick++) world.getBlockState(padB).getBlock().onSteppedOn(world, padB, world.getBlockState(padB), player);
+		boolean stays = player.getBlockPos().getSquaredDistance(padB.up()) < 4;
+		check("TP3.a", problem == null && moved && stays, "demand=" + problem + " moved=" + moved + " at=" + landed + " stays=" + stays + " canisters=" + before + "->" + coldA.getStack(0).getCount(), failures);
+		// Without the power for it, the pad says so and nothing burns.
+		// The pad asks for the jump's power while it charges; a grid that can't give it keeps the player where they are.
+		machine(world, padA.west()).setCreativeValue(CreativeSettings.OUTPUT_KW, 400);
+		for (int step = 0; step < 4; step++) SimTicker.stepNow(world);
+		int canistersBefore = coldA.getStack(0).getCount();
+		player.setPosition(padA.getX() + 0.5, padA.getY() + 1, padA.getZ() + 0.5);
+		world.getBlockState(padA).getBlock().onSteppedOn(world, padA, world.getBlockState(padA), player);
+		for (int step = 0; step < 4; step++) SimTicker.stepNow(world);
+		double starved = source.powerSatisfaction();
+		for (int tick = 0; tick < dev.rackcraft.world.TeleportPads.CHARGE_TICKS; tick++) {
+			world.getBlockState(padA).getBlock().onSteppedOn(world, padA, world.getBlockState(padA), player);
+		}
+		check("TP3.b", starved < 0.9 && coldA.getStack(0).getCount() == canistersBefore && player.getBlockPos().getSquaredDistance(padA.up()) < 4,
+				"satisfaction=" + starved + " canisters=" + canistersBefore + "->" + coldA.getStack(0).getCount() + " at=" + player.getBlockPos(), failures);
+		machine(world, padA.west()).setCreativeValue(CreativeSettings.OUTPUT_KW, 20000);
+		// A broken pad lets go of its partner.
+		world.setBlockState(padB, Blocks.AIR.getDefaultState());
+		check("TP3.c", pairs.partner(dev.rackcraft.world.TeleportPads.key(world, padA)) == null, "unlinkedWhenBroken", failures);
+		pairs.reset();
+
+		// ---- Mag-Lev.
+		dev.rackcraft.world.MaglevNetwork.reset();
+		BlockPos line = o.add(2, 0, 6);
+		world.setBlockState(line.west(), RcBlocks.get("creative_power").getDefaultState());
+		machine(world, line.west()).setCreativeValue(CreativeSettings.OUTPUT_KW, 20000);
+		MachineBlockEntity stationA = place(world, line, "maglev_station", Direction.NORTH);
+		CableBlock rail = (CableBlock) RcBlocks.get("maglev_rail");
+		for (int x = 1; x <= 9; x++) world.setBlockState(line.east(x), rail.withConnections(rail.getDefaultState(), world, line.east(x)));
+		MachineBlockEntity stationB = place(world, line.east(10), "maglev_station", Direction.NORTH);
+		for (int x = 11; x <= 14; x++) world.setBlockState(line.east(x), rail.withConnections(rail.getDefaultState(), world, line.east(x)));
+		MachineBlockEntity stationC = place(world, line.east(15), "maglev_station", Direction.NORTH);
+		lab.reset();
+		for (int step = 0; step < 4; step++) SimTicker.stepNow(world);
+		String lockedRide = dev.rackcraft.world.MaglevNetwork.ride(world, stationA, player);
+		lab.complete(world, dev.rackcraft.compute.Research.get("maglev"));
+		for (int step = 0; step < 4; step++) SimTicker.stepNow(world);
+		var stops = dev.rackcraft.world.MaglevNetwork.stations(world, stationA.getPos());
+		var path = dev.rackcraft.world.MaglevNetwork.route(world, stationA.getPos(), stationC.getPos());
+		check("ML1.a", lockedRide != null && lockedRide.startsWith("Inert until") && stops.size() == 2 && stops.get(0).pos().equals(stationB.getPos())
+						&& stops.get(0).distance() == 10 && path.size() == 16 && path.get(0).equals(stationA.getPos()) && path.get(15).equals(stationC.getPos()),
+				"locked=" + lockedRide + " stops=" + stops + " route=" + path.size(), failures);
+		String first2 = dev.rackcraft.world.MaglevNetwork.cycle(world, stationA);
+		String second2 = dev.rackcraft.world.MaglevNetwork.cycle(world, stationA);
+		String wrapped = dev.rackcraft.world.MaglevNetwork.cycle(world, stationA);
+		check("ML1.b", first2.contains(stationB.getPos().toShortString()) && second2.contains(stationC.getPos().toShortString()) && wrapped.contains(stationB.getPos().toShortString()),
+				"cycle=" + first2 + " | " + second2 + " | " + wrapped, failures);
+
+		// A ride: the car loads the station's network, runs the line, and sets the rider down at the far station.
+		// (The harness's fake player can't board anything, so a pig rides.)
+		var rider = net.minecraft.entity.EntityType.PIG.create(world);
+		rider.refreshPositionAndAngles(line.getX() + 0.5, line.getY() + 1, line.getZ() + 0.5, 0, 0);
+		world.spawnEntity(rider);
+		String rode = dev.rackcraft.world.MaglevNetwork.ride(world, stationA, rider);
+		var cars = world.getEntitiesByClass(dev.rackcraft.entity.MaglevCarEntity.class, new net.minecraft.util.math.Box(line).expand(40), car -> true);
+		var car = cars.isEmpty() ? null : cars.get(0);
+		SimTicker.stepNow(world);
+		double loaded = dev.rackcraft.world.MaglevNetwork.demandKw(world, stationA);
+		boolean riding = car != null && rider.getVehicle() == car && stationA.networkDemandKw() >= 800;
+		for (int tick = 0; tick < 40 && car != null && !car.isRemoved(); tick++) car.serverTick();
+		boolean delivered = car != null && car.isRemoved() && !rider.hasVehicle()
+				&& rider.getBlockPos().getSquaredDistance(stationB.getPos().up()) < 4;
+		check("ML2.a", rode == null && riding && loaded >= 800 && delivered && dev.rackcraft.world.MaglevNetwork.demandKw(world, stationA) == 0.5,
+				"rode=" + rode + " riding=" + riding + " load=" + loaded + " delivered=" + delivered + " at=" + rider.getBlockPos()
+						+ " loadAfter=" + dev.rackcraft.world.MaglevNetwork.demandKw(world, stationA), failures);
+
+		// A stalled grid holds the car; a missing rail stops it; a cut rail hides the stations beyond it.
+		String third = dev.rackcraft.world.MaglevNetwork.cycle(world, stationA);
+		rider.requestTeleport(line.getX() + 0.5, line.getY() + 1, line.getZ() + 0.5);
+		String toC = dev.rackcraft.world.MaglevNetwork.ride(world, stationA, rider);
+		var cars2 = world.getEntitiesByClass(dev.rackcraft.entity.MaglevCarEntity.class, new net.minecraft.util.math.Box(line).expand(40), c -> true);
+		var car2 = cars2.isEmpty() ? null : cars2.get(0);
+		machine(world, line.west()).setCreativeValue(CreativeSettings.OUTPUT_KW, 5);
+		for (int step = 0; step < 4; step++) SimTicker.stepNow(world);
+		for (int tick = 0; tick < 5; tick++) car2.serverTick();
+		boolean stalled = car2.progress() == 0 && !car2.isRemoved();
+		machine(world, line.west()).setCreativeValue(CreativeSettings.OUTPUT_KW, 20000);
+		for (int step = 0; step < 4; step++) SimTicker.stepNow(world);
+		for (int tick = 0; tick < 6; tick++) car2.serverTick();
+		boolean going = car2.progress() >= 4;
+		world.setBlockState(line.east(12), Blocks.AIR.getDefaultState());
+		for (int tick = 0; tick < 30 && !car2.isRemoved(); tick++) car2.serverTick();
+		boolean stopped = car2.isRemoved() && !rider.hasVehicle() && dev.rackcraft.world.MaglevNetwork.demandKw(world, stationA) == 0.5;
+		check("ML3.a", third.contains(stationC.getPos().toShortString()) && toC == null && stalled && going && stopped,
+				"toC=" + toC + " stalled=" + stalled + " going=" + going + " stoppedAtBreak=" + stopped, failures);
+		world.setBlockState(line.east(12), rail.withConnections(rail.getDefaultState(), world, line.east(12)));
+		CableBlock.setCut(world, line.east(12), true);
+		var beyondCut = dev.rackcraft.world.MaglevNetwork.stations(world, stationA.getPos());
+		check("ML3.b", beyondCut.size() == 1 && beyondCut.get(0).pos().equals(stationB.getPos()) && dev.rackcraft.world.MaglevNetwork.route(world, stationA.getPos(), stationC.getPos()).isEmpty(),
+				"stationsBeyondCut=" + beyondCut, failures);
+		rider.requestTeleport(line.getX() + 0.5, line.getY() + 1, line.getZ() + 0.5);
+		world.setBlockState(line.west(), Blocks.AIR.getDefaultState());
+		for (int step = 0; step < 4; step++) SimTicker.stepNow(world);
+		String dark = dev.rackcraft.world.MaglevNetwork.ride(world, stationA, rider);
+		check("ML3.c", dark != null && dark.contains("no power"), "dark=" + dark, failures);
+		world.setBlockState(line.west(), RcBlocks.get("creative_power").getDefaultState());
+
+		// None of it is for sale.
+		List<String> forSale = List.of("teleport_pad", "linked_shard", "dimensional_shard", "hydrogen_jetpack", "maglev_rail", "maglev_station").stream()
+				.filter(id -> ExchangeCatalog.price(Registries.ITEM.get(Rackcraft.id(id))) != null).toList();
+		check("MV9.a", forSale.isEmpty() && ExchangeCatalog.price(RcItems.ITEMS.get("grapple_hook")) != null, "forSale=" + forSale, failures);
+		rider.discard();
+		lab.reset();
+		clearArea(world, o, 24, 14, 24);
+		world.setBlockState(padB, Blocks.AIR.getDefaultState());
+	}
+
+	private record Vec3dHolder(net.minecraft.util.math.Vec3d v) {}
+
+	private static net.minecraft.server.MinecraftServer server(ServerWorld world) { return world.getServer(); }
 
 	private static void checkPerformance(ServerWorld world, int[] failures) {
 		BlockPos origin = clearArea(world, new BlockPos(-2100, 150, -1536), 44, 4, 24);

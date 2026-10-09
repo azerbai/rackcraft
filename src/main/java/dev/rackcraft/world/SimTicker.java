@@ -250,6 +250,7 @@ public final class SimTicker {
 		List<ComputePods.Pod> pods = ComputePods.scan(world, machines);
 		Set<MachineBlockEntity> podHeld = ComputePods.apply(machines, pods);
 		ComputePods.idle(world, machines, pods);
+		TeleportPads.step(world, machines);
 		int overclockCap = Overclocking.cap(world);
 		boolean overclockCooling = ResearchLab.get(world).done(Overclocking.COOLING);
 		for (MachineBlockEntity rack : machines) {
@@ -650,6 +651,8 @@ public final class SimTicker {
 		return switch (machine.blockId()) {
 			case "cryostat" -> Cryostats.KW;
 			case "pod_port" -> 0.5;
+			case "teleport_pad" -> machine.getWorld() instanceof ServerWorld padWorld ? TeleportPads.demandKw(padWorld, machine) : 1;
+			case "maglev_station" -> machine.getWorld() instanceof ServerWorld stationWorld ? MaglevNetwork.demandKw(stationWorld, machine) : 0.5;
 			case "power_beacon" -> machine.getWorld() instanceof ServerWorld beaconWorld ? WirelessPower.beaconDemandKw(beaconWorld, machine) : 0;
 			case "exhaust_fan" -> 0.2;
 			case "cooling_tower" -> 4;

@@ -173,7 +173,7 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 				"rear_door_cooler", "dry_cooler", "chiller", "water_heat_exchanger", "desalination_plant", "grid_substation",
 				"welding_arm", "riveting_arm", "assembly_arm", "drone_dock", "launch_control", "rectenna",
 				"solar_array", "solar_array_tracking", "wind_nacelle", "tower_section", "site_planner", "cryostat", "procurement_wall",
-				"pylon", "superconducting_pylon", "power_beacon", "beacon_receiver", "pod_port")
+				"pylon", "superconducting_pylon", "power_beacon", "beacon_receiver", "pod_port", "teleport_pad", "maglev_station")
 				.contains(id) || ServerModel.Tier.isRack(id)) kinds.add(NetKind.POWER);
 		// The coolant loop: racks (liquid-cooled modules) and reactors put heat in; towers, coolers and chillers take it out.
 		if (COOLANT_MACHINES.contains(id)) kinds.add(NetKind.COOLANT);
@@ -260,6 +260,7 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 			// away starter hardware.
 			return slot < tier.bays() && tier.accepts(Racks.module(stack));
 		}
+		if (blockId.equals("teleport_pad")) return slot == 0 && stack.isOf(dev.rackcraft.RcItems.ITEMS.get("quantum_annealer"));
 		if (blockId.equals("pod_port")) return slot == 0 && stack.isOf(dev.rackcraft.RcItems.ITEMS.get("photonic_chip"));
 		if (blockId.equals("cryostat")) return slot == 0 && stack.isOf(dev.rackcraft.RcItems.ITEMS.get("hydrogen_canister"));
 		if (blockId.equals("diesel_generator")) return slot == 0;
@@ -551,7 +552,7 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 			case "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer", "wafer_fab", "silicon_foundry", "ewaste_recycler", "electrolyser",
 					"cvd_furnace", "epitaxy_reactor" -> MachineScreenHandler.Mode.PROCESSOR;
 			case "welding_arm", "riveting_arm", "assembly_arm", "drone_dock", "belt_loader", "belt_unloader", "storage_exporter", "hydrogen_tank",
-					"cryostat", "pod_port" -> MachineScreenHandler.Mode.WORKCELL;
+					"cryostat", "pod_port", "teleport_pad" -> MachineScreenHandler.Mode.WORKCELL;
 			case "launch_control" -> MachineScreenHandler.Mode.LAUNCH;
 			case "site_planner" -> MachineScreenHandler.Mode.SITE;
 			case "crypto_exchange" -> MachineScreenHandler.Mode.EXCHANGE;
