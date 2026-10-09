@@ -7,7 +7,10 @@ import dev.rackcraft.screen.MachineScreenHandler.Stat;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.tooltip.Tooltip;
 import net.minecraft.client.gui.widget.ButtonWidget;
+import net.minecraft.registry.Registries;
+import net.minecraft.util.Identifier;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.text.Text;
 
@@ -26,6 +29,9 @@ public final class RackScreen extends RackcraftHandledScreen {
 	private static final int[] LIMITS = {25, 50, 75, 100};
 	private final List<ButtonWidget> limitButtons = new ArrayList<>();
 	private boolean hintCut;
+	/** 0 fills with the best module on hand (or what the rack already holds); n fills with the nth kind the rack accepts. */
+	private int fillChoice;
+	private ButtonWidget moduleButton;
 
 	/** A reading with an explanation shown on hover. */
 	private record Reading(String label, String value, int color, String help) {}
@@ -51,6 +57,20 @@ public final class RackScreen extends RackcraftHandledScreen {
 					ClientNet.setLoadLimit(handler.pos(), limit))
 					.dimensions(left + right + 32 + index * 39, top + 157, 36, 16).build()));
 		}
+		addDrawableChild(ButtonWidget.builder(Text.literal("Fill"), button -> click(MachineScreenHandler.FILL_BUTTON + fillChoice))
+				.dimensions(left + right, top + 174, 36, 14).tooltip(Tooltip.of(Text.literal(
+						"Fill every empty bay from the storage on this rack's fiber network, then from your inventory."
+								+ " Use the module button to pick what goes in."))).build());
+		moduleButton = addDrawableChild(ButtonWidget.builder(Text.literal("Best"), button -> {
+			fillChoice = (fillChoice + 1) % (handler.fillChoices().size() + 1);
+		}).dimensions(left + right + 38, top + 174, 112, 14).build());
+		addDrawableChild(ButtonWidget.builder(Text.literal("Empty"), button -> click(MachineScreenHandler.EMPTY_BUTTON))
+				.dimensions(left + right + 152, top + 174, 36, 14).tooltip(Tooltip.of(Text.literal(
+						"Take every module out, into storage if the rack's network has room, else into your inventory."))).build());
+	}
+
+	private void click(int button) {
+		if (client != null && client.interactionManager != null) client.interactionManager.clickButton(handler.syncId, button);
 	}
 
 	@Override
@@ -58,6 +78,13 @@ public final class RackScreen extends RackcraftHandledScreen {
 		// The current limit's button is shown pressed (inactive), so you can see which one is set.
 		int current = stat(Stat.LOAD_LIMIT);
 		for (int index = 0; index < limitButtons.size(); index++) limitButtons.get(index).active = LIMITS[index] != current;
+		List<String> kinds = handler.fillChoices();
+		if (fillChoice > kinds.size()) fillChoice = 0;
+		moduleButton.setMessage(Text.literal(textRenderer.trimToWidth(
+				fillChoice == 0 ? "Best on hand" : shortName(kinds.get(fillChoice - 1)), 104)));
+		moduleButton.setTooltip(Tooltip.of(Text.literal(fillChoice == 0
+				? "Fills with whatever the rack already holds, else the best module on hand. Click to pick a kind."
+				: "Fills with " + shortName(kinds.get(fillChoice - 1)) + " only. Click for the next kind.")));
 		super.render(context, mouseX, mouseY, delta);
 		int left = (width - backgroundWidth) / 2;
 		int top = (height - backgroundHeight) / 2;
@@ -79,6 +106,10 @@ public final class RackScreen extends RackcraftHandledScreen {
 				return;
 			}
 		}
+	}
+
+	private String shortName(String itemId) {
+		return Registries.ITEM.get(new Identifier("rackcraft", itemId)).getName().getString();
 	}
 
 	private List<Reading> readings() {

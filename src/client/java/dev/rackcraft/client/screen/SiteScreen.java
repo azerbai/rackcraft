@@ -9,7 +9,9 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.ItemStack;
+import dev.rackcraft.sim.ServerModel;
 import net.minecraft.registry.Registries;
+import net.minecraft.util.Identifier;
 import net.minecraft.text.Text;
 
 /**
@@ -23,9 +25,11 @@ public final class SiteScreen extends RackcraftHandledScreen {
 	private ButtonWidget layout;
 	private ButtonWidget buy;
 	private ButtonWidget docks;
+	private ButtonWidget hallRack;
+	private ButtonWidget hallModule;
 
 	public SiteScreen(MachineScreenHandler handler, PlayerInventory inventory, Text title) {
-		super(handler, inventory, title, WIDTH, 264);
+		super(handler, inventory, title, WIDTH, 284);
 	}
 
 	@Override
@@ -39,6 +43,10 @@ public final class SiteScreen extends RackcraftHandledScreen {
 				.dimensions(x + WIDTH - 60, y + 53, 52, 12).build());
 		docks = addDrawableChild(ButtonWidget.builder(Text.literal("Docks"), button -> click(MachineScreenHandler.DOCK_BUTTON))
 				.dimensions(x + WIDTH - 60, y + 66, 52, 12).build());
+		hallRack = addDrawableChild(ButtonWidget.builder(Text.literal("Rack"), button -> click(MachineScreenHandler.HALL_RACK_BUTTON))
+				.dimensions(x + 8, y + 146, 76, 14).build());
+		hallModule = addDrawableChild(ButtonWidget.builder(Text.literal("Module"), button -> click(MachineScreenHandler.HALL_MODULE_BUTTON))
+				.dimensions(x + 88, y + 146, 80, 14).build());
 	}
 
 	private void click(int button) {
@@ -59,6 +67,19 @@ public final class SiteScreen extends RackcraftHandledScreen {
 		start.setMessage(Text.literal(running ? "Pause" : "Start"));
 		start.active = hasSite && phase != SitePlanner.Phase.DONE || running;
 		layout.active = !running;
+		boolean hall = chosen == SitePlanner.Layout.HALL;
+		hallRack.active = hall && !running;
+		hallModule.active = hall && !running;
+		ServerModel.Tier[] tiers = ServerModel.Tier.values();
+		String rackName = new ItemStack(Registries.ITEM.get(new Identifier("rackcraft",
+				tiers[Math.max(0, Math.min(tiers.length - 1, site(SitePlanner.R_HALL_RACK)))].blockId()))).getName().getString();
+		String moduleName = new ItemStack(Registries.ITEM.get(site(SitePlanner.R_HALL_MODULE))).getName().getString();
+		hallRack.setMessage(Text.literal(textRenderer.trimToWidth(rackName, 68)));
+		hallModule.setMessage(Text.literal(textRenderer.trimToWidth(moduleName, 72)));
+		String tip = "Data Hall blueprint (Data Hall layout only): ";
+		hallRack.setTooltip(net.minecraft.client.gui.tooltip.Tooltip.of(Text.literal(tip + "the rack tier every rack in the hall is built from: " + rackName
+				+ ". Higher tiers take only better modules; the hall adds Chillers as the racks get hotter.")));
+		hallModule.setTooltip(net.minecraft.client.gui.tooltip.Tooltip.of(Text.literal(tip + "the module that fills every bay: " + moduleName + ".")));
 		boolean docking = site(SitePlanner.R_DOCKING) != 0;
 		docks.setMessage(Text.literal(docking ? "Docks: On" : "Docks: Off"));
 		docks.setTooltip(net.minecraft.client.gui.tooltip.Tooltip.of(Text.literal(

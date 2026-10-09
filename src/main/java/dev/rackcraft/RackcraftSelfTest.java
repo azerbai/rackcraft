@@ -155,6 +155,7 @@ public final class RackcraftSelfTest {
 		checkRenewables(world, failures);
 		checkStorageLogistics(world, failures);
 		checkSiteConstruction(world, failures);
+		checkRackFill(world, failures);
 		checkAdvancedHardware(world, failures);
 		checkPerformance(world, failures);
 		checkStructures(world, failures);
@@ -1468,6 +1469,54 @@ public final class RackcraftSelfTest {
 	}
 
 	/**
+	 * Filling racks: an Exascale Cabinet on the same fiber as a storage array fills from it (the best module first, and
+	 * only modules its tier accepts), then from a player's inventory when told which kind; Empty files them all back.
+	 * A Data Hall blueprint's Exascale / Photonic cores size their Chillers to the heat.
+	 */
+	private static void checkRackFill(ServerWorld world, int[] failures) {
+		BlockPos origin = clearArea(world, new BlockPos(-2400, 150, -1600), 12, 6, 6);
+		world.setBlockState(origin, RcBlocks.get("creative_power").getDefaultState());
+		MachineBlockEntity array = place(world, origin.east(), "storage_array", Direction.NORTH);
+		array.setStack(0, new ItemStack(RcItems.ITEMS.get("drive_4k")));
+		CableBlock fiber = (CableBlock) RcBlocks.get("fiber_cable");
+		for (int dx = 2; dx <= 4; dx++) {
+			BlockPos pos = origin.east(dx);
+			world.setBlockState(pos, fiber.withConnections(fiber.getDefaultState(), world, pos));
+		}
+		MachineBlockEntity cabinet = place(world, origin.east(5), "exascale_cabinet", Direction.NORTH);
+		SimTicker.stepNow(world);
+		var storage = dev.rackcraft.storage.StorageService.networkAt(world, cabinet.getPos());
+		storage.insert(dev.rackcraft.storage.ItemKey.of(RcItems.ITEMS.get("pi_node")), 5, false);
+		storage.insert(dev.rackcraft.storage.ItemKey.of(RcItems.ITEMS.get("gpu_blade")), 20, false);
+		storage.insert(dev.rackcraft.storage.ItemKey.of(RcItems.ITEMS.get("quantum_core")), 6, false);
+		int best = dev.rackcraft.block.Racks.fill(cabinet, storage, null, 0);
+		boolean quantum = true;
+		for (int bay = 0; bay < 6; bay++) quantum &= cabinet.getStack(bay).isOf(RcItems.ITEMS.get("quantum_core"));
+		check("RF1.a", best == 6 && quantum && storage.count(dev.rackcraft.storage.ItemKey.of(RcItems.ITEMS.get("quantum_core")), true) == 0,
+				"filled=" + best + " quantum=" + quantum, failures);
+		int gpuChoice = dev.rackcraft.block.Racks.fillChoices(dev.rackcraft.sim.ServerModel.Tier.EXASCALE).indexOf("gpu_blade") + 1;
+		int rest = dev.rackcraft.block.Racks.fill(cabinet, storage, null, gpuChoice);
+		boolean noStarter = true;
+		for (int bay = 0; bay < 24; bay++) noStarter &= !cabinet.getStack(bay).isOf(RcItems.ITEMS.get("pi_node"));
+		check("RF1.b", rest == 18 && noStarter && storage.count(dev.rackcraft.storage.ItemKey.of(RcItems.ITEMS.get("gpu_blade")), true) == 2
+				&& storage.count(dev.rackcraft.storage.ItemKey.of(RcItems.ITEMS.get("pi_node")), true) == 5,
+				"filled=" + rest + " starterIn=" + !noStarter, failures);
+		int out = dev.rackcraft.block.Racks.empty(cabinet, storage, null);
+		check("RF1.c", out == 24 && cabinet.getStack(0).isEmpty() && storage.count(dev.rackcraft.storage.ItemKey.of(RcItems.ITEMS.get("gpu_blade")), true) == 20,
+				"emptied=" + out, failures);
+		// Data Hall blueprints: the default is the old hall; a hotter blueprint gets more Chillers.
+		MachineBlockEntity planner = place(world, origin.add(0, 2, 3), "site_planner", Direction.NORTH);
+		var hall = dev.rackcraft.world.SitePlanner.hall(planner);
+		dev.rackcraft.world.SitePlanner.cycleHallRack(planner);
+		dev.rackcraft.world.SitePlanner.cycleHallRack(planner);
+		dev.rackcraft.world.SitePlanner.cycleHallRack(planner);
+		var cabinets = dev.rackcraft.world.SitePlanner.hall(planner);
+		check("RF2.a", hall.tier() == dev.rackcraft.sim.ServerModel.Tier.SERVER && hall.module().equals("quantum_core") && hall.chillers() == 2
+				&& cabinets.tier() == dev.rackcraft.sim.ServerModel.Tier.EXASCALE && cabinets.chillers() > 2,
+				"default=" + hall + " chillers=" + hall.chillers() + " exascale=" + cabinets + " chillers=" + cabinets.chillers(), failures);
+	}
+
+	/**
 	 * Storage logistics: a Belt Loader takes items from storage onto a belt and a Belt Unloader files them back, with
 	 * nothing lost; a Drone Dock on the same storage replaces a failed GPU Blade with a GPU Blade from storage (not the
 	 * Pi Node sitting in the dock), and files the dead module away.
@@ -1740,6 +1789,36 @@ public final class RackcraftSelfTest {
 						&& planner.site().getLong("Spent") > before + 16 * 8 * 100_000L,
 				"racks=" + racks + " mining=" + mining + " worstInlet=" + worstInlet + " heatToAir=" + toAir + " rate=" + rate
 						+ " status=" + planner.processStatus() + " spent=" + (planner.site().getLong("Spent") - before), failures);
+
+		// The same hall again from a blueprint: Exascale Cabinets of GPU Blades, with the cabinets brought in by hand
+		// (the Exchange doesn't sell them). The cooling has to grow to match.
+		for (BlockPos pos : BlockPos.iterate(origin.add(-2, 1, -2), origin.add(14, 34, 10))) {
+			if (!world.getBlockState(pos).isAir() && !pos.equals(plannerPos) && !pos.equals(plannerPos.north())) world.setBlockState(pos, Blocks.AIR.getDefaultState());
+		}
+		world.getEntitiesByClass(net.minecraft.entity.ItemEntity.class, new net.minecraft.util.math.Box(origin).expand(60), item -> true)
+				.forEach(net.minecraft.entity.Entity::discard);
+		dev.rackcraft.world.SitePlanner.toggleRunning(planner);
+		planner.site().putString("HallRack", "exascale_cabinet");
+		planner.site().putString("HallModule", "gpu_blade");
+		planner.setStack(3, new ItemStack(RcBlocks.get("exascale_cabinet").asItem(), 16));
+		dev.rackcraft.world.SitePlanner.setArea(planner, origin.add(2, 0, 2), origin.add(5, 0, 6));
+		FacilityManager.get(world).addCredits(200_000_000);
+		dev.rackcraft.world.SitePlanner.toggleRunning(planner);
+		runSite(world, planner);
+		for (int step = 0; step < 6; step++) SimTicker.stepNow(world);
+		int cabinets = 0, cabinetsMining = 0;
+		double hallInlet = 0;
+		for (BlockPos pos : BlockPos.iterate(origin.add(2, 1, 3), origin.add(5, 2, 5))) {
+			if (!(world.getBlockEntity(pos) instanceof MachineBlockEntity hallRack) || !hallRack.blockId().equals("exascale_cabinet")) continue;
+			cabinets++;
+			boolean full = true;
+			for (int bay = 0; bay < 24; bay++) full &= hallRack.getStack(bay).isOf(RcItems.ITEMS.get("gpu_blade"));
+			if (full && hallRack.rackStatus() == RackStatus.MINING) cabinetsMining++;
+			hallInlet = Math.max(hallInlet, hallRack.inletCelsius());
+		}
+		check("SC4.b", cabinets == 16 && cabinetsMining == 16 && hallInlet < 27
+						&& planner.processStatus() == dev.rackcraft.world.SitePlanner.Status.DONE.ordinal(),
+				"cabinets=" + cabinets + " mining=" + cabinetsMining + " inlet=" + hallInlet + " status=" + planner.processStatus(), failures);
 
 		world.getEntitiesByClass(net.minecraft.entity.ItemEntity.class, new net.minecraft.util.math.Box(origin).expand(60), item -> true)
 				.forEach(net.minecraft.entity.Entity::discard);

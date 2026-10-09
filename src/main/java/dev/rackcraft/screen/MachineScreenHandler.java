@@ -78,6 +78,7 @@ public final class MachineScreenHandler extends ScreenHandler {
 			// A Server Rack's eight bays sit in two columns of four; bigger racks pack theirs in columns of six.
 			String id = net.minecraft.registry.Registries.BLOCK.getId(playerInventory.player.getWorld().getBlockState(pos).getBlock()).getPath();
 			dev.rackcraft.sim.ServerModel.Tier tier = dev.rackcraft.sim.ServerModel.Tier.of(id);
+			this.tier = tier;
 			bays = tier == null ? dev.rackcraft.sim.ServerModel.BAYS : tier.bays();
 			for (int index = 0; index < bays; index++) {
 				addSlot(new MachineSlot(machineInventory, index, 13 + bayColumn(index) * baySpacing(), 46 + bayRow(index) * baySpacing()));
@@ -119,8 +120,8 @@ public final class MachineScreenHandler extends ScreenHandler {
 			addPlayerInventory(playerInventory, 8, 152);
 		} else if (mode == Mode.SITE) {
 			// Drones, terraformers and hydrogen, then six material slots, in one row under the readouts.
-			for (int index = 0; index < 9; index++) addSlot(new MachineSlot(machineInventory, index, 8 + index * 18, 146));
-			addPlayerInventory(playerInventory, 8, 182);
+			for (int index = 0; index < 9; index++) addSlot(new MachineSlot(machineInventory, index, 8 + index * 18, 166));
+			addPlayerInventory(playerInventory, 8, 202);
 		} else if (mode == Mode.LAUNCH) {
 			// Three stage slots, the payload, and hydrogen in.
 			// A wider panel than most (230), so the readouts fit; the player's inventory sits in the middle of it.
@@ -195,8 +196,41 @@ public final class MachineScreenHandler extends ScreenHandler {
 	/** Button 5 on a Site Planner: place and stock Drone Docks for the site, or stop. */
 	public static final int DOCK_BUTTON = 5;
 
+	/** Button 6 and 7 on a Site Planner: the next rack tier and the next module for a Data Hall blueprint. */
+	public static final int HALL_RACK_BUTTON = 6;
+	public static final int HALL_MODULE_BUTTON = 7;
+	/** Button 99 on a rack: take every module out. Buttons 100 and up fill: 100 + 0 automatic, 100 + n the nth module kind. */
+	public static final int EMPTY_BUTTON = 99;
+	public static final int FILL_BUTTON = 100;
+
+	/** Client only: the module kinds this rack's Fill button can be pointed at. */
+	public java.util.List<String> fillChoices() {
+		return dev.rackcraft.block.Racks.fillChoices(tier == null ? dev.rackcraft.sim.ServerModel.Tier.SERVER : tier);
+	}
+
+	private dev.rackcraft.sim.ServerModel.Tier tier;
+
 	@Override
 	public boolean onButtonClick(PlayerEntity player, int id) {
+		if (mode == Mode.RACK && (id == EMPTY_BUTTON || id >= FILL_BUTTON) && machine != null && machine.getWorld() instanceof ServerWorld rackWorld) {
+			var network = dev.rackcraft.storage.StorageService.networkAt(rackWorld, machine.getPos());
+			if (id == EMPTY_BUTTON) {
+				int out = dev.rackcraft.block.Racks.empty(machine, network, player);
+				player.sendMessage(net.minecraft.text.Text.literal(out > 0 ? "Took " + out + " modules out" : "Nothing to take out"), true);
+			} else {
+				int in = dev.rackcraft.block.Racks.fill(machine, network, player, id - FILL_BUTTON);
+				player.sendMessage(net.minecraft.text.Text.literal(in > 0 ? "Filled " + in + (in == 1 ? " bay" : " bays")
+						: "No bays filled: nothing suitable in storage or your inventory, or the rack is full"), true);
+			}
+			return true;
+		}
+		if ((id == HALL_RACK_BUTTON || id == HALL_MODULE_BUTTON) && mode == Mode.SITE && machine != null
+				&& machine.getWorld() instanceof ServerWorld hallWorld) {
+			player.sendMessage(net.minecraft.text.Text.literal(id == HALL_RACK_BUTTON ? dev.rackcraft.world.SitePlanner.cycleHallRack(machine)
+					: dev.rackcraft.world.SitePlanner.cycleHallModule(machine)), true);
+			dev.rackcraft.world.SitePlanner.scanNow(hallWorld);
+			return true;
+		}
 		if (id == LAUNCH_BUTTON && mode == Mode.LAUNCH && machine != null && machine.getWorld() instanceof ServerWorld launchWorld) {
 			player.sendMessage(net.minecraft.text.Text.literal(dev.rackcraft.world.LaunchPads.launch(launchWorld, machine)), true);
 			return true;

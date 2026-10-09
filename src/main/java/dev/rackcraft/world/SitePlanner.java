@@ -30,6 +30,8 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.nbt.NbtCompound;
+import dev.rackcraft.block.Racks;
+import dev.rackcraft.sim.ServerModel;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.tag.BlockTags;
 import net.minecraft.server.world.ServerWorld;
@@ -118,7 +120,9 @@ public final class SitePlanner {
 	public static final int R_DOCKS = 19;
 	public static final int R_DOCKS_PLACED = 20;
 	public static final int R_DRAW_KW = 21;
-	public static final int READINGS = 22;
+	public static final int R_HALL_RACK = 22;
+	public static final int R_HALL_MODULE = 23;
+	public static final int READINGS = 24;
 	/** What the planner stocks each of its docks to, and when it tops them up. */
 	public static final int DOCK_DRONES = 8;
 	public static final int DOCK_FUEL = 16;
@@ -171,8 +175,10 @@ public final class SitePlanner {
 		}
 	}
 
-	/** What fills a Data Hall's racks: the best module for mining per kilowatt, and the one with the most AI compute a crafting table can make. */
+	/** What fills a Data Hall's racks unless the planner is set otherwise: the best module for mining per kilowatt. */
 	public static final String HALL_MODULE = "quantum_core";
+	/** What one Chiller moves, less a margin: a Data Hall column gets a Chiller for every this many kW its racks can make. */
+	private static final double HALL_KW_PER_CHILLER = 220;
 	/** Racks per Data Hall column, and what one column draws when full, roughly: four racks plus its chillers. */
 	public static final int HALL_RACKS_PER_COLUMN = 4;
 
@@ -242,6 +248,55 @@ public final class SitePlanner {
 		planner.site().remove("DockAt");
 		planner.markDirty();
 		return "Layout: " + next.label;
+	}
+
+	/** A Data Hall blueprint: which rack tier the hall is built of, and which module fills every bay. */
+	public record Hall(ServerModel.Tier tier, String module) {
+		/** What one rack draws flat out, in kW. */
+		public double rackKw() {
+			ServerModel.Module kind = ServerModel.Module.valueOf(moduleName());
+			return tier.bays() * kind.maxKw() + tier.overheadKw();
+		}
+
+		private String moduleName() {
+			for (ServerModel.Module kind : ServerModel.Module.values()) if (kind.itemId().equals(module)) return kind.name();
+			return ServerModel.Module.QUANTUM_CORE.name();
+		}
+
+		/** Chillers over each column's CDUs: at least two, more as the racks get hotter. */
+		public int chillers() {
+			return Math.max(2, (int) Math.ceil(HALL_RACKS_PER_COLUMN * rackKw() / HALL_KW_PER_CHILLER));
+		}
+	}
+
+	/** The planner's Data Hall blueprint; the Server Rack of Quantum Cores unless changed (or if what it holds no longer fits). */
+	public static Hall hall(MachineBlockEntity planner) {
+		ServerModel.Tier tier = ServerModel.Tier.of(planner.site().getString("HallRack"));
+		if (tier == null) tier = ServerModel.Tier.SERVER;
+		String module = planner.site().getString("HallModule");
+		if (!Racks.hallChoices(tier).contains(module)) module = Racks.hallChoices(tier).contains(HALL_MODULE) ? HALL_MODULE : Racks.hallChoices(tier).get(0);
+		return new Hall(tier, module);
+	}
+
+	public static String cycleHallRack(MachineBlockEntity planner) {
+		if (running(planner)) return "Pause the planner before changing the blueprint";
+		ServerModel.Tier[] tiers = ServerModel.Tier.values();
+		ServerModel.Tier next = tiers[(hall(planner).tier().ordinal() + 1) % tiers.length];
+		planner.site().putString("HallRack", next.blockId());
+		planner.markDirty();
+		Hall hall = hall(planner);
+		return "Data Hall racks: " + new ItemStack(RcBlocks.get(next.blockId()).asItem()).getName().getString() + " of "
+				+ new ItemStack(RcItems.ITEMS.get(hall.module())).getName().getString() + ", " + hall.chillers() + " Chillers a column";
+	}
+
+	public static String cycleHallModule(MachineBlockEntity planner) {
+		if (running(planner)) return "Pause the planner before changing the blueprint";
+		Hall hall = hall(planner);
+		List<String> choices = Racks.hallChoices(hall.tier());
+		String next = choices.get((choices.indexOf(hall.module()) + 1) % choices.size());
+		planner.site().putString("HallModule", next);
+		planner.markDirty();
+		return "Data Hall modules: " + new ItemStack(RcItems.ITEMS.get(next)).getName().getString() + ", " + hall(planner).chillers() + " Chillers a column";
 	}
 
 	public static boolean buying(MachineBlockEntity planner) {
@@ -353,9 +408,12 @@ public final class SitePlanner {
 			planner.setSiteReading(R_LEVEL, level);
 			Levelling levelling = levelling(world, survey, level);
 			if (levelling.blocked() != null) blocked(planner, levelling.blocked());
-			List<Structure> structures = structures(world, site, layout, level);
+			Hall hall = hall(planner);
+			planner.setSiteReading(R_HALL_RACK, hall.tier().ordinal());
+			planner.setSiteReading(R_HALL_MODULE, Registries.ITEM.getRawId(RcItems.ITEMS.get(hall.module())));
+			List<Structure> structures = structures(world, site, layout, level, hall);
 			planner.setSiteReading(R_TOTAL, structures.size());
-			planner.setSiteReading(R_DRAW_KW, (int) Math.min(Integer.MAX_VALUE, Math.round(fullDrawKw(structures))));
+			planner.setSiteReading(R_DRAW_KW, (int) Math.min(Integer.MAX_VALUE, Math.round(fullDrawKw(structures, hall))));
 			if (levelling.left() > 0 || terraformers > 0) {
 				phase = Phase.LEVEL;
 				planner.setSiteReading(R_LEFT, levelling.left());
@@ -759,7 +817,7 @@ public final class SitePlanner {
 	// ---------------------------------------------------------------- building
 
 	/** Everything the layout puts on the levelled site, nearest the planner's corner first. */
-	private static List<Structure> structures(ServerWorld world, Site site, Layout layout, int level) {
+	private static List<Structure> structures(ServerWorld world, Site site, Layout layout, int level, Hall hall) {
 		List<Structure> structures = new ArrayList<>();
 		int base = level + 1;
 		if (layout == Layout.WIND) {
@@ -779,6 +837,9 @@ public final class SitePlanner {
 			// faces a cold aisle shared with the next pair. Two tiers of racks; Core Routers over the racks and two
 			// Chillers over the CDUs. Everything touches, so power, coolant and fiber need no cables. One column is a
 			// structure: z+1 rack facing north, z+2 CDU, z+3 rack facing south, with aisles at z and z+4.
+			// The blueprint picks the rack tier and the module; Chillers stack up over the CDUs as high as the heat needs.
+			int chillers = hall.chillers();
+			if (base + 2 + chillers >= world.getTopY()) return structures;
 			for (int z = site.z0(); z + 4 <= site.z1(); z += 4) {
 				for (int x = site.x0(); x <= site.x1(); x++) {
 					BlockPos front = new BlockPos(x, base, z + 1);
@@ -786,14 +847,14 @@ public final class SitePlanner {
 					BlockPos back = middle.south();
 					List<Piece> pieces = new ArrayList<>();
 					for (int tier = 0; tier < 2; tier++) {
-						pieces.add(new Piece(front.up(tier), "server_rack", Direction.NORTH, HALL_MODULE));
+						pieces.add(new Piece(front.up(tier), hall.tier().blockId(), Direction.NORTH, hall.module()));
 						pieces.add(new Piece(middle.up(tier), "cdu", Direction.NORTH, null));
-						pieces.add(new Piece(back.up(tier), "server_rack", Direction.SOUTH, HALL_MODULE));
+						pieces.add(new Piece(back.up(tier), hall.tier().blockId(), Direction.SOUTH, hall.module()));
 					}
 					pieces.add(new Piece(front.up(2), "core_router", Direction.NORTH, null));
 					pieces.add(new Piece(middle.up(2), "chiller", Direction.NORTH, null));
 					pieces.add(new Piece(back.up(2), "core_router", Direction.SOUTH, null));
-					pieces.add(new Piece(middle.up(3), "chiller", Direction.NORTH, null));
+					for (int extra = 1; extra < chillers; extra++) pieces.add(new Piece(middle.up(2 + extra), "chiller", Direction.NORTH, null));
 					structures.add(new Structure(pieces));
 				}
 			}
@@ -828,20 +889,21 @@ public final class SitePlanner {
 	/** Bays a rack piece still needs filled (all eight if it isn't placed yet); a Failed Module counts as filled. */
 	private static int emptyBays(ServerWorld world, Piece piece) {
 		if (piece.module() == null) return 0;
-		if (!placed(world, piece) || !(world.getBlockEntity(piece.pos()) instanceof MachineBlockEntity rack)) return dev.rackcraft.sim.ServerModel.BAYS;
+		int bays = ServerModel.Tier.of(piece.block()).bays();
+		if (!placed(world, piece) || !(world.getBlockEntity(piece.pos()) instanceof MachineBlockEntity rack)) return bays;
 		int empty = 0;
-		for (int slot = 0; slot < dev.rackcraft.sim.ServerModel.BAYS; slot++) if (rack.getStack(slot).isEmpty()) empty++;
+		for (int slot = 0; slot < bays; slot++) if (rack.getStack(slot).isEmpty()) empty++;
 		return empty;
 	}
 
 	/** What a layout's structures draw when everything is running, in kW: the planner's screen shows it. */
-	private static double fullDrawKw(List<Structure> structures) {
+	private static double fullDrawKw(List<Structure> structures, Hall hall) {
 		double kw = 0;
 		for (Structure structure : structures) {
 			for (Piece piece : structure.pieces()) {
 				kw += switch (piece.block()) {
-					case "server_rack" -> 72;
-					case "chiller" -> CoolingLoops.CHILLER_BASE_KW + CoolingLoops.CHILLER_KW_PER_KW * 144;
+					case "server_rack", "high_density_rack", "immersion_rack", "exascale_cabinet" -> hall.rackKw();
+					case "chiller" -> CoolingLoops.CHILLER_BASE_KW + CoolingLoops.CHILLER_KW_PER_KW * hall.rackKw() * HALL_RACKS_PER_COLUMN / hall.chillers();
 					case "cdu" -> 0.5;
 					default -> 0;
 				};
@@ -1243,9 +1305,9 @@ public final class SitePlanner {
 		BlockState state = world.getBlockState(pos);
 		switch (step.action()) {
 			case SUPPLY -> {
-				if (world.getBlockEntity(pos) instanceof MachineBlockEntity rack && rack.blockId().equals("server_rack")) {
+				if (world.getBlockEntity(pos) instanceof MachineBlockEntity rack && Racks.isRack(rack)) {
 					// Fill every empty bay with whatever modules the drone carries.
-					for (int bay = 0; bay < dev.rackcraft.sim.ServerModel.BAYS; bay++) {
+					for (int bay = 0; bay < Racks.bays(rack); bay++) {
 						if (!rack.getStack(bay).isEmpty()) continue;
 						for (int index = 0; index < hold.size(); index++) {
 							ItemStack stack = hold.getStack(index);
