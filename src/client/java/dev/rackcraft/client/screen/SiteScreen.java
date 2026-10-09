@@ -20,13 +20,14 @@ import net.minecraft.text.Text;
  */
 public final class SiteScreen extends RackcraftHandledScreen {
 	private static final int WIDTH = 176;
-	private static final String[] UNITS = {"arrays", "tracking arrays", "towers", "rack columns"};
+	private static final String[] UNITS = {"arrays", "tracking arrays", "towers", "rack columns", "reactor layers"};
 	private ButtonWidget start;
 	private ButtonWidget layout;
 	private ButtonWidget buy;
 	private ButtonWidget docks;
 	private ButtonWidget hallRack;
 	private ButtonWidget hallModule;
+	private ButtonWidget cube;
 
 	public SiteScreen(MachineScreenHandler handler, PlayerInventory inventory, Text title) {
 		super(handler, inventory, title, WIDTH, 284);
@@ -47,6 +48,8 @@ public final class SiteScreen extends RackcraftHandledScreen {
 				.dimensions(x + 8, y + 146, 76, 14).build());
 		hallModule = addDrawableChild(ButtonWidget.builder(Text.literal("Module"), button -> click(MachineScreenHandler.HALL_MODULE_BUTTON))
 				.dimensions(x + 88, y + 146, 80, 14).build());
+		cube = addDrawableChild(ButtonWidget.builder(Text.literal("Cube"), button -> click(MachineScreenHandler.REACTOR_EDGE_BUTTON))
+				.dimensions(x + 8, y + 146, 160, 14).build());
 	}
 
 	private void click(int button) {
@@ -64,12 +67,22 @@ public final class SiteScreen extends RackcraftHandledScreen {
 		SitePlanner.Layout chosen = enumAt(SitePlanner.Layout.values(), site(SitePlanner.R_LAYOUT));
 		boolean running = site(SitePlanner.R_RUNNING) != 0;
 		boolean hasSite = status != SitePlanner.Status.NO_AREA;
-		start.setMessage(Text.literal(running ? "Pause" : "Start"));
-		start.active = hasSite && phase != SitePlanner.Phase.DONE || running;
+		boolean awaiting = status == SitePlanner.Status.AWAITING_APPROVAL;
+		start.setMessage(Text.literal(awaiting ? "Approve" : running ? "Pause" : "Start"));
+		start.active = hasSite && phase != SitePlanner.Phase.DONE || running || awaiting;
 		layout.active = !running;
 		boolean hall = chosen == SitePlanner.Layout.HALL;
+		boolean reactor = chosen == SitePlanner.Layout.REACTOR;
 		hallRack.active = hall && !running;
 		hallModule.active = hall && !running;
+		hallRack.visible = !reactor;
+		hallModule.visible = !reactor;
+		cube.visible = reactor;
+		cube.active = reactor && !running;
+		int edge = site(SitePlanner.R_EDGE);
+		cube.setMessage(Text.literal(edge < 2 ? "Cube: site too small" : "Cube: " + edge + " x " + edge + " x " + edge + " (" + edge * edge * edge + " reactors)"));
+		cube.setTooltip(net.minecraft.client.gui.tooltip.Tooltip.of(Text.literal(
+				"Reactor Cube layout: the size of each cube of Modular Reactors, 2 up to 10 a side. Bigger cubes are more economical per reactor, but anything over 5 needs research (Structural Engineering for 6 and 7, Space Frame Design for 8 and 9, Arcology for 10) and a site at least that big. Cubes stand a block apart.")));
 		ServerModel.Tier[] tiers = ServerModel.Tier.values();
 		String rackName = new ItemStack(Registries.ITEM.get(new Identifier("rackcraft",
 				tiers[Math.max(0, Math.min(tiers.length - 1, site(SitePlanner.R_HALL_RACK)))].blockId()))).getName().getString();
@@ -106,14 +119,18 @@ public final class SiteScreen extends RackcraftHandledScreen {
 			case NO_TERRAFORMERS -> "Needs Terraforming Drones (second slot or storage)";
 			case NO_FUEL -> "Out of hydrogen: load Hydrogen Canisters";
 			case NEEDS_MATERIALS -> "Waiting for materials";
+			case AWAITING_APPROVAL -> String.format(Locale.ROOT, "Quote: %,d RC for %d %s. Press Approve to let the drones buy",
+					site(SitePlanner.R_QUOTE), site(SitePlanner.R_QUOTE_LINES), site(SitePlanner.R_QUOTE_LINES) == 1 ? "item" : "items");
 			case BLOCKED -> "Stuck: something on the site is in the way";
 			case DONE -> "Done: the site is built and wired in";
 			case TOO_SMALL -> chosen == SitePlanner.Layout.HALL ? "Too small: a Data Hall needs a site at least 5 deep"
+					: chosen == SitePlanner.Layout.REACTOR ? "Too small: a Reactor Cube needs a site at least 2 x 2"
 					: "Too small: nothing in this layout fits the site";
 		};
 		int color = switch (status) {
 			case WORKING, DONE -> GOOD;
 			case PAUSED, NO_AREA -> MUTED;
+			case AWAITING_APPROVAL -> WARN;
 			case TOO_SMALL -> BAD;
 			case NO_POWER, NO_FUEL -> BAD;
 			default -> WARN;
@@ -129,8 +146,11 @@ public final class SiteScreen extends RackcraftHandledScreen {
 			lineFit(context, "Up to " + RackcraftConfig.values.construction.maxSide + " x " + RackcraftConfig.values.construction.maxSide
 					+ ", within " + RackcraftConfig.values.construction.maxDistance + " blocks", 8, 79, 160, MUTED);
 		}
+		int cubes = site(SitePlanner.R_CUBES);
 		String size = chosen == SitePlanner.Layout.HALL && total > 0
 				? " (" + total * SitePlanner.HALL_RACKS_PER_COLUMN + " racks, " + kw(site(SitePlanner.R_DRAW_KW) * 10) + ")"
+				: chosen == SitePlanner.Layout.REACTOR && cubes > 0
+				? String.format(Locale.ROOT, " (%d x %d-cube, %,d MW)", cubes, edge, (long) cubes * edge * edge * edge * 500 / 1000)
 				: total > 0 ? " (" + total + " " + UNITS[chosen.ordinal()] + ")" : "";
 		lineFit(context, size.isEmpty() ? "Layout: " + chosen.label : chosen.label + ":" + size.substring(2, size.length() - 1), 8, 89, 160, TEXT);
 

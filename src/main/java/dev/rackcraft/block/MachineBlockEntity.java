@@ -170,7 +170,7 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 				"facility_controller", "cdu", "modular_reactor", "freshwater_pump", "smog_scrubber",
 				"rear_door_cooler", "dry_cooler", "chiller", "water_heat_exchanger", "desalination_plant", "grid_substation",
 				"welding_arm", "riveting_arm", "assembly_arm", "drone_dock", "launch_control", "rectenna",
-				"solar_array", "solar_array_tracking", "wind_nacelle", "tower_section", "site_planner", "cryostat")
+				"solar_array", "solar_array_tracking", "wind_nacelle", "tower_section", "site_planner", "cryostat", "procurement_wall")
 				.contains(id) || ServerModel.Tier.isRack(id)) kinds.add(NetKind.POWER);
 		// The coolant loop: racks (liquid-cooled modules) and reactors put heat in; towers, coolers and chillers take it out.
 		if (COOLANT_MACHINES.contains(id)) kinds.add(NetKind.COOLANT);
@@ -557,11 +557,12 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 			case "facility_controller" -> MachineScreenHandler.Mode.CONTROLLER;
 			case "monitoring_wall" -> MachineScreenHandler.Mode.MONITOR_WALL;
 			case "art_table", "writing_desk" -> MachineScreenHandler.Mode.WORKSTATION;
-			case "operations_terminal", "darknet_terminal" -> null;
+			case "operations_terminal", "darknet_terminal", "procurement_wall" -> null;
 			default -> MachineScreenHandler.Mode.MACHINE_STATUS;
 		};
 		if (id.equals("operations_terminal")) return new dev.rackcraft.compute.OpsScreenHandler(syncId, playerInventory, pos);
 		if (id.equals("darknet_terminal")) return new dev.rackcraft.darknet.DarknetScreenHandler(syncId, playerInventory, pos);
+		if (id.equals("procurement_wall")) return new dev.rackcraft.screen.ProcurementScreenHandler(syncId, playerInventory, pos);
 		if (mode == null) return new dev.rackcraft.storage.TerminalScreenHandler(syncId, playerInventory, terminalAccess());
 		return new MachineScreenHandler(syncId, playerInventory, this, mode);
 	}

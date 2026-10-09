@@ -24,6 +24,7 @@ public final class RackcraftClient implements ClientModInitializer {
 		CoinHud.register();
 		ShackleChains.register();
 		DizzyView.register();
+		ProcurementHud.register();
 		FaultOverlay.register();
 		SurveyOutline.register();
 		RocketShake.register();
@@ -46,6 +47,7 @@ public final class RackcraftClient implements ClientModInitializer {
 		ScreenRegistry.register(RcScreenHandlers.WORKCELL, dev.rackcraft.client.screen.WorkcellScreen::new);
 		ScreenRegistry.register(RcScreenHandlers.LAUNCH, dev.rackcraft.client.screen.LaunchScreen::new);
 		ScreenRegistry.register(RcScreenHandlers.SITE, dev.rackcraft.client.screen.SiteScreen::new);
+		ScreenRegistry.register(RcScreenHandlers.PROCUREMENT, dev.rackcraft.client.screen.ProcurementScreen::new);
 		net.fabricmc.fabric.api.blockrenderlayer.v1.BlockRenderLayerMap.INSTANCE.putBlock(dev.rackcraft.RcBlocks.get("launch_tower"),
 				net.minecraft.client.render.RenderLayer.getCutout());
 		net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry.register(dev.rackcraft.entity.RcEntities.ROCKET,
@@ -79,6 +81,17 @@ public final class RackcraftClient implements ClientModInitializer {
 						if (client.player != null && client.player.currentScreenHandler
 								instanceof dev.rackcraft.compute.OpsScreenHandler ops && ops.syncId == syncId) {
 							ops.applySync(copy);
+						}
+					});
+				});
+		net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.registerGlobalReceiver(
+				dev.rackcraft.screen.ProcurementScreenHandler.SYNC, (client, handler, buf, responseSender) -> {
+					int syncId = buf.readVarInt();
+					net.minecraft.network.PacketByteBuf copy = net.fabricmc.fabric.api.networking.v1.PacketByteBufs.copy(buf);
+					client.execute(() -> {
+						if (client.player != null && client.player.currentScreenHandler
+								instanceof dev.rackcraft.screen.ProcurementScreenHandler wall && wall.syncId == syncId) {
+							wall.applySync(copy);
 						}
 					});
 				});

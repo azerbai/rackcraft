@@ -102,11 +102,13 @@ public final class ItemPipes {
 				stock(machine, ReactorArrays.FUEL_SLOT, ItemKey.of(RcItems.ITEMS.get("fuel_cell")), FUEL_CELL_STOCK, items);
 				store(machine, ReactorArrays.WASTE_SLOT, items);
 			}
-			// An Assembly Robot keeps each of its slots topped up with whatever part is already in it.
+			// An Assembly Robot keeps each of its slots topped up with whatever part is already in it, and fetches the part
+			// a workpiece coming down its belt is about to need (buying it, if an Auto-Buyer is on the storage).
 			case "assembly_arm" -> {
 				for (int slot = 0; slot < machine.size(); slot++) {
 					if (!machine.getStack(slot).isEmpty()) stock(machine, slot, ItemKey.of(machine.getStack(slot)), PART_STOCK, items);
 				}
+				fetchForLine(machine, items);
 			}
 			// A Drone Dock takes hydrogen from storage and sends the dead modules its drones bring home back to it.
 			case "drone_dock" -> {
@@ -153,6 +155,48 @@ public final class ItemPipes {
 				if (recipe.inputB() != null) stock(machine, 1, ItemKey.of(recipe.inputB()), Math.max(PROCESS_STOCK, recipe.countB() * 4), items);
 				store(machine, NuclearProcessing.OUTPUT_SLOT, items);
 				store(machine, NuclearProcessing.BYPRODUCT_SLOT, items);
+			}
+		}
+	}
+
+	/** How many belts back from its own an Assembly Robot looks for workpieces on their way. */
+	public static final int LOOKAHEAD = 5;
+
+	/**
+	 * Looks at the belt in front of an Assembly Robot and the belts feeding it, and for the first workpiece whose next
+	 * step is installing a part the robot has none of, takes that part from storage into an empty slot (or buys it). Other
+	 * robots on the same line fetch the same part for their own slots.
+	 */
+	private static void fetchForLine(MachineBlockEntity robot, StorageNetwork items) {
+		if (robot.getWorld() == null) return;
+		java.util.ArrayDeque<BlockPos> queue = new java.util.ArrayDeque<>();
+		java.util.Map<BlockPos, Integer> depth = new HashMap<>();
+		BlockPos front = robot.getPos().offset(robot.getCachedState().get(dev.rackcraft.block.MachineBlock.FACING));
+		queue.add(front);
+		depth.put(front, 0);
+		while (!queue.isEmpty()) {
+			BlockPos here = queue.poll();
+			if (!(robot.getWorld().getBlockEntity(here) instanceof dev.rackcraft.block.BeltBlockEntity belt)) continue;
+			ItemStack work = belt.stack();
+			for (AssemblyLine.Recipe recipe : AssemblyLine.candidates(work)) {
+				int done = AssemblyLine.stepsDone(work);
+				if (done >= recipe.steps().size() || !AssemblyLine.unlocked(robot.getWorld(), recipe)) continue;
+				AssemblyLine.Step step = recipe.steps().get(done);
+				if (step.kind() != AssemblyLine.Kind.INSTALL || step.part() == null || AssemblyLine.parts(robot, step.part()) >= step.count()) continue;
+				int target = Math.min(Math.max(PART_STOCK, step.count()), step.part().getMaxCount());
+				int slot = -1;
+				for (int index = 0; index < robot.size() && slot < 0; index++) if (robot.getStack(index).isEmpty()) slot = index;
+				if (slot >= 0) stock(robot, slot, ItemKey.of(step.part()), target, items);
+				return;
+			}
+			if (depth.get(here) >= LOOKAHEAD) continue;
+			for (net.minecraft.util.math.Direction side : net.minecraft.util.math.Direction.Type.HORIZONTAL) {
+				BlockPos behind = here.offset(side);
+				if (depth.containsKey(behind)) continue;
+				if (robot.getWorld().getBlockEntity(behind) instanceof dev.rackcraft.block.BeltBlockEntity upstream && behind.offset(upstream.facing()).equals(here)) {
+					depth.put(behind, depth.get(here) + 1);
+					queue.add(behind);
+				}
 			}
 		}
 	}

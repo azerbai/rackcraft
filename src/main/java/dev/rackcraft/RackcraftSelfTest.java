@@ -38,7 +38,7 @@ public final class RackcraftSelfTest {
 		RackcraftConfig.values.events.enabled = false;
 		dev.rackcraft.compute.ResearchLab.get(server.getOverworld()).reset();
 		dev.rackcraft.world.OrbitState.get(server.getOverworld()).reset();
-		check("S0.a", RcBlocks.BLOCKS.size() == 84 && RcItems.ITEMS.size() == 84,
+		check("S0.a", RcBlocks.BLOCKS.size() == 85 && RcItems.ITEMS.size() == 84,
 				"blocks=" + RcBlocks.BLOCKS.size() + " items=" + RcItems.ITEMS.size(), failures);
 		ServerWorld world = server.getOverworld();
 		BlockPos generatorPos = new BlockPos(0, 80, 0);
@@ -155,6 +155,8 @@ public final class RackcraftSelfTest {
 		checkRenewables(world, failures);
 		checkStorageLogistics(world, failures);
 		checkSiteConstruction(world, failures);
+		checkSiteQuote(world, failures);
+		checkLineSpeedAndFeeding(world, failures);
 		checkRackFill(world, failures);
 		checkAdvancedHardware(world, failures);
 		checkPerformance(world, failures);
@@ -1830,6 +1832,262 @@ public final class RackcraftSelfTest {
 	}
 
 	/**
+	 * The Reactor Cube layout, the price quote and the ledger. Two 3-cubes of Modular Reactors on bought parts: the first Start
+	 * only quotes (nothing is bought, no drone leaves), the quote is shown once, Approve buys and builds, and the ledger adds up
+	 * to what was spent; a job with everything in hand is never quoted. Then a cube size is held to the research done, and a full
+	 * 10 x 10 x 10 cube of a thousand reactors is built and forms. The Procurement Wall sees all of it.
+	 */
+	private static void checkSiteQuote(ServerWorld world, int[] failures) {
+		dev.rackcraft.compute.ResearchLab lab = dev.rackcraft.compute.ResearchLab.get(world);
+		lab.reset();
+		BlockPos origin = clearArea(world, new BlockPos(-2800, 100, -1536), 22, 14, 22);
+		for (int cx = (origin.getX() - 4) >> 4; cx <= (origin.getX() + 22) >> 4; cx++) {
+			for (int cz = (origin.getZ() - 4) >> 4; cz <= (origin.getZ() + 22) >> 4; cz++) world.setChunkForced(cx, cz, true);
+		}
+		for (BlockPos pos : BlockPos.iterate(origin.add(-2, -1, -2), origin.add(20, 0, 20))) world.setBlockState(pos, Blocks.DIRT.getDefaultState());
+		BlockPos plannerPos = origin.add(0, 1, 4);
+		MachineBlockEntity planner = place(world, plannerPos, "site_planner", Direction.NORTH);
+		world.setBlockState(plannerPos.north(), RcBlocks.get("creative_power").getDefaultState());
+		MachineBlockEntity wall = place(world, plannerPos.south(), "procurement_wall", Direction.NORTH);
+		planner.setStack(0, new ItemStack(RcItems.ITEMS.get("construction_drone"), 4));
+		planner.setStack(2, new ItemStack(RcItems.ITEMS.get("hydrogen_canister"), 16));
+		for (int layout = 0; layout < 4; layout++) dev.rackcraft.world.SitePlanner.cycleLayout(planner);
+		check("SQ0.a", dev.rackcraft.world.SitePlanner.layout(planner) == dev.rackcraft.world.SitePlanner.Layout.REACTOR,
+				"layout=" + dev.rackcraft.world.SitePlanner.layout(planner), failures);
+		dev.rackcraft.world.SitePlanner.setArea(planner, origin.add(2, 0, 2), origin.add(8, 0, 4));
+		long price = ExchangeCatalog.price(RcBlocks.get("modular_reactor").asItem());
+		FacilityManager.get(world).addCredits(100_000_000_000L);
+		long balance = FacilityManager.get(world).credits();
+		int shownBefore = dev.rackcraft.world.SitePlanner.quotesShown();
+		dev.rackcraft.world.SitePlanner.toggleRunning(planner);
+		for (int scan = 0; scan < 4; scan++) {
+			SimTicker.stepNow(world);
+			dev.rackcraft.world.SitePlanner.scanNow(world);
+		}
+		var lines = dev.rackcraft.world.SitePlanner.quoteLines(planner);
+		var reactorLine = lines.stream().filter(line -> line.item() == RcBlocks.get("modular_reactor").asItem()).findFirst().orElse(null);
+		check("SQ1.a", dev.rackcraft.world.SitePlanner.awaiting(planner) && planner.processStatus() == dev.rackcraft.world.SitePlanner.Status.AWAITING_APPROVAL.ordinal()
+						&& !dev.rackcraft.world.SitePlanner.running(planner) && reactorLine != null && reactorLine.count() == 54 && reactorLine.price() == price
+						&& dev.rackcraft.world.SitePlanner.quoteTotal(planner) >= 54 * price,
+				"awaiting=" + dev.rackcraft.world.SitePlanner.awaiting(planner) + " status=" + planner.processStatus() + " line=" + reactorLine
+						+ " total=" + dev.rackcraft.world.SitePlanner.quoteTotal(planner), failures);
+		check("SQ1.b", FacilityManager.get(world).credits() >= balance && planner.site().getLong("Spent") == 0
+						&& dev.rackcraft.world.SitePlanner.drones(world, plannerPos).isEmpty()
+						&& dev.rackcraft.world.SitePlanner.quotesShown() == shownBefore + 1,
+				"balanceChange=" + (FacilityManager.get(world).credits() - balance) + " spent=" + planner.site().getLong("Spent")
+						+ " quotes=" + (dev.rackcraft.world.SitePlanner.quotesShown() - shownBefore), failures);
+
+		// The wall sees the waiting quote.
+		for (int step = 0; step < 2; step++) SimTicker.stepNow(world);
+		var seen = dev.rackcraft.world.ProcurementWall.snapshot(world, wall.getPos());
+		var wire = net.fabricmc.fabric.api.networking.v1.PacketByteBufs.create();
+		seen.write(wire);
+		var decoded = dev.rackcraft.world.ProcurementWall.Snapshot.read(wire);
+		var hud = dev.rackcraft.world.ProcurementWall.hud(world, SimTicker.machines(world), wall.getPos());
+		check("SQ2.a", seen.powered() && seen.planners().size() == 1 && seen.planners().get(0).awaiting() && decoded.planners().size() == 1
+						&& decoded.planners().get(0).quoteTotal() == dev.rackcraft.world.SitePlanner.quoteTotal(planner)
+						&& decoded.planners().get(0).quote().stream().anyMatch(line -> line.item().equals("rackcraft:modular_reactor") && line.count() == 54)
+						&& hud.awaiting() == 1 && hud.pending() == dev.rackcraft.world.SitePlanner.quoteTotal(planner),
+				"powered=" + seen.powered() + " planners=" + seen.planners().size() + " hud=" + hud, failures);
+
+		// Approve: the drones buy and build, a second quote never appears, and the ledger adds up.
+		dev.rackcraft.world.SitePlanner.toggleRunning(planner);
+		runSite(world, planner);
+		for (int step = 0; step < 3; step++) SimTicker.stepNow(world);
+		var cornerCube = dev.rackcraft.world.ReactorArrays.arrayOf(world, machine(world, origin.add(2, 1, 2)));
+		var otherCube = dev.rackcraft.world.ReactorArrays.arrayOf(world, machine(world, origin.add(6, 1, 2)));
+		long ledgerReactors = 0;
+		long ledgerCost = 0;
+		for (var purchase : dev.rackcraft.world.SitePlanner.ledger(planner)) {
+			ledgerCost += purchase.cost();
+			if (purchase.item().equals("rackcraft:modular_reactor")) ledgerReactors += purchase.count();
+		}
+		check("SQ3.a", cornerCube != null && cornerCube.edge() == 3 && cornerCube.cores() == 27 && otherCube != null && otherCube.edge() == 3
+						&& otherCube != cornerCube && world.getBlockState(origin.add(5, 1, 2)).isAir()
+						&& planner.processStatus() == dev.rackcraft.world.SitePlanner.Status.DONE.ordinal(),
+				"cube=" + (cornerCube == null ? "none" : cornerCube.edge() + "/" + cornerCube.cores()) + " other="
+						+ (otherCube == null ? "none" : otherCube.edge() + "/" + otherCube.cores()) + " status=" + planner.processStatus(), failures);
+		check("SQ3.b", ledgerReactors == 54 && ledgerCost == planner.site().getLong("Spent") && ledgerCost >= 54 * price
+						&& dev.rackcraft.world.SitePlanner.quotesShown() == shownBefore + 1
+						&& !dev.rackcraft.world.SitePlanner.approved(planner) && planner.site().getBoolean("JobDone"),
+				"reactors=" + ledgerReactors + " ledgerCost=" + ledgerCost + " spent=" + planner.site().getLong("Spent") + " quotes=" + (dev.rackcraft.world.SitePlanner.quotesShown() - shownBefore), failures);
+		var afterBuy = dev.rackcraft.world.ProcurementWall.snapshot(world, wall.getPos());
+		check("SQ2.b", afterBuy.rows().size() == dev.rackcraft.world.SitePlanner.ledger(planner).size() && !afterBuy.rows().isEmpty()
+						&& afterBuy.planners().get(0).spent() == ledgerCost && !afterBuy.planners().get(0).awaiting(),
+				"rows=" + afterBuy.rows().size() + " ledger=" + dev.rackcraft.world.SitePlanner.ledger(planner).size(), failures);
+
+		// A job with everything already in hand has nothing to quote: no preview, no purchases.
+		for (BlockPos pos : BlockPos.iterate(origin.add(1, 1, 0), origin.add(20, 12, 20))) {
+			if (!world.getBlockState(pos).isAir() && !pos.equals(plannerPos) && !pos.equals(plannerPos.north()) && !pos.equals(plannerPos.south())) {
+				world.setBlockState(pos, Blocks.AIR.getDefaultState());
+			}
+		}
+		world.getEntitiesByClass(net.minecraft.entity.ItemEntity.class, new net.minecraft.util.math.Box(origin).expand(60), item -> true)
+				.forEach(net.minecraft.entity.Entity::discard);
+		dev.rackcraft.world.SitePlanner.toggleRunning(planner);
+		dev.rackcraft.world.SitePlanner.setArea(planner, origin.add(2, 0, 2), origin.add(8, 0, 4));
+		for (int slot = 3; slot < 9; slot++) planner.setStack(slot, ItemStack.EMPTY);
+		planner.setStack(3, new ItemStack(RcBlocks.get("modular_reactor"), 54));
+		planner.setStack(4, new ItemStack(RcBlocks.get("power_cable"), 64));
+		long spentBefore = planner.site().getLong("Spent");
+		int shownMid = dev.rackcraft.world.SitePlanner.quotesShown();
+		dev.rackcraft.world.SitePlanner.toggleRunning(planner);
+		runSite(world, planner);
+		check("SQ4.a", dev.rackcraft.world.SitePlanner.quotesShown() == shownMid && planner.site().getLong("Spent") == spentBefore
+						&& planner.processStatus() == dev.rackcraft.world.SitePlanner.Status.DONE.ordinal()
+						&& world.getBlockState(origin.add(2, 3, 2)).isOf(RcBlocks.get("modular_reactor")),
+				"quotes=" + (dev.rackcraft.world.SitePlanner.quotesShown() - shownMid) + " spentDelta=" + (planner.site().getLong("Spent") - spentBefore)
+						+ " status=" + planner.processStatus(), failures);
+
+		// Cube sizes are held to the research: 5 without it, 10 with Arcology; the button walks 2 up to the limit and round.
+		dev.rackcraft.world.SitePlanner.toggleRunning(planner);
+		dev.rackcraft.world.SitePlanner.setArea(planner, origin.add(2, 0, 2), origin.add(13, 0, 13));
+		planner.site().putInt("ReactorEdge", 10);
+		int plain = dev.rackcraft.world.SitePlanner.effectiveEdge(world, planner, dev.rackcraft.world.SitePlanner.site(planner));
+		planner.site().putInt("ReactorEdge", 2);
+		List<Integer> walked = new java.util.ArrayList<>();
+		for (int press = 0; press < 5; press++) {
+			dev.rackcraft.world.SitePlanner.cycleReactorEdge(planner);
+			walked.add(dev.rackcraft.world.SitePlanner.reactorEdge(planner));
+		}
+		lab.complete(world, dev.rackcraft.compute.Research.get("arcology"));
+		planner.site().putInt("ReactorEdge", 10);
+		int researched = dev.rackcraft.world.SitePlanner.effectiveEdge(world, planner, dev.rackcraft.world.SitePlanner.site(planner));
+		dev.rackcraft.world.SitePlanner.setArea(planner, origin.add(2, 0, 2), origin.add(6, 0, 4));
+		int small = dev.rackcraft.world.SitePlanner.effectiveEdge(world, planner, dev.rackcraft.world.SitePlanner.site(planner));
+		check("SQ5.a", plain == 5 && walked.equals(List.of(3, 4, 5, 2, 3)) && researched == 10 && small == 3,
+				"plain=" + plain + " walked=" + walked + " researched=" + researched + " smallSite=" + small, failures);
+
+		// The full 10 x 10 x 10: a thousand reactors in ten layers, built by four drones, and it forms one cube.
+		for (BlockPos pos : BlockPos.iterate(origin.add(1, 1, 0), origin.add(20, 12, 20))) {
+			if (!world.getBlockState(pos).isAir() && !pos.equals(plannerPos) && !pos.equals(plannerPos.north()) && !pos.equals(plannerPos.south())) {
+				world.setBlockState(pos, Blocks.AIR.getDefaultState());
+			}
+		}
+		world.getEntitiesByClass(net.minecraft.entity.ItemEntity.class, new net.minecraft.util.math.Box(origin).expand(60), item -> true)
+				.forEach(net.minecraft.entity.Entity::discard);
+		for (int slot = 3; slot < 9; slot++) planner.setStack(slot, ItemStack.EMPTY);
+		dev.rackcraft.world.SitePlanner.setArea(planner, origin.add(2, 0, 2), origin.add(11, 0, 11));
+		planner.site().putInt("ReactorEdge", 10);
+		planner.setStack(0, new ItemStack(RcItems.ITEMS.get("construction_drone"), 4));
+		planner.setStack(2, new ItemStack(RcItems.ITEMS.get("hydrogen_canister"), 64));
+		long before10 = FacilityManager.get(world).credits();
+		dev.rackcraft.world.SitePlanner.toggleRunning(planner);
+		dev.rackcraft.world.SitePlanner.scanNow(world);
+		var line10 = dev.rackcraft.world.SitePlanner.quoteLines(planner).stream().filter(line -> line.item() == RcBlocks.get("modular_reactor").asItem())
+				.findFirst().orElse(null);
+		boolean quoted10 = dev.rackcraft.world.SitePlanner.awaiting(planner) && line10 != null && line10.count() == 1000
+				&& planner.siteReading(dev.rackcraft.world.SitePlanner.R_EDGE) == 10
+				&& FacilityManager.get(world).credits() >= before10;
+		runSite(world, planner);
+		for (int step = 0; step < 3; step++) SimTicker.stepNow(world);
+		var big = dev.rackcraft.world.ReactorArrays.arrayOf(world, machine(world, origin.add(2, 1, 2)));
+		check("SQ6.a", quoted10 && big != null && big.edge() == 10 && big.cores() == 1000
+						&& world.getBlockState(origin.add(2, 1, 2)).get(dev.rackcraft.block.ArrayMachineBlock.FORMED)
+						&& world.getBlockState(origin.add(2, 1, 2)).get(dev.rackcraft.block.ArrayMachineBlock.SCALE) == 2
+						&& planner.processStatus() == dev.rackcraft.world.SitePlanner.Status.DONE.ordinal(),
+				"quoted=" + quoted10 + " line=" + line10 + " cube=" + (big == null ? "none" : big.edge() + "/" + big.cores())
+						+ " status=" + planner.processStatus(), failures);
+
+		lab.reset();
+		world.getEntitiesByClass(net.minecraft.entity.ItemEntity.class, new net.minecraft.util.math.Box(origin).expand(60), item -> true)
+				.forEach(net.minecraft.entity.Entity::discard);
+		for (BlockPos pos : BlockPos.iterate(origin.add(-2, -1, -2), origin.add(20, 0, 20))) world.setBlockState(pos, Blocks.AIR.getDefaultState());
+		clearArea(world, origin, 22, 14, 22);
+		for (int cx = (origin.getX() - 4) >> 4; cx <= (origin.getX() + 22) >> 4; cx++) {
+			for (int cz = (origin.getZ() - 4) >> 4; cz <= (origin.getZ() + 22) >> 4; cz++) world.setChunkForced(cx, cz, false);
+		}
+	}
+
+	/**
+	 * Assembly Robots fetch the part a workpiece on (or coming down) their belt needs, from storage or by Auto-Buyer; and
+	 * the three Belts projects double the speed of belts and robots each time (2x, 4x, 8x).
+	 */
+	private static void checkLineSpeedAndFeeding(ServerWorld world, int[] failures) {
+		dev.rackcraft.compute.ResearchLab lab = dev.rackcraft.compute.ResearchLab.get(world);
+		lab.reset();
+		BlockPos origin = clearArea(world, new BlockPos(-3000, 150, -1536), 20, 6, 12);
+		world.setBlockState(origin, RcBlocks.get("creative_power").getDefaultState());
+		MachineBlockEntity array = place(world, origin.east(), "storage_array", Direction.NORTH);
+		array.setStack(0, new ItemStack(RcItems.ITEMS.get("drive_4k")));
+		CableBlock pipe = (CableBlock) RcBlocks.get("item_pipe");
+		for (int dx = 2; dx <= 8; dx++) {
+			BlockPos pos = origin.east(dx);
+			world.setBlockState(pos, pipe.withConnections(pipe.getDefaultState(), world, pos));
+		}
+		MachineBlockEntity robot = place(world, origin.add(6, 1, 0), "assembly_arm", Direction.SOUTH);
+		world.setBlockState(origin.add(6, 2, 0), RcBlocks.get("creative_power").getDefaultState());
+		List<dev.rackcraft.block.BeltBlockEntity> belts = new java.util.ArrayList<>();
+		for (int x = 3; x <= 6; x++) {
+			BlockPos pos = origin.add(x, 1, 1);
+			world.setBlockState(pos, RcBlocks.get("conveyor_belt").getDefaultState().with(dev.rackcraft.block.ConveyorBeltBlock.FACING, Direction.EAST));
+			belts.add((dev.rackcraft.block.BeltBlockEntity) world.getBlockEntity(pos));
+		}
+		SimTicker.stepNow(world);
+		var storage = dev.rackcraft.storage.StorageService.networkAt(world, array.getPos());
+		var motor = dev.rackcraft.storage.ItemKey.of(RcItems.ITEMS.get("electric_motor"));
+		storage.insert(motor, 40, false);
+		// Nothing on the belts: the robot fetches nothing.
+		dev.rackcraft.world.ItemPipes.step(world, SimTicker.machines(world));
+		boolean idle = robot.isEmpty();
+		// A Drone Frame two belts upstream needs four motors installed first.
+		belts.get(1).accept(new ItemStack(RcItems.ITEMS.get("drone_frame")), 0);
+		dev.rackcraft.world.ItemPipes.step(world, SimTicker.machines(world));
+		int fetched = dev.rackcraft.world.AssemblyLine.parts(robot, RcItems.ITEMS.get("electric_motor"));
+		check("LF1.a", idle && fetched == 16 && storage.count(motor, true) == 24,
+				"idle=" + idle + " fetched=" + fetched + " storageLeft=" + storage.count(motor, true), failures);
+
+		// With none in storage, an Auto-Buyer on the network buys them instead.
+		robot.setStack(0, ItemStack.EMPTY);
+		storage.extract(motor, 24, true, false);
+		world.setBlockState(origin.add(1, 1, 0), RcBlocks.get("auto_buyer").getDefaultState());
+		world.setBlockState(origin.add(1, 2, 0), RcBlocks.get("creative_power").getDefaultState());
+		FacilityManager.get(world).addCredits(10_000_000);
+		SimTicker.stepNow(world);
+		dev.rackcraft.world.ItemPipes.step(world, SimTicker.machines(world));
+		MachineBlockEntity buyer = machine(world, origin.add(1, 1, 0));
+		int bought = dev.rackcraft.world.AssemblyLine.parts(robot, RcItems.ITEMS.get("electric_motor"));
+		check("LF1.b", bought == 16 && buyer.site().getLong("Bought") == 16,
+				"robotMotors=" + bought + " bought=" + buyer.site().getLong("Bought"), failures);
+		robot.setStack(0, ItemStack.EMPTY);
+		belts.get(1).take();
+
+		// Speed: a lone welder on a belt, then the same with the three Belts projects done.
+		MachineBlockEntity welder = place(world, origin.add(10, 1, 0), "welding_arm", Direction.SOUTH);
+		world.setBlockState(origin.add(10, 2, 0), RcBlocks.get("creative_power").getDefaultState());
+		machine(world, origin.add(10, 2, 0)).setCreativeValue(CreativeSettings.OUTPUT_KW, 5_000);
+		BlockPos weldBelt = origin.add(10, 1, 1);
+		world.setBlockState(weldBelt, RcBlocks.get("conveyor_belt").getDefaultState().with(dev.rackcraft.block.ConveyorBeltBlock.FACING, Direction.EAST));
+		var onWeld = (dev.rackcraft.block.BeltBlockEntity) world.getBlockEntity(weldBelt);
+		int[] steps = new int[2];
+		double[] speeds = new double[2];
+		for (int run = 0; run < 2; run++) {
+			if (run == 1) {
+				for (String id : List.of("line_speed_1", "line_speed_2", "line_speed_3")) lab.complete(world, dev.rackcraft.compute.Research.get(id));
+			}
+			SimTicker.stepNow(world);
+			onWeld.take();
+			welder.setItemsMade(0);
+			onWeld.accept(new ItemStack(RcItems.ITEMS.get("tower_frame")), 0);
+			for (int tick = 0; tick < 400 && welder.itemsMade() == 0; tick++) {
+				onWeld.serverTick(world);
+				if (tick % 5 == 4) {
+					SimTicker.stepNow(world);
+					steps[run]++;
+				}
+			}
+			speeds[run] = onWeld.speed();
+		}
+		check("LF2.a", dev.rackcraft.world.AssemblyLine.lineSpeed(world) == 8 && Math.abs(speeds[0] - 0.05) < 1e-9 && Math.abs(speeds[1] - 0.4) < 1e-9
+						&& steps[1] > 0 && steps[1] * 6 <= steps[0],
+				"lineSpeed=" + dev.rackcraft.world.AssemblyLine.lineSpeed(world) + " beltSpeeds=" + speeds[0] + "/" + speeds[1]
+						+ " weldSteps=" + steps[0] + "/" + steps[1], failures);
+
+		lab.reset();
+		clearArea(world, origin, 20, 6, 12);
+	}
+
+	/**
 	 * Runs a Site Planner until it is done or stuck: plan, fly every drone it sent home, repeat. Returns the phases it
 	 * went through, in order.
 	 */
@@ -1838,6 +2096,11 @@ public final class RackcraftSelfTest {
 		for (int round = 0; round < 60; round++) {
 			SimTicker.stepNow(world);
 			dev.rackcraft.world.SitePlanner.scanNow(world);
+			// A quote is waiting on the player's yes: the helper says it for them.
+			if (dev.rackcraft.world.SitePlanner.awaiting(planner)) {
+				dev.rackcraft.world.SitePlanner.toggleRunning(planner);
+				dev.rackcraft.world.SitePlanner.scanNow(world);
+			}
 			int phase = planner.siteReading(dev.rackcraft.world.SitePlanner.R_PHASE);
 			if (phases.isEmpty() || phases.get(phases.size() - 1) != phase) phases.add(phase);
 			List<dev.rackcraft.entity.ConstructionDroneEntity> flying = dev.rackcraft.world.SitePlanner.drones(world, planner.getPos());

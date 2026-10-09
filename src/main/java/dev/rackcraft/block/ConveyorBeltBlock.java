@@ -93,7 +93,7 @@ public final class ConveyorBeltBlock extends BlockWithEntity {
 		if (entity instanceof ItemEntity || entity.isSneaking()) return;
 		Direction facing = state.get(FACING);
 		Vec3d velocity = entity.getVelocity();
-		double push = BeltBlockEntity.SPEED * 1.6;
+		double push = (world.getBlockEntity(pos) instanceof BeltBlockEntity belt ? belt.speed() : BeltBlockEntity.SPEED) * 1.6;
 		double x = facing.getOffsetX() != 0 ? approach(velocity.x, facing.getOffsetX() * push) : velocity.x;
 		double z = facing.getOffsetZ() != 0 ? approach(velocity.z, facing.getOffsetZ() * push) : velocity.z;
 		entity.setVelocity(x, velocity.y, z);

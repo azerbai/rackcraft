@@ -30,6 +30,7 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtList;
 import dev.rackcraft.block.Racks;
 import dev.rackcraft.sim.ServerModel;
 import net.minecraft.registry.Registries;
@@ -81,7 +82,8 @@ public final class SitePlanner {
 		SOLAR("Solar Field", "solar_array"),
 		TRACKING("Tracking Solar Field", "solar_array_tracking"),
 		WIND("Wind Farm", "wind_nacelle"),
-		HALL("Data Hall", "server_rack");
+		HALL("Data Hall", "server_rack"),
+		REACTOR("Reactor Cube", "modular_reactor");
 
 		public final String label;
 		public final String block;
@@ -95,7 +97,7 @@ public final class SitePlanner {
 	public enum Phase { NONE, CLEAR, LEVEL, BUILD, WIRE, DOCK, DONE }
 
 	/** What the planner is doing, or why it isn't. */
-	public enum Status { NO_AREA, NOT_LOADED, PAUSED, NO_POWER, WORKING, NO_DRONES, NO_TERRAFORMERS, NO_FUEL, NEEDS_MATERIALS, BLOCKED, DONE, TOO_SMALL }
+	public enum Status { NO_AREA, NOT_LOADED, PAUSED, NO_POWER, WORKING, NO_DRONES, NO_TERRAFORMERS, NO_FUEL, NEEDS_MATERIALS, BLOCKED, DONE, TOO_SMALL, AWAITING_APPROVAL }
 
 	// Readings for the planner's screen (MachineBlockEntity.siteReading).
 	public static final int R_PHASE = 0;
@@ -122,7 +124,11 @@ public final class SitePlanner {
 	public static final int R_DRAW_KW = 21;
 	public static final int R_HALL_RACK = 22;
 	public static final int R_HALL_MODULE = 23;
-	public static final int READINGS = 24;
+	public static final int R_QUOTE = 24;
+	public static final int R_QUOTE_LINES = 25;
+	public static final int R_EDGE = 26;
+	public static final int R_CUBES = 27;
+	public static final int READINGS = 28;
 	/** What the planner stocks each of its docks to, and when it tops them up. */
 	public static final int DOCK_DRONES = 8;
 	public static final int DOCK_FUEL = 16;
@@ -164,7 +170,11 @@ public final class SitePlanner {
 	}
 
 	/** One thing to build: its pieces, bottom up. An array is one piece (its part 0) that places all six parts. */
-	private record Structure(List<Piece> pieces) {
+	private record Structure(List<Piece> pieces, int floor) {
+		Structure(List<Piece> pieces) {
+			this(pieces, pieces.get(0).pos().getY());
+		}
+
 		BlockPos base() { return pieces.get(0).pos(); }
 	}
 
@@ -237,6 +247,7 @@ public final class SitePlanner {
 		data.putBoolean("Running", false);
 		data.remove("Level");
 		data.remove("DockAt");
+		resetQuote(planner);
 		planner.markDirty();
 		return "Site set: " + site.width() + " x " + site.depth() + ". Pick a layout and press Start.";
 	}
@@ -246,6 +257,7 @@ public final class SitePlanner {
 		Layout next = Layout.values()[(layout(planner).ordinal() + 1) % Layout.values().length];
 		planner.site().putInt("Layout", next.ordinal());
 		planner.site().remove("DockAt");
+		resetQuote(planner);
 		planner.markDirty();
 		return "Layout: " + next.label;
 	}
@@ -283,6 +295,7 @@ public final class SitePlanner {
 		ServerModel.Tier[] tiers = ServerModel.Tier.values();
 		ServerModel.Tier next = tiers[(hall(planner).tier().ordinal() + 1) % tiers.length];
 		planner.site().putString("HallRack", next.blockId());
+		resetQuote(planner);
 		planner.markDirty();
 		Hall hall = hall(planner);
 		return "Data Hall racks: " + new ItemStack(RcBlocks.get(next.blockId()).asItem()).getName().getString() + " of "
@@ -295,8 +308,211 @@ public final class SitePlanner {
 		List<String> choices = Racks.hallChoices(hall.tier());
 		String next = choices.get((choices.indexOf(hall.module()) + 1) % choices.size());
 		planner.site().putString("HallModule", next);
+		resetQuote(planner);
 		planner.markDirty();
 		return "Data Hall modules: " + new ItemStack(RcItems.ITEMS.get(next)).getName().getString() + ", " + hall(planner).chillers() + " Chillers a column";
+	}
+
+	/** Cubes a Reactor Cube site holds at most, and the cube it starts as. */
+	public static final int MAX_CUBES = 16;
+	public static final int DEFAULT_EDGE = 3;
+
+	/** The cube size the planner is set to, as saved (2 to 10). */
+	public static int reactorEdge(MachineBlockEntity planner) {
+		int saved = planner.site().contains("ReactorEdge") ? planner.site().getInt("ReactorEdge") : DEFAULT_EDGE;
+		return Math.max(2, Math.min(ReactorArrays.MAX_EDGE, saved));
+	}
+
+	/**
+	 * The cube edge actually built: the chosen size, held to what the research allows and to what fits the site (a
+	 * cube needs its footprint inside it). 0 if not even a 2-cube fits.
+	 */
+	public static int effectiveEdge(ServerWorld world, MachineBlockEntity planner, Site site) {
+		int fit = site == null ? ReactorArrays.MAX_EDGE : Math.min(site.width(), site.depth());
+		int edge = Math.min(reactorEdge(planner), Math.min(ReactorArrays.maxEdge(world), fit));
+		return edge < 2 ? 0 : edge;
+	}
+
+	/** Steps the Reactor Cube size up (2 to the biggest the research and the site allow, then back to 2). */
+	public static String cycleReactorEdge(MachineBlockEntity planner) {
+		if (running(planner)) return "Pause the planner before changing the cube size";
+		ServerWorld world = planner.getWorld() instanceof ServerWorld server ? server : null;
+		Site site = site(planner);
+		int research = world == null ? ReactorArrays.MAX_EDGE : Math.max(2, ReactorArrays.maxEdge(world));
+		int most = Math.max(2, Math.min(research, site == null ? ReactorArrays.MAX_EDGE : Math.min(site.width(), site.depth())));
+		int current = world == null ? reactorEdge(planner) : Math.max(1, effectiveEdge(world, planner, site));
+		int next = current >= most ? 2 : current + 1;
+		planner.site().putInt("ReactorEdge", next);
+		resetQuote(planner);
+		planner.markDirty();
+		String why = most >= ReactorArrays.MAX_EDGE ? ""
+				: research < ReactorArrays.MAX_EDGE && most == research ? "; " + (research + 1) + " and up needs " + ReactorArrays.researchFor(research + 1) + " research"
+				: "; the site is only big enough for a " + most + "-cube";
+		return "Reactor cubes: " + next + " x " + next + " x " + next + " (" + (next * next * next) + " reactors each, "
+				+ String.format(java.util.Locale.ROOT, "%,.0f", next * next * next * ReactorArrays.CORE_KW / 1000) + " MW)" + why;
+	}
+
+	// ---------------------------------------------------------------- the quote: what the job will buy, shown once
+
+	/** One line of a quote: how many of an item the job has to buy, and the Exchange's price for each. */
+	public record QuoteLine(Item item, long count, long price) {
+		public long cost() { return count * price; }
+	}
+
+	/** Whether the player has agreed to this job's purchases (or there are none). Until then the drones buy nothing. */
+	public static boolean approved(MachineBlockEntity planner) {
+		return planner.site().getBoolean("Approved");
+	}
+
+	/** Whether a quote is waiting for the player's say-so. */
+	public static boolean awaiting(MachineBlockEntity planner) {
+		return !approved(planner) && planner.site().contains("Quote");
+	}
+
+	/** Layouts whose parts and cable the planner buys whether or not Buy is on: a hall of racks or a cube of reactors is bought, not carried. */
+	private static boolean buysAnyway(Layout layout) {
+		return layout == Layout.HALL || layout == Layout.REACTOR;
+	}
+
+	/**
+	 * Works out what the whole job will have to buy from the Exchange, at today's prices: everything the layout, its
+	 * cable, its fill and its docks need, less what the slots and storage already hold, for whatever the planner is
+	 * allowed to buy (and the Exchange sells). The Exchange doesn't sell arrays, tower parts or drones, so a shortage of
+	 * those isn't a purchase; the planner just waits for them.
+	 */
+	private static List<QuoteLine> quote(ServerWorld world, MachineBlockEntity planner, StorageNetwork storage, Survey survey, Layout layout, int edge) {
+		Site site = survey.site();
+		int level;
+		if (planner.site().contains("Level")) {
+			level = planner.site().getInt("Level");
+		} else {
+			List<Integer> heights = new ArrayList<>();
+			for (int[] row : survey.ground()) for (int height : row) heights.add(height);
+			heights.sort(Integer::compare);
+			level = heights.get(heights.size() / 2);
+		}
+		boolean buyAll = buysAnyway(layout) || buying(planner);
+		List<Structure> structures = structures(world, site, layout, level, hall(planner), edge);
+		// What each source of need asks for, and whether the planner may buy it.
+		record Want(Item item, long count, boolean permitted) {}
+		List<Want> wants = new ArrayList<>();
+		Map<Item, Long> parts = new LinkedHashMap<>();
+		for (Structure structure : structures) {
+			for (Piece piece : structure.pieces()) {
+				if (!placed(world, piece)) parts.merge(RcBlocks.get(piece.block()).asItem(), 1L, Long::sum);
+				int bays = emptyBays(world, piece);
+				if (bays > 0) parts.merge(RcItems.ITEMS.get(piece.module()), (long) bays, Long::sum);
+			}
+		}
+		parts.forEach((item, count) -> wants.add(new Want(item, count, buyAll)));
+		if (!structures.isEmpty()) {
+			long missing = cables(world, planner.getPos(), site, layout, structures, level).stream()
+					.filter(pos -> !world.getBlockState(pos).isOf(RcBlocks.get("power_cable"))).count();
+			if (missing > 0) wants.add(new Want(RcBlocks.get("power_cable").asItem(), missing, buyAll));
+		}
+		long fills = 0;
+		long cuts = 0;
+		for (int x = site.x0(); x <= site.x1(); x++) {
+			for (int z = site.z0(); z <= site.z1(); z++) {
+				int ground = survey.groundAt(x, z);
+				if (ground < level) fills += level - ground;
+				else if (ground > level) cuts += ground - level;
+			}
+		}
+		if (fills > cuts) wants.add(new Want(Items.DIRT, fills - cuts, buying(planner)));
+		if (docking(planner) && layout != Layout.REACTOR && !structures.isEmpty()) {
+			long[] spots = planner.site().getLongArray("DockAt");
+			long unplaced = spots.length == 0 ? 1 : unplacedDocks(world, spots);
+			if (unplaced > 0) wants.add(new Want(RcBlocks.get("drone_dock").asItem(), unplaced, true));
+		}
+		Map<Item, Long> have = new java.util.HashMap<>();
+		Map<Item, Long> bought = new LinkedHashMap<>();
+		for (Want want : wants) {
+			long held = have.computeIfAbsent(want.item(), item -> {
+				long count = 0;
+				for (int slot = FIRST_MATERIAL; slot < planner.size(); slot++) if (planner.getStack(slot).isOf(item)) count += planner.getStack(slot).getCount();
+				return count + (storage == null ? 0 : storage.count(ItemKey.of(item), true));
+			});
+			long used = Math.min(held, want.count());
+			have.put(want.item(), held - used);
+			long short_ = want.count() - used;
+			Long price = dev.rackcraft.ExchangeCatalog.price(want.item());
+			if (short_ > 0 && want.permitted() && price != null && price > 0) bought.merge(want.item(), short_, Long::sum);
+		}
+		List<QuoteLine> lines = new ArrayList<>();
+		bought.forEach((item, count) -> lines.add(new QuoteLine(item, count, dev.rackcraft.ExchangeCatalog.price(item))));
+		lines.sort(Comparator.comparingLong((QuoteLine line) -> -line.cost()));
+		return lines;
+	}
+
+	private static long unplacedDocks(ServerWorld world, long[] spots) {
+		long unplaced = 0;
+		for (long packed : spots) if (!world.getBlockState(BlockPos.fromLong(packed)).isOf(RcBlocks.get("drone_dock"))) unplaced++;
+		return unplaced;
+	}
+
+	private static void storeQuote(MachineBlockEntity planner, List<QuoteLine> lines) {
+		NbtList list = new NbtList();
+		long total = 0;
+		for (QuoteLine line : lines) {
+			NbtCompound entry = new NbtCompound();
+			entry.putString("Item", Registries.ITEM.getId(line.item()).toString());
+			entry.putLong("Count", line.count());
+			entry.putLong("Price", line.price());
+			list.add(entry);
+			total += line.cost();
+		}
+		planner.site().put("Quote", list);
+		planner.site().putLong("QuoteTotal", total);
+	}
+
+	/** How many quotes have been shown since the server started (the self-test checks a job gets just one). */
+	private static int quotesShown;
+
+	public static int quotesShown() { return quotesShown; }
+
+	/** Tells the players near the planner what the job will cost, item by item. This is the one preview a job gets. */
+	private static void announce(ServerWorld world, MachineBlockEntity planner, List<QuoteLine> lines) {
+		long total = lines.stream().mapToLong(QuoteLine::cost).sum();
+		long balance = FacilityManager.get(world).credits();
+		quotesShown++;
+		List<net.minecraft.text.Text> text = new ArrayList<>();
+		text.add(net.minecraft.text.Text.literal("Site Planner quote: the drones would buy this at the Crypto Exchange").formatted(net.minecraft.util.Formatting.GOLD));
+		for (int index = 0; index < lines.size() && index < 8; index++) {
+			QuoteLine line = lines.get(index);
+			text.add(net.minecraft.text.Text.literal(String.format(java.util.Locale.ROOT, "  %,d x %s @ %,d = %,d RC", line.count(),
+					new ItemStack(line.item()).getName().getString(), line.price(), line.cost())).formatted(net.minecraft.util.Formatting.YELLOW));
+		}
+		if (lines.size() > 8) text.add(net.minecraft.text.Text.literal("  ...and " + (lines.size() - 8) + " more items").formatted(net.minecraft.util.Formatting.GRAY));
+		text.add(net.minecraft.text.Text.literal(String.format(java.util.Locale.ROOT, "Total %,d RC against a balance of %,d RC%s. Press Approve on the planner to let the drones buy (this is the only quote this job gets).",
+				total, balance, total > balance ? " (you can't cover it all)" : "")).formatted(total > balance ? net.minecraft.util.Formatting.RED : net.minecraft.util.Formatting.GREEN));
+		for (net.minecraft.server.network.ServerPlayerEntity player : world.getPlayers(player -> player.squaredDistanceTo(planner.getPos().toCenterPos()) <= 48 * 48)) {
+			for (net.minecraft.text.Text line : text) player.sendMessage(line);
+		}
+	}
+
+	/** Forgets the quote and the approval: the next Start works the price out again. */
+	public static void resetQuote(MachineBlockEntity planner) {
+		NbtCompound data = planner.site();
+		data.remove("Approved");
+		data.remove("Quote");
+		data.remove("QuoteTotal");
+		data.remove("JobDone");
+		planner.markDirty();
+	}
+
+	public static List<QuoteLine> quoteLines(MachineBlockEntity planner) {
+		List<QuoteLine> lines = new ArrayList<>();
+		for (var element : planner.site().getList("Quote", 10)) {
+			NbtCompound entry = (NbtCompound) element;
+			Item item = Registries.ITEM.get(new net.minecraft.util.Identifier(entry.getString("Item")));
+			lines.add(new QuoteLine(item, entry.getLong("Count"), entry.getLong("Price")));
+		}
+		return lines;
+	}
+
+	public static long quoteTotal(MachineBlockEntity planner) {
+		return planner.site().getLong("QuoteTotal");
 	}
 
 	public static boolean buying(MachineBlockEntity planner) {
@@ -307,6 +523,7 @@ public final class SitePlanner {
 	public static String toggleBuying(MachineBlockEntity planner) {
 		boolean buy = !buying(planner);
 		planner.site().putBoolean("Buy", buy);
+		resetQuote(planner);
 		planner.markDirty();
 		return buy ? "Buying from the Crypto Exchange: anything it sells that the site needs is paid for in RackCoin"
 				: "No longer buying from the Exchange";
@@ -324,6 +541,7 @@ public final class SitePlanner {
 	public static String toggleDocks(MachineBlockEntity planner) {
 		boolean docks = !docking(planner);
 		planner.site().putBoolean("Docks", docks);
+		resetQuote(planner);
 		planner.markDirty();
 		return docks ? "Docks: the planner will place Drone Docks to cover the site and keep them stocked"
 				: "Docks: the planner won't place or stock docks";
@@ -331,6 +549,13 @@ public final class SitePlanner {
 
 	public static String toggleRunning(MachineBlockEntity planner) {
 		if (site(planner) == null) return "Mark a site first: two corners with a Survey Stake, then use the stake on the planner";
+		if (awaiting(planner)) {
+			// The quote has been shown: this press is the player's yes.
+			planner.site().putBoolean("Approved", true);
+			planner.site().putBoolean("Running", true);
+			planner.markDirty();
+			return String.format(java.util.Locale.ROOT, "Approved: the drones may spend up to %,d RC on this job", quoteTotal(planner));
+		}
 		boolean running = !running(planner);
 		planner.site().putBoolean("Running", running);
 		planner.markDirty();
@@ -369,6 +594,8 @@ public final class SitePlanner {
 		planner.setSiteReading(R_BUYING, buying(planner) ? 1 : 0);
 		planner.setSiteReading(R_DOCKING, docking(planner) ? 1 : 0);
 		planner.setSiteReading(R_SPENT, (int) Math.min(Integer.MAX_VALUE, planner.site().getLong("Spent")));
+		planner.setSiteReading(R_QUOTE, (int) Math.min(Integer.MAX_VALUE, quoteTotal(planner)));
+		planner.setSiteReading(R_QUOTE_LINES, planner.site().getList("Quote", 10).size());
 		List<ConstructionDroneEntity> out = drones(world, planner.getPos());
 		int builders = (int) out.stream().filter(drone -> !drone.terraformer()).count();
 		int terraformers = out.size() - builders;
@@ -396,9 +623,33 @@ public final class SitePlanner {
 		Survey survey = survey(world, site);
 		boolean act = running && power >= 0.5;
 		StorageNetwork storage = storage(world, planner);
+		int edge = layout == Layout.REACTOR ? effectiveEdge(world, planner, site) : 0;
+		if (layout == Layout.REACTOR) planner.setSiteReading(R_EDGE, edge);
+		// Nothing is bought until the player has seen what the job costs. A job with nothing to buy needs no say-so.
+		if (running && !approved(planner) && !planner.site().contains("Quote") && !planner.site().getBoolean("JobDone")) {
+			List<QuoteLine> lines = quote(world, planner, storage, survey, layout, edge);
+			if (lines.isEmpty()) {
+				planner.site().putBoolean("Approved", true);
+			} else {
+				storeQuote(planner, lines);
+				planner.site().putBoolean("Running", false);
+				announce(world, planner, lines);
+				running = false;
+				act = false;
+			}
+			planner.markDirty();
+		}
+		if (awaiting(planner)) {
+			planner.setSiteReading(R_RUNNING, 0);
+			planner.setSiteReading(R_QUOTE, (int) Math.min(Integer.MAX_VALUE, quoteTotal(planner)));
+			planner.setSiteReading(R_QUOTE_LINES, planner.site().getList("Quote", 10).size());
+			report(planner, Phase.NONE, Status.AWAITING_APPROVAL, !out.isEmpty());
+			return;
+		}
 		Phase phase;
 		Status status;
 		if (!survey.soft().isEmpty()) {
+			purpose = "Clearing";
 			phase = Phase.CLEAR;
 			planner.setSiteReading(R_LEFT, survey.soft().size());
 			status = act ? dispatch(world, planner, storage, false, builders,
@@ -409,10 +660,12 @@ public final class SitePlanner {
 			Levelling levelling = levelling(world, survey, level);
 			if (levelling.blocked() != null) blocked(planner, levelling.blocked());
 			Hall hall = hall(planner);
+			purpose = "Fill";
 			planner.setSiteReading(R_HALL_RACK, hall.tier().ordinal());
 			planner.setSiteReading(R_HALL_MODULE, Registries.ITEM.getRawId(RcItems.ITEMS.get(hall.module())));
-			List<Structure> structures = structures(world, site, layout, level, hall);
+			List<Structure> structures = structures(world, site, layout, level, hall, edge);
 			planner.setSiteReading(R_TOTAL, structures.size());
+			planner.setSiteReading(R_CUBES, layout == Layout.REACTOR && edge > 0 ? structures.size() / edge : 0);
 			if (structures.isEmpty()) {
 				report(planner, Phase.NONE, Status.TOO_SMALL, !out.isEmpty());
 				return;
@@ -428,24 +681,27 @@ public final class SitePlanner {
 				planner.setSiteReading(R_BUILT, structures.size() - unbuilt.size());
 				if (!unbuilt.isEmpty()) {
 					phase = Phase.BUILD;
+					purpose = layout == Layout.REACTOR ? "Reactors" : layout == Layout.HALL ? "Racks" : "Build";
 					planner.setSiteReading(R_LEFT, unbuilt.size());
 					status = act ? dispatch(world, planner, storage, false, builders,
-							() -> buildTrip(world, planner, storage, unbuilt, claimed, layout == Layout.HALL)) : Status.WORKING;
+							() -> buildTrip(world, planner, storage, unbuilt, claimed, buysAnyway(layout))) : Status.WORKING;
 				} else {
 					List<BlockPos> cables = cables(world, planner.getPos(), site, layout, structures, level);
 					List<BlockPos> missing = cables.stream().filter(pos -> !world.getBlockState(pos).isOf(RcBlocks.get("power_cable"))).toList();
 					if (!missing.isEmpty()) {
 						phase = Phase.WIRE;
+						purpose = "Cable";
 						planner.setSiteReading(R_LEFT, missing.size());
 						status = act ? dispatch(world, planner, storage, false, builders,
-								() -> wireTrip(world, planner, storage, missing, claimed, layout == Layout.HALL)) : Status.WORKING;
+								() -> wireTrip(world, planner, storage, missing, claimed, buysAnyway(layout))) : Status.WORKING;
 					} else {
-						List<BlockPos> docks = docking(planner) ? dockSpots(world, planner, site, layout, structures, cables, level) : List.of();
+						List<BlockPos> docks = docking(planner) && layout != Layout.REACTOR ? dockSpots(world, planner, site, layout, structures, cables, level) : List.of();
 						List<BlockPos> unplaced = docks.stream().filter(pos -> !world.getBlockState(pos).isOf(RcBlocks.get("drone_dock"))).toList();
 						planner.setSiteReading(R_DOCKS, docks.size());
 						planner.setSiteReading(R_DOCKS_PLACED, docks.size() - unplaced.size());
 						if (!unplaced.isEmpty()) {
 							phase = Phase.DOCK;
+							purpose = "Docks";
 							planner.setSiteReading(R_LEFT, unplaced.size());
 							status = act ? dispatch(world, planner, storage, false, builders,
 									() -> dockTrip(world, planner, storage, unplaced, claimed)) : Status.WORKING;
@@ -462,6 +718,16 @@ public final class SitePlanner {
 		if (phase != Phase.DONE) {
 			if (!running) status = Status.PAUSED;
 			else if (power < 0.5) status = Status.NO_POWER;
+			if (planner.site().getBoolean("JobDone")) {
+				planner.site().remove("JobDone");
+				planner.markDirty();
+			}
+		} else if (!planner.site().getBoolean("JobDone")) {
+			// The job is finished: the next one (a repair, a new layout) is quoted afresh.
+			planner.site().remove("Approved");
+			planner.site().remove("Quote");
+			planner.site().putBoolean("JobDone", true);
+			planner.markDirty();
 		}
 		report(planner, phase, status, !out.isEmpty());
 	}
@@ -648,7 +914,7 @@ public final class SitePlanner {
 
 	/** How many of this item the RackCoin balance buys at the Exchange, if the planner is buying and the Exchange sells it. */
 	private static long affordable(MachineBlockEntity planner, Item item, boolean buy) {
-		if (!(buying(planner) || buy) || !(planner.getWorld() instanceof ServerWorld world)) return 0;
+		if (!(buying(planner) || buy) || !approved(planner) || !(planner.getWorld() instanceof ServerWorld world)) return 0;
 		Long price = dev.rackcraft.ExchangeCatalog.price(item);
 		if (price == null || price <= 0) return 0;
 		return FacilityManager.get(world).credits() / price;
@@ -670,7 +936,7 @@ public final class SitePlanner {
 			left -= moved;
 		}
 		if (left > 0 && storage != null) {
-			long got = storage.extractOrBuy(ItemKey.of(item), left);
+			long got = storage.extract(ItemKey.of(item), left, true, false);
 			left -= (int) got;
 			addStacks(taken, item, got);
 		}
@@ -680,11 +946,48 @@ public final class SitePlanner {
 			long cost = bought * dev.rackcraft.ExchangeCatalog.price(item);
 			if (FacilityManager.get(world).spendCredits(cost)) {
 				planner.site().putLong("Spent", planner.site().getLong("Spent") + cost);
+				record(planner, world, item, bought, dev.rackcraft.ExchangeCatalog.price(item));
 				addStacks(taken, item, bought);
 			}
 		}
 		planner.markDirty();
 		return taken;
+	}
+
+	// ---------------------------------------------------------------- the ledger: every purchase the drones make
+
+	/** What the planner is working on, for the ledger's "for" column. */
+	private static String purpose = "Build";
+	/** The most purchases a planner remembers; older ones fall off the end (the running total keeps them). */
+	public static final int LEDGER_SIZE = 400;
+
+	/** One purchase from the Crypto Exchange: what, how many, at what price each, when, and for which part of the job. */
+	public record Purchase(String item, long count, long price, long tick, String purpose) {
+		public long cost() { return count * price; }
+	}
+
+	private static void record(MachineBlockEntity planner, ServerWorld world, Item item, long count, long price) {
+		NbtList ledger = planner.site().getList("Ledger", 10);
+		NbtCompound entry = new NbtCompound();
+		entry.putString("Item", Registries.ITEM.getId(item).toString());
+		entry.putLong("Count", count);
+		entry.putLong("Price", price);
+		entry.putLong("Tick", world.getTime());
+		entry.putString("For", purpose);
+		ledger.add(entry);
+		while (ledger.size() > LEDGER_SIZE) ledger.remove(0);
+		planner.site().put("Ledger", ledger);
+		planner.site().putLong("Bought", planner.site().getLong("Bought") + count);
+	}
+
+	/** The planner's purchases, oldest first. */
+	public static List<Purchase> ledger(MachineBlockEntity planner) {
+		List<Purchase> list = new ArrayList<>();
+		for (var element : planner.site().getList("Ledger", 10)) {
+			NbtCompound entry = (NbtCompound) element;
+			list.add(new Purchase(entry.getString("Item"), entry.getLong("Count"), entry.getLong("Price"), entry.getLong("Tick"), entry.getString("For")));
+		}
+		return list;
 	}
 
 	private static void addStacks(List<ItemStack> taken, Item item, long count) {
@@ -821,7 +1124,7 @@ public final class SitePlanner {
 	// ---------------------------------------------------------------- building
 
 	/** Everything the layout puts on the levelled site, nearest the planner's corner first. */
-	private static List<Structure> structures(ServerWorld world, Site site, Layout layout, int level, Hall hall) {
+	private static List<Structure> structures(ServerWorld world, Site site, Layout layout, int level, Hall hall, int edge) {
 		List<Structure> structures = new ArrayList<>();
 		int base = level + 1;
 		if (layout == Layout.WIND) {
@@ -860,6 +1163,24 @@ public final class SitePlanner {
 					pieces.add(new Piece(back.up(2), "core_router", Direction.SOUTH, null));
 					for (int extra = 1; extra < chillers; extra++) pieces.add(new Piece(middle.up(2 + extra), "chiller", Direction.NORTH, null));
 					structures.add(new Structure(pieces));
+				}
+			}
+		} else if (layout == Layout.REACTOR) {
+			// Reactor cubes: solid edge x edge x edge blocks of Modular Reactors, a block of air between neighbours (touching
+			// cubes would merge into one lump that isn't a cube). A cube goes up a layer at a time, a layer being one
+			// structure (one trip, at most 100 reactors), so a 10-cube is ten trips or more.
+			if (edge < 2 || base + edge >= world.getTopY()) return structures;
+			int cubes = 0;
+			for (int z = site.z0(); z + edge - 1 <= site.z1() && cubes < MAX_CUBES; z += edge + 1) {
+				for (int x = site.x0(); x + edge - 1 <= site.x1() && cubes < MAX_CUBES; x += edge + 1) {
+					cubes++;
+					for (int layer = 0; layer < edge; layer++) {
+						List<Piece> pieces = new ArrayList<>();
+						for (int dz = 0; dz < edge; dz++) {
+							for (int dx = 0; dx < edge; dx++) pieces.add(new Piece(new BlockPos(x + dx, base + layer, z + dz), "modular_reactor"));
+						}
+						structures.add(new Structure(pieces, layer == 0 ? base : Integer.MIN_VALUE));
+					}
 				}
 			}
 		} else {
@@ -926,13 +1247,12 @@ public final class SitePlanner {
 
 	/** The first block in the way of building this (something solid that isn't ours, or no ground under it), or null. */
 	private static BlockPos obstruction(ServerWorld world, Structure structure) {
-		BlockPos base = structure.base();
 		for (Piece piece : structure.pieces()) {
 			if (placed(world, piece)) continue;
 			for (BlockPos cell : footprint(piece)) {
 				Cell kind = classify(world, cell, world.getBlockState(cell));
 				if (kind == Cell.GROUND || kind == Cell.OURS) return cell;
-				if (cell.getY() == base.getY()) {
+				if (cell.getY() == structure.floor()) {
 					BlockPos under = cell.down();
 					if (classify(world, under, world.getBlockState(under)) != Cell.GROUND) return under;
 				}

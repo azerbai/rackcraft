@@ -508,6 +508,7 @@ public final class SimTicker {
 								&& member.storageOnline());
 				case "creative_router" -> machine.creativeValue(CreativeSettings.BANDWIDTH) > 0;
 				case "pdu" -> energized.contains(machine) && !machine.isTripped();
+				case "procurement_wall" -> satisfaction.getOrDefault(machine, 0.0) >= 0.5;
 				case "uplink_router", "core_router", "monitoring_wall" ->
 						networks.component(machine.getPos(), NetKind.DATA).size() > 1;
 				case "fire_suppression_tank" -> !machine.getStack(0).isEmpty();
@@ -624,6 +625,7 @@ public final class SimTicker {
 			case "storage_link" -> 4;
 			case "auto_buyer" -> 2;
 			case "site_planner" -> SitePlanner.PLANNER_KW;
+			case "procurement_wall" -> ProcurementWall.WALL_KW;
 			case "launch_control" -> LaunchPads.CONTROL_KW;
 			case "cdu" -> 0.5;
 			case "desalination_plant" -> UtilityPlants.desalinationKw(machine);

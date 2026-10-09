@@ -99,6 +99,11 @@ public final class AssemblyLine {
 
 	private AssemblyLine() {}
 
+	/** How much faster belts and robots run than normal: 1, then 2, 4 and 8 with the Belts research. */
+	public static double lineSpeed(net.minecraft.world.World world) {
+		return world instanceof ServerWorld server ? dev.rackcraft.compute.ResearchLab.effects(server).lineSpeed() : 1;
+	}
+
 	public static List<Recipe> recipes() {
 		return List.of(
 				new Recipe("maintenance_drone", item("drone_frame"), List.of(
@@ -378,7 +383,7 @@ public final class AssemblyLine {
 			} else {
 				status = power < 0.995 ? Status.LOW_POWER : Status.WORKING;
 				active = true;
-				double progress = arm.workProgress() + dt / kind.seconds * Math.min(1, power);
+				double progress = arm.workProgress() + dt / kind.seconds * Math.min(1, power) * lineSpeed(world);
 				if (progress >= 1) {
 					finish(world, arm, belt);
 					progress = 0;

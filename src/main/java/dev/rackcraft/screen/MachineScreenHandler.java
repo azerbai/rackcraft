@@ -199,6 +199,8 @@ public final class MachineScreenHandler extends ScreenHandler {
 	/** Button 6 and 7 on a Site Planner: the next rack tier and the next module for a Data Hall blueprint. */
 	public static final int HALL_RACK_BUTTON = 6;
 	public static final int HALL_MODULE_BUTTON = 7;
+	/** Button 8 on a Site Planner: the next Reactor Cube size. */
+	public static final int REACTOR_EDGE_BUTTON = 8;
 	/** Button 99 on a rack: take every module out. Buttons 100 and up fill: 100 + 0 automatic, 100 + n the nth module kind. */
 	public static final int EMPTY_BUTTON = 99;
 	public static final int FILL_BUTTON = 100;
@@ -222,6 +224,11 @@ public final class MachineScreenHandler extends ScreenHandler {
 				player.sendMessage(net.minecraft.text.Text.literal(in > 0 ? "Filled " + in + (in == 1 ? " bay" : " bays")
 						: "No bays filled: nothing suitable in storage or your inventory, or the rack is full"), true);
 			}
+			return true;
+		}
+		if (id == REACTOR_EDGE_BUTTON && mode == Mode.SITE && machine != null && machine.getWorld() instanceof ServerWorld edgeWorld) {
+			player.sendMessage(net.minecraft.text.Text.literal(dev.rackcraft.world.SitePlanner.cycleReactorEdge(machine)), true);
+			dev.rackcraft.world.SitePlanner.scanNow(edgeWorld);
 			return true;
 		}
 		if ((id == HALL_RACK_BUTTON || id == HALL_MODULE_BUTTON) && mode == Mode.SITE && machine != null

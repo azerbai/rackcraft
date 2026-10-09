@@ -64,6 +64,7 @@ public final class RackcraftNetworking {
 		dev.rackcraft.storage.TerminalScreenHandler.registerServer();
 		dev.rackcraft.compute.OpsScreenHandler.registerServer();
 		dev.rackcraft.darknet.DarknetScreenHandler.registerServer();
+		dev.rackcraft.screen.ProcurementScreenHandler.registerServer();
 		ServerPlayNetworking.registerGlobalReceiver(UPGRADE_TRANSMITTER, (server, player, handler, buf, responseSender) -> {
 			BlockPos pos = buf.readBlockPos();
 			boolean withRackCoin = buf.readBoolean();
@@ -129,6 +130,7 @@ public final class RackcraftNetworking {
 			buf.writeVarInt(facility.lentRacks());
 			ServerPlayNetworking.send(player, HUD, buf);
 		}
+		dev.rackcraft.world.ProcurementWall.sendHud(world, machines);
 	}
 
 	public static void sendHeatCells(ServerWorld world, ThermalGrid grid) {

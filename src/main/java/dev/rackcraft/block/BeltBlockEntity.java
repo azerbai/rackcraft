@@ -35,6 +35,8 @@ public final class BeltBlockEntity extends BlockEntity implements net.minecraft.
 	private BlockPos heldBy;
 	/** Whether the item has already been offered to the arms on this belt (so it isn't claimed twice). */
 	private boolean offered;
+	/** Progress per tick right now: {@link #SPEED} times the line speed research. Synced so the client glides at the same rate. */
+	private double speed = SPEED;
 
 	public BeltBlockEntity(BlockPos pos, BlockState state) {
 		super(RcBlocks.BELT_ENTITY, pos, state);
@@ -42,6 +44,7 @@ public final class BeltBlockEntity extends BlockEntity implements net.minecraft.
 
 	public ItemStack stack() { return stack; }
 	public double progress() { return progress; }
+	public double speed() { return speed; }
 	public double progress(float tickDelta) { return previousProgress + (progress - previousProgress) * tickDelta; }
 	public BlockPos heldBy() { return heldBy; }
 	public Direction facing() { return getCachedState().get(ConveyorBeltBlock.FACING); }
@@ -85,11 +88,18 @@ public final class BeltBlockEntity extends BlockEntity implements net.minecraft.
 	public static void tick(World world, BlockPos pos, BlockState state, BeltBlockEntity belt) {
 		belt.previousProgress = belt.progress;
 		if (world instanceof ServerWorld server) belt.serverTick(server);
-		else if (!belt.stack.isEmpty() && belt.heldBy == null) belt.progress = Math.min(1, belt.progress + SPEED);
+		else if (!belt.stack.isEmpty() && belt.heldBy == null) belt.progress = Math.min(1, belt.progress + belt.speed);
 	}
 
 	/** One tick on the server: pick up a dropped item, move, let an arm claim the item, or hand it on. */
 	public void serverTick(ServerWorld world) {
+		if (world.getTime() % 20 == 0) {
+			double now = SPEED * AssemblyLine.lineSpeed(world);
+			if (now != speed) {
+				speed = now;
+				changed();
+			}
+		}
 		if (stack.isEmpty()) {
 			if (world.getTime() % 4 == 0) pickUp(world);
 			return;
@@ -106,7 +116,7 @@ public final class BeltBlockEntity extends BlockEntity implements net.minecraft.
 			}
 			return;
 		}
-		double next = Math.min(1, progress + SPEED);
+		double next = Math.min(1, progress + speed);
 		if (!offered && progress <= MIDDLE && next >= MIDDLE) {
 			offered = true;
 			BlockPos arm = AssemblyLine.claimant(world, pos, stack, null);
@@ -169,6 +179,7 @@ public final class BeltBlockEntity extends BlockEntity implements net.minecraft.
 		progress = nbt.getDouble("Progress");
 		previousProgress = progress;
 		offered = nbt.getBoolean("Offered");
+		speed = nbt.contains("Speed") ? nbt.getDouble("Speed") : SPEED;
 		heldBy = nbt.contains("HeldBy") ? BlockPos.fromLong(nbt.getLong("HeldBy")) : null;
 	}
 
@@ -178,6 +189,7 @@ public final class BeltBlockEntity extends BlockEntity implements net.minecraft.
 		if (!stack.isEmpty()) nbt.put("Item", stack.writeNbt(new NbtCompound()));
 		nbt.putDouble("Progress", progress);
 		nbt.putBoolean("Offered", offered);
+		nbt.putDouble("Speed", speed);
 		if (heldBy != null) nbt.putLong("HeldBy", heldBy.asLong());
 	}
 

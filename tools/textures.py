@@ -2901,6 +2901,36 @@ def site_drone_parts(shell, key, scoop):
     return _strip([body, boom, rotor, tool])
 
 
+def ledger_face(base, key, on):
+    """A receipt printout scrolling up a dark screen: item rows on the left, amber prices on the right, a coin in the corner."""
+    frames = []
+    rng = rng_for(key + ":ledger")
+    rows = [(rng.randint(3, 7), rng.randint(2, 4)) for _ in range(12)]
+    for frame in range(8 if on else 1):
+        canvas = plate(base, key + ":ledger")
+        canvas.inset(1, 1, 14, 13, GLASS_DARK, lighten(base, 0.2), darken(base, 0.6))
+        if on:
+            for line in range(4):
+                index = (line + frame // 2) % len(rows)
+                y = 3 + line * 2 + (0 if frame % 2 == 0 else 1) - 1
+                if y < 2 or y > 11:
+                    continue
+                name, price = rows[index]
+                canvas.hline(2, 2 + name, y, (170, 196, 190))
+                canvas.hline(13 - price, 13, y, LED_AMBER)
+            canvas.hline(2, 13, 12, darken(LED_AMBER, 0.4))
+            canvas.set(13, 2, YELLOW)
+            canvas.set(12, 2, YELLOW)
+        else:
+            canvas.set(3, 3, (52, 62, 74))
+            canvas.set(4, 2, (52, 62, 74))
+        canvas.set(3, 14, LED_AMBER if on else LED_OFF)
+        canvas.hline(6, 9, 14, darken(base, 0.4))
+        frames.append(canvas)
+    return frames
+
+
+FRONT_STYLES["ledger"] = ledger_face
 FRONT_STYLES["planner"] = planner_face
 ITEM_STYLES.update({
     "stake": item_stake,

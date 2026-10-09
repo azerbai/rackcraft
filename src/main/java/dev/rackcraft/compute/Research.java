@@ -110,6 +110,16 @@ public final class Research {
 					List.of("silicon_photonics", "immersion_cooling", "structural_engineering"),
 					"Assembly Robots can build Exascale Cabinets: 24 bays, +20% compute and mining, half the bandwidth",
 					"A quintillion operations a second, give or take, and a power bill with its own area code."),
+			// The Assembly Line: each one doubles the speed of every Conveyor Belt and every Welding, Riveting and Assembly Robot.
+			project("line_speed_1", "Brisk Belts", Kind.GENERAL, 1_500_000, 2e7, List.of("predictive_maintenance", "psu_titanium"),
+					"Conveyor Belts and Assembly Line robots work twice as fast",
+					"Turned the belt motors up from \"leisurely stroll\". The workpieces have been told to keep up."),
+			project("line_speed_2", "Frantic Belts", Kind.GENERAL, 6_000_000, 8e7, List.of("line_speed_1", "advanced_materials"),
+					"Belts and robots work twice as fast again: four times the original speed",
+					"Carbon-fibre rollers and a robot union that has stopped sending the strongly worded emails."),
+			project("line_speed_3", "Benny Hill Belts", Kind.GENERAL, 25_000_000, 3e8, List.of("line_speed_2", "advanced_packaging"),
+					"Belts and robots work twice as fast once more: eight times the original speed",
+					"The welding arms are a blur, the belts hum a tune, and the safety officer has gone to lie down."),
 			// Megastructures: bigger cube multiblocks, so a new world can't build a 10-cube on day one.
 			project("structural_engineering", "Structural Engineering", Kind.GENERAL, 5_000_000, 1e8, List.of("reactor_uprate"),
 					"Cube multiblocks can be built up to 7x7x7",
@@ -181,9 +191,9 @@ public final class Research {
 	public record Effects(double mining, double aiCompute, double generalCompute, double rackPower, double sinkCapacity,
 			double thermalOffset, double bootScale, double trainingWork, double contractWork, double contractPay,
 			double leasePay, int leaseSlots, double reactorOutput, boolean leases, boolean lithography,
-			boolean safeHardware, boolean agi, int maxCubeEdge, boolean hydrogenStorage) {
+			boolean safeHardware, boolean agi, int maxCubeEdge, boolean hydrogenStorage, double lineSpeed) {
 		public static final Effects NONE = new Effects(1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, false, false, false, false,
-				dev.rackcraft.world.ReactorArrays.BASE_EDGE, false);
+				dev.rackcraft.world.ReactorArrays.BASE_EDGE, false, 1);
 	}
 
 	/** The combined effect of these finished levels (0 for not done; a repeatable's level otherwise). */
@@ -215,6 +225,7 @@ public final class Research {
 				agi,
 				level.applyAsInt("arcology") > 0 ? 10 : level.applyAsInt("space_frames") > 0 ? 9
 						: level.applyAsInt("structural_engineering") > 0 ? 7 : dev.rackcraft.world.ReactorArrays.BASE_EDGE,
-				level.applyAsInt("cryo_hydrogen") > 0);
+				level.applyAsInt("cryo_hydrogen") > 0,
+				(level.applyAsInt("line_speed_1") > 0 ? 2 : 1) * (level.applyAsInt("line_speed_2") > 0 ? 2 : 1) * (level.applyAsInt("line_speed_3") > 0 ? 2 : 1));
 	}
 }

@@ -35,6 +35,15 @@ public final class RackcraftConfig {
 		}
 	}
 
+	public static void save() {
+		Path path = FabricLoader.getInstance().getConfigDir().resolve("rackcraft.json");
+		try {
+			Files.writeString(path, GSON.toJson(values));
+		} catch (IOException exception) {
+			Rackcraft.LOGGER.error("[Rackcraft] Could not write config", exception);
+		}
+	}
+
 	public static final class Values {
 		static final int CURRENT_VERSION = 2;
 		/** 0 in files written before versions existed (Gson leaves a missing field at its default). */
@@ -136,5 +145,9 @@ public final class RackcraftConfig {
 		public long tankerDronePrice = 50_000_000;
 	}
 	/** Client-side: the RackCoin balance shown near racks or while holding a Rackcraft tool. */
-	public static final class Hud { public boolean enabled = true; }
+	public static final class Hud {
+		public boolean enabled = true;
+		/** Client-side: the Procurement Wall ledger shown within 48 blocks of a powered wall. */
+		public boolean procurement = true;
+	}
 }

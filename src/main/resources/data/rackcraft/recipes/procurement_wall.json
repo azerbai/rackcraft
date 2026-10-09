@@ -1,0 +1,29 @@
+{
+  "key": {
+    "C": {
+      "item": "rackcraft:circuit_board"
+    },
+    "G": {
+      "item": "minecraft:gold_ingot"
+    },
+    "M": {
+      "item": "rackcraft:monitoring_wall"
+    },
+    "P": {
+      "item": "rackcraft:gpu_chip"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    }
+  },
+  "pattern": [
+    "GMG",
+    "CPC",
+    "SSS"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:procurement_wall"
+  },
+  "type": "minecraft:crafting_shaped"
+}
