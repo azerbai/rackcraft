@@ -118,6 +118,8 @@ public final class SimTicker {
 		Map<String, ReactorArrays.Array> exportSinks = new HashMap<>();
 		Map<ReactorArrays.Array, Double> exported = new HashMap<>();
 
+		WirelessPower.prepare(world, machines);
+		List<PylonLinks.Span> pylonSpans = PylonLinks.get(world).spans();
 		for (Set<BlockPos> component : networks.components(NetKind.POWER)) {
 			List<MachineBlockEntity> members = machines.stream()
 					.filter(machine -> component.contains(machine.getPos())).toList();
@@ -146,6 +148,16 @@ public final class SimTicker {
 					exportSinks.put(sinkId, substation);
 				}
 			}
+			// A Pylon span wastes a share of the load it carries; the load on a network is what it takes to be sure of that.
+			if (!pylonSpans.isEmpty()) {
+				double load = sinks.stream().filter(sink -> !sink.export()).mapToDouble(PowerSolver.Sink::demandKw).sum();
+				for (PylonLinks.Span span : pylonSpans) {
+					if (!component.contains(span.a()) || !component.contains(span.b())) continue;
+					boolean superconducting = PylonLinks.superconducting(blockId(world, span.a())) && PylonLinks.superconducting(blockId(world, span.b()));
+					double loss = load * PylonLinks.lossFraction(span.length(), superconducting);
+					if (loss > 0) sinks.add(new PowerSolver.Sink("span:" + span.a().asLong() + ":" + span.b().asLong(), 0, loss));
+				}
+			}
 			PowerSolver.Result result = PowerSolver.solve(sinks, sources, dt);
 			if (result.suppliedKw() > 0) energized.addAll(members);
 			double delivered = sinks.stream().filter(sink -> !sink.export())
@@ -171,6 +183,7 @@ public final class SimTicker {
 			});
 		}
 
+		WirelessPower.settle(world, satisfaction);
 		for (Map.Entry<MachineBlockEntity, PowerSolver.Source> entry : powerSources.entrySet()) {
 			MachineBlockEntity machine = entry.getKey();
 			PowerSolver.Source source = entry.getValue();
@@ -396,6 +409,11 @@ public final class SimTicker {
 			// Beamed down from the Dyson swarm: steady, day and night, drawn first and never resold.
 			case "rectenna" -> world.isSkyVisible(machine.getPos().up())
 					? new PowerSolver.Source(id(machine), PowerSolver.SourceKind.BEAMED, OrbitState.rectennaKw(world, rectennaCount(world))) : null;
+			// Beamed from a Power Beacon in range: what that beacon gave it, drawn first like the Dyson swarm.
+			case "beacon_receiver" -> {
+				double offer = WirelessPower.receiverOfferKw(world, machine);
+				yield offer > 0 ? new PowerSolver.Source(id(machine), PowerSolver.SourceKind.BEAMED, offer) : null;
+			}
 			case "creative_power" -> new PowerSolver.Source(id(machine), PowerSolver.SourceKind.UTILITY,
 					machine.creativeValue(CreativeSettings.OUTPUT_KW));
 		default -> null;
@@ -611,6 +629,7 @@ public final class SimTicker {
 		}
 		return switch (machine.blockId()) {
 			case "cryostat" -> Cryostats.KW;
+			case "power_beacon" -> machine.getWorld() instanceof ServerWorld beaconWorld ? WirelessPower.beaconDemandKw(beaconWorld, machine) : 0;
 			case "exhaust_fan" -> 0.2;
 			case "cooling_tower" -> 4;
 			case "crac_unit" -> 3;
@@ -656,6 +675,10 @@ public final class SimTicker {
 
 	private static int priority(String blockId) {
 		return Racks.isRack(blockId) || blockId.equals("creative_rack") ? 1 : 0;
+	}
+
+	private static String blockId(ServerWorld world, BlockPos pos) {
+		return net.minecraft.registry.Registries.BLOCK.getId(world.getBlockState(pos).getBlock()).getPath();
 	}
 
 	private static String id(MachineBlockEntity machine) {

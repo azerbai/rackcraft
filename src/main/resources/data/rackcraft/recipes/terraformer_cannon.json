@@ -1,0 +1,26 @@
+{
+  "key": {
+    "C": {
+      "item": "rackcraft:circuit_board"
+    },
+    "M": {
+      "item": "rackcraft:electric_motor"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    },
+    "T": {
+      "item": "rackcraft:hydrogen_tank"
+    }
+  },
+  "pattern": [
+    "SMS",
+    "CTC",
+    "SMS"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:terraformer_cannon"
+  },
+  "type": "minecraft:crafting_shaped"
+}

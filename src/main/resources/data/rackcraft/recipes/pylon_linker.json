@@ -1,0 +1,23 @@
+{
+  "key": {
+    "C": {
+      "item": "rackcraft:circuit_board"
+    },
+    "E": {
+      "item": "minecraft:ender_pearl"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    }
+  },
+  "pattern": [
+    " E ",
+    "CSC",
+    " S "
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:pylon_linker"
+  },
+  "type": "minecraft:crafting_shaped"
+}

@@ -6,6 +6,7 @@ import dev.rackcraft.block.CableBlock;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
@@ -62,7 +63,7 @@ public final class NetworkManager {
 
 	/** Cut cables of this kind: they are registered but carry nothing until repaired. */
 	public Set<BlockPos> cutCables(NetKind kind) {
-		return nodes.get(kind).stream().filter(pos -> !isConnected(pos)).collect(java.util.stream.Collectors.toUnmodifiableSet());
+		return nodes.get(kind).stream().filter(this::isCut).collect(java.util.stream.Collectors.toUnmodifiableSet());
 	}
 
 	public java.util.List<Set<BlockPos>> components(NetKind kind) {
@@ -72,6 +73,8 @@ public final class NetworkManager {
 
 	private void rebuildIfDirty() {
 		if (!dirty) return;
+		List<BlockPos[]> joins = PatchPanels.get(world).joins();
+		List<PylonLinks.Span> spans = PylonLinks.get(world).spans();
 		for (NetKind kind : NetKind.values()) {
 			NetGraph<BlockPos> graph = new NetGraph<>();
 			Set<BlockPos> positions = new HashSet<>();
@@ -86,6 +89,15 @@ public final class NetworkManager {
 					if (positions.contains(neighbour)) graph.connect(pos, neighbour);
 				}
 			}
+			// Patch Panels join the blocks on faces sharing a port; Pylon spans join power across the gap.
+			for (BlockPos[] pair : joins) {
+				if (positions.contains(pair[0]) && positions.contains(pair[1])) graph.connect(pair[0], pair[1]);
+			}
+			if (kind == NetKind.POWER) {
+				for (PylonLinks.Span span : spans) {
+					if (positions.contains(span.a()) && positions.contains(span.b())) graph.connect(span.a(), span.b());
+				}
+			}
 			graphs.put(kind, graph);
 			Map<BlockPos, Set<BlockPos>> index = new HashMap<>();
 			for (Set<BlockPos> component : graph.components()) for (BlockPos member : component) index.put(member, component);
@@ -94,9 +106,17 @@ public final class NetworkManager {
 		dirty = false;
 	}
 
+	private boolean isCut(BlockPos pos) {
+		var state = world.getBlockState(pos);
+		return state.getBlock() instanceof CableBlock && state.get(CableBlock.CUT);
+	}
+
 	private boolean isConnected(BlockPos pos) {
 		var state = world.getBlockState(pos);
-		return !(state.getBlock() instanceof CableBlock && state.get(CableBlock.CUT));
+		if (!(state.getBlock() instanceof CableBlock cable)) return true;
+		if (state.get(CableBlock.CUT)) return false;
+		// A trunk is inert until its research is done.
+		return cable.gate() == null || dev.rackcraft.compute.ResearchLab.get(world).done(cable.gate());
 	}
 
 	public ServerWorld world() { return world; }

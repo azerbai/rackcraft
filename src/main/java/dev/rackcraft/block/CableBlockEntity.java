@@ -2,7 +2,6 @@ package dev.rackcraft.block;
 
 import dev.rackcraft.RcBlocks;
 import dev.rackcraft.world.NetworkManager;
-import java.util.Set;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -22,7 +21,7 @@ public final class CableBlockEntity extends BlockEntity {
 	public void setWorld(World world) {
 		super.setWorld(world);
 		if (world instanceof ServerWorld serverWorld && getCachedState().getBlock() instanceof CableBlock cable) {
-			NetworkManager.get(serverWorld).register(pos, Set.of(cable.kind()));
+			NetworkManager.get(serverWorld).register(pos, cable.kinds());
 		}
 	}
 

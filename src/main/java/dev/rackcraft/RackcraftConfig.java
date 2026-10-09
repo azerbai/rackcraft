@@ -56,6 +56,7 @@ public final class RackcraftConfig {
 		public Renewables renewables = new Renewables();
 		public Construction construction = new Construction();
 		public Exchange exchange = new Exchange();
+		public Building building = new Building();
 
 		private Values withDefaults() {
 			Values defaults = new Values();
@@ -67,12 +68,31 @@ public final class RackcraftConfig {
 			if (renewables == null) renewables = defaults.renewables;
 			if (construction == null) construction = defaults.construction;
 			if (exchange == null) exchange = defaults.exchange;
+			if (building == null) building = defaults.building;
 			if (sim.stepTicks <= 0) sim.stepTicks = defaults.sim.stepTicks;
 			if (thermal.cellCapacityKjPerK <= 0) thermal.cellCapacityKjPerK = defaults.thermal.cellCapacityKjPerK;
 			if (thermal.maxActiveCells <= 0) thermal.maxActiveCells = defaults.thermal.maxActiveCells;
 			if (heatOverlay.maxCells <= 0) heatOverlay.maxCells = defaults.heatOverlay.maxCells;
 			return this;
 		}
+	}
+
+	/** Postgame building and wiring tools. */
+	public static final class Building {
+		/** Power Beacon reach in blocks, and its output in kW. */
+		public double beaconRange = 16;
+		public double beaconMaxKw = 1000;
+		/** Share of the beamed power lost on the way. */
+		public double beaconLoss = 0.15;
+		/** Constructor's Gauntlet reach, and with Long Reach. */
+		public int gauntletReach = 32;
+		public int gauntletLongReach = 128;
+		/** Most blocks one Gauntlet or Terraformer use may change. */
+		public int maxBlocksPerUse = 4096;
+		/** Blocks the Terraformer Cannon moves per Hydrogen Canister. */
+		public int cannonBlocksPerCanister = 256;
+		/** Gauntlet uses per Battery Cell. */
+		public int gauntletUsesPerCell = 16;
 	}
 
 	/** {@code rackBootScale} multiplies how long racks take to boot (1 by default, 0 for instant). */

@@ -1245,6 +1245,13 @@ def cable_side(entry, cut=False):
                 canvas.set(x, y, mix(canvas.get(x, y), STEEL, 0.7))
         for x in range(2, 14, 4):
             canvas.set(x, 6, lighten(base, 0.6))
+    elif identifier == "trunk_bundle":
+        # Three lanes in one conduit: a power stripe, a coolant stripe and a fibre stripe, with steel banding.
+        for y, lane in ((4, (199, 67, 56)), (7, (80, 150, 210)), (10, (183, 101, 160))):
+            canvas.hline(0, 15, y, lane)
+            canvas.hline(0, 15, y + 1, darken(lane, 0.3))
+        for x in range(0, SIZE, 8):
+            canvas.vline(x, 0, 15, darken(base, 0.6))
     else:
         for x in range(1, SIZE, 3):
             canvas.set(x, 8, (255, 214, 250))
@@ -1266,7 +1273,8 @@ def cable_end(entry, cut=False):
     canvas = Canvas(darken(base, 0.4))
     canvas.disc(8, 8, 3.2, lighten(STEEL, 0.1))
     canvas.disc(8, 8, 2.2, darken(base, 0.1))
-    core = {"power_cable": COPPER, "coolant_pipe": (150, 225, 245), "fiber_cable": (255, 214, 250), "item_pipe": (240, 214, 150)}[entry["id"]]
+    core = {"power_cable": COPPER, "coolant_pipe": (150, 225, 245), "fiber_cable": (255, 214, 250), "item_pipe": (240, 214, 150),
+            "trunk_bundle": (210, 218, 226)}[entry["id"]]
     canvas.disc(8, 8, 1.2, LED_RED if cut else core)
     canvas.frame(4, 4, 11, 11, darken(base, 0.55))
     return canvas
@@ -2932,7 +2940,80 @@ def ledger_face(base, key, on):
 
 FRONT_STYLES["ledger"] = ledger_face
 FRONT_STYLES["planner"] = planner_face
+def item_planner_tool(base, key):
+    """A handheld route tool: a screen showing a bent cable path between two end points."""
+    canvas = Canvas()
+    canvas.rect(3, 2, 12, 13, darken(base, 0.45))
+    canvas.bevel(3, 2, 12, 13, lighten(base, 0.35), darken(base, 0.7))
+    canvas.rect(4, 3, 11, 9, (24, 52, 72))
+    path = (120, 230, 255)
+    for x, y in ((5, 8), (5, 7), (5, 6), (6, 6), (7, 6), (8, 6), (8, 5), (9, 5), (10, 5)):
+        canvas.set(x, y, path)
+    canvas.set(5, 8, LED_GREEN)
+    canvas.set(10, 5, LED_RED)
+    canvas.rect(5, 11, 6, 12, LED_AMBER)
+    canvas.rect(9, 11, 10, 12, lighten(base, 0.2))
+    return canvas
+
+
+def item_gauntlet(base, key):
+    """A steel glove with a glowing power cell on the back of the hand."""
+    canvas = Canvas()
+    canvas.rect(4, 6, 12, 13, darken(base, 0.2))
+    canvas.bevel(4, 6, 12, 13, lighten(base, 0.35), darken(base, 0.6))
+    for x in (4, 6, 8, 10):
+        canvas.rect(x, 2, x + 1, 6, base)
+        canvas.vline(x, 2, 6, lighten(base, 0.3))
+    canvas.rect(2, 8, 3, 11, darken(base, 0.1))
+    canvas.rect(6, 8, 9, 10, (30, 40, 50))
+    canvas.rect(7, 8, 8, 9, (120, 230, 255))
+    canvas.hline(4, 12, 13, darken(base, 0.6))
+    return canvas
+
+
+def item_cannon(base, key):
+    """A stubby hydrogen-fed cannon: a fat barrel, a tank on top and a pistol grip."""
+    canvas = Canvas()
+    canvas.rect(2, 6, 13, 9, base)
+    canvas.bevel(2, 6, 13, 9, lighten(base, 0.35), darken(base, 0.55))
+    canvas.rect(12, 5, 14, 10, darken(base, 0.4))
+    canvas.rect(4, 3, 9, 5, (127, 184, 232))
+    canvas.bevel(4, 3, 9, 5, (190, 225, 250), (70, 110, 150))
+    canvas.rect(4, 10, 6, 14, darken(base, 0.5))
+    canvas.set(10, 7, LED_AMBER)
+    return canvas
+
+
+def item_cell(base, key):
+    """A squat battery cell with a charge bar and a button terminal."""
+    canvas = Canvas()
+    canvas.rect(5, 4, 10, 14, base)
+    canvas.bevel(5, 4, 10, 14, lighten(base, 0.4), darken(base, 0.6))
+    canvas.rect(7, 2, 8, 3, STEEL)
+    canvas.rect(6, 6, 9, 7, darken(base, 0.6))
+    canvas.rect(6, 9, 9, 12, (60, 200, 90))
+    return canvas
+
+
+def item_linker(base, key):
+    """A rod with a split fork on the end, and a pair of antenna dots."""
+    canvas = Canvas()
+    for i in range(10):
+        canvas.set(4 + i // 2, 14 - i, base)
+        canvas.set(5 + i // 2, 14 - i, darken(base, 0.3))
+    canvas.line(9, 4, 12, 1, lighten(base, 0.3))
+    canvas.line(9, 4, 14, 4, lighten(base, 0.3))
+    canvas.set(12, 1, LED_AMBER)
+    canvas.set(14, 4, LED_AMBER)
+    return canvas
+
+
 ITEM_STYLES.update({
+    "planner_tool": item_planner_tool,
+    "gauntlet": item_gauntlet,
+    "cannon": item_cannon,
+    "cell": item_cell,
+    "linker": item_linker,
     "stake": item_stake,
     "heavy_drone_frame": item_heavy_drone_frame,
     "construction_drone": lambda base, key: _site_drone_icon(base, key, "gripper"),

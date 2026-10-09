@@ -1,0 +1,29 @@
+{
+  "key": {
+    "C": {
+      "item": "rackcraft:circuit_board"
+    },
+    "F": {
+      "item": "rackcraft:fiber_cable"
+    },
+    "K": {
+      "item": "rackcraft:coolant_pipe"
+    },
+    "P": {
+      "item": "rackcraft:power_cable"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    }
+  },
+  "pattern": [
+    "SCS",
+    "FPK",
+    "SCS"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:patch_panel"
+  },
+  "type": "minecraft:crafting_shaped"
+}

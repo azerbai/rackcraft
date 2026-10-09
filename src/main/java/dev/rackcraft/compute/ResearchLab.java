@@ -191,6 +191,8 @@ public final class ResearchLab extends PersistentState {
 		}
 		effects = null;
 		markDirty();
+		// Trunks, panels and the like switch on with their research.
+		dev.rackcraft.world.NetworkManager.get(world).markDirty();
 		String what = project.repeatable() ? project.name() + " level " + level(project.id()) : project.name();
 		announce(world, Text.literal("R&D complete: " + what + ". " + project.effect() + ".").formatted(Formatting.AQUA));
 		if (project.id().equals(Research.AGI)) awaken(world);

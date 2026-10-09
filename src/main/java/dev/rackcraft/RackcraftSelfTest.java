@@ -38,7 +38,7 @@ public final class RackcraftSelfTest {
 		RackcraftConfig.values.events.enabled = false;
 		dev.rackcraft.compute.ResearchLab.get(server.getOverworld()).reset();
 		dev.rackcraft.world.OrbitState.get(server.getOverworld()).reset();
-		check("S0.a", RcBlocks.BLOCKS.size() == 85 && RcItems.ITEMS.size() == 84,
+		check("S0.a", RcBlocks.BLOCKS.size() == 91 && RcItems.ITEMS.size() == 89,
 				"blocks=" + RcBlocks.BLOCKS.size() + " items=" + RcItems.ITEMS.size(), failures);
 		ServerWorld world = server.getOverworld();
 		BlockPos generatorPos = new BlockPos(0, 80, 0);
@@ -159,6 +159,7 @@ public final class RackcraftSelfTest {
 		checkLineSpeedAndFeeding(world, failures);
 		checkRackFill(world, failures);
 		checkAdvancedHardware(world, failures);
+		checkBuildingTools(world, failures);
 		checkPerformance(world, failures);
 		checkStructures(world, failures);
 		check("S0.b", SimTicker.failedSteps() == 0, "simulation steps that threw=" + SimTicker.failedSteps(), failures);
@@ -2307,6 +2308,345 @@ public final class RackcraftSelfTest {
 	 * re-added up its whole network, so a 1,000-rack hall took half a second a step). And a Site Planner's cable goes
 	 * round a wall of machinery in its way rather than giving up.
 	 */
+	/**
+	 * Batch A, building and wiring: Trunk Bundles, Patch Panels, Pylons, Power Beacons, the Cable Planner, the
+	 * Constructor's Gauntlet and the Terraformer Cannon.
+	 */
+	private static void checkBuildingTools(ServerWorld world, int[] failures) {
+		dev.rackcraft.compute.ResearchLab lab = dev.rackcraft.compute.ResearchLab.get(world);
+		lab.reset();
+		dev.rackcraft.world.PatchPanels.get(world).reset();
+		dev.rackcraft.world.PylonLinks.get(world).reset();
+		dev.rackcraft.world.WirelessPower.reset(world);
+		dev.rackcraft.world.NetworkManager networks = dev.rackcraft.world.NetworkManager.get(world);
+		var player = net.fabricmc.fabric.api.entity.FakePlayer.get(world);
+		player.getInventory().clear();
+		player.setPosition(-2290, 150, -1530);
+		BlockPos o = clearArea(world, new BlockPos(-2300, 150, -1536), 60, 12, 80);
+		CableBlock powerCable = (CableBlock) RcBlocks.get("power_cable");
+		CableBlock coolantPipe = (CableBlock) RcBlocks.get("coolant_pipe");
+		CableBlock fiberCable = (CableBlock) RcBlocks.get("fiber_cable");
+		net.minecraft.util.math.Vec3d centre;
+
+		// ---- A1: a Trunk Bundle carries three networks in one block, and is inert until Structured Cabling.
+		BlockPos trunkA = o.east(2);
+		BlockPos trunkB = o.east(3);
+		BlockPos cable = o.east(4);
+		BlockPos pipe = trunkB.south();
+		BlockPos fiber = trunkB.north();
+		world.setBlockState(o, RcBlocks.get("creative_power").getDefaultState());
+		world.setBlockState(o.east(), RcBlocks.get("fiber_cable").getDefaultState());
+		world.setBlockState(trunkA, RcBlocks.get("trunk_bundle").getDefaultState());
+		world.setBlockState(trunkB, RcBlocks.get("trunk_bundle").getDefaultState());
+		world.setBlockState(cable, powerCable.withConnections(powerCable.getDefaultState(), world, cable));
+		world.setBlockState(pipe, coolantPipe.withConnections(coolantPipe.getDefaultState(), world, pipe));
+		world.setBlockState(fiber, fiberCable.withConnections(fiberCable.getDefaultState(), world, fiber));
+		world.setBlockState(o.east(), powerCable.withConnections(powerCable.getDefaultState(), world, o.east()));
+		networks.markDirty();
+		boolean inert = !networks.component(cable, dev.rackcraft.sim.NetKind.POWER).contains(o);
+		lab.complete(world, dev.rackcraft.compute.Research.get("structured_cabling"));
+		boolean power = networks.component(cable, dev.rackcraft.sim.NetKind.POWER).contains(o);
+		boolean coolant = networks.component(pipe, dev.rackcraft.sim.NetKind.COOLANT).contains(trunkA);
+		boolean data = networks.component(fiber, dev.rackcraft.sim.NetKind.DATA).contains(trunkA);
+		// The lanes stay apart: a power cable doesn't join the fiber lane just because they share a trunk.
+		boolean lanesApart = !networks.component(cable, dev.rackcraft.sim.NetKind.DATA).contains(fiber);
+		check("BT1.a", inert && power && coolant && data && lanesApart,
+				"inertBeforeResearch=" + inert + " power=" + power + " coolant=" + coolant + " fiber=" + data + " lanesApart=" + lanesApart, failures);
+		CableBlock.setCut(world, trunkB, true);
+		boolean allCut = !networks.component(cable, dev.rackcraft.sim.NetKind.POWER).contains(o)
+				&& !networks.component(pipe, dev.rackcraft.sim.NetKind.COOLANT).contains(trunkA)
+				&& !networks.component(fiber, dev.rackcraft.sim.NetKind.DATA).contains(trunkA);
+		player.setStackInHand(net.minecraft.util.Hand.MAIN_HAND, new ItemStack(RcItems.ITEMS.get("repair_kit")));
+		centre = net.minecraft.util.math.Vec3d.ofCenter(trunkB);
+		world.getBlockState(trunkB).onUse(world, player, net.minecraft.util.Hand.MAIN_HAND,
+				new net.minecraft.util.hit.BlockHitResult(centre, Direction.UP, trunkB, false));
+		boolean mended = !world.getBlockState(trunkB).get(CableBlock.CUT)
+				&& networks.component(cable, dev.rackcraft.sim.NetKind.POWER).contains(o)
+				&& networks.component(pipe, dev.rackcraft.sim.NetKind.COOLANT).contains(trunkA);
+		check("BT1.b", allCut && mended, "oneCutCutsAllThree=" + allCut + " oneSpliceMendsAll=" + mended, failures);
+		check("BT1.c", world.getBlockState(trunkA).get(ConnectingBlock.FACING_PROPERTIES.get(Direction.EAST))
+						&& world.getBlockState(cable).get(ConnectingBlock.FACING_PROPERTIES.get(Direction.WEST))
+						&& world.getBlockState(pipe).get(ConnectingBlock.FACING_PROPERTIES.get(Direction.NORTH)),
+				"trunk=" + world.getBlockState(trunkA), failures);
+
+		// ---- A3: a Patch Panel joins the faces on one port, and nothing else.
+		BlockPos panelRow = o.south(6);
+		BlockPos panel = panelRow.east(2);
+		world.setBlockState(panelRow, RcBlocks.get("creative_power").getDefaultState());
+		world.setBlockState(panelRow.east(), powerCable.withConnections(powerCable.getDefaultState(), world, panelRow.east()));
+		world.setBlockState(panel, RcBlocks.get("patch_panel").getDefaultState());
+		world.setBlockState(panelRow.east(3), powerCable.withConnections(powerCable.getDefaultState(), world, panelRow.east(3)));
+		world.setBlockState(panelRow.east(3).south(), fiberCable.withConnections(fiberCable.getDefaultState(), world, panelRow.east(3).south()));
+		world.setBlockState(panelRow.east(3).south(), powerCable.withConnections(powerCable.getDefaultState(), world, panelRow.east(3).south()));
+		networks.markDirty();
+		player.setStackInHand(net.minecraft.util.Hand.MAIN_HAND, ItemStack.EMPTY);
+		centre = net.minecraft.util.math.Vec3d.ofCenter(panel);
+		lab.reset();
+		world.getBlockState(panel).onUse(world, player, net.minecraft.util.Hand.MAIN_HAND,
+				new net.minecraft.util.hit.BlockHitResult(centre, Direction.EAST, panel, false));
+		boolean panelInert = dev.rackcraft.world.PatchPanels.get(world).port(panel, Direction.EAST) == 0;
+		lab.complete(world, dev.rackcraft.compute.Research.get("structured_cabling"));
+		boolean apart = !networks.component(panelRow.east(3), dev.rackcraft.sim.NetKind.POWER).contains(panelRow);
+		world.getBlockState(panel).onUse(world, player, net.minecraft.util.Hand.MAIN_HAND,
+				new net.minecraft.util.hit.BlockHitResult(centre, Direction.EAST, panel, false));
+		world.getBlockState(panel).onUse(world, player, net.minecraft.util.Hand.MAIN_HAND,
+				new net.minecraft.util.hit.BlockHitResult(centre, Direction.WEST, panel, false));
+		boolean joined = networks.component(panelRow.east(3), dev.rackcraft.sim.NetKind.POWER).contains(panelRow);
+		// A third face on a different port, and a face moved off the shared port, break the join again.
+		dev.rackcraft.world.PatchPanels panels = dev.rackcraft.world.PatchPanels.get(world);
+		panels.cycle(panel, Direction.EAST);
+		networks.markDirty();
+		boolean split = !networks.component(panelRow.east(3), dev.rackcraft.sim.NetKind.POWER).contains(panelRow);
+		// Faces cycle round to 0 after the last port, and the panel forgets itself when broken.
+		for (int turn = 0; turn <= dev.rackcraft.world.PatchPanels.MAX_PORT; turn++) panels.cycle(panel, Direction.UP);
+		boolean wraps = panels.port(panel, Direction.UP) == 0;
+		world.setBlockState(panel, Blocks.AIR.getDefaultState());
+		boolean forgotten = panels.joins().stream().noneMatch(pair -> pair[0].equals(panel.west()));
+		check("BT2.a", panelInert && apart && joined && split && wraps && forgotten,
+				"inertBeforeResearch=" + panelInert + " isolatedByDefault=" + apart + " joinedOnSharedPort=" + joined
+						+ " splitWhenMoved=" + split + " wraps=" + wraps + " forgottenWhenBroken=" + forgotten, failures);
+
+		// ---- A4: Pylons carry power across a gap, waste a share by distance, and cut cleanly.
+		BlockPos span = o.south(12);
+		BlockPos far = span.east(100);
+		world.getChunk(far);
+		clearArea(world, far, 6, 4, 4);
+		world.setBlockState(span, RcBlocks.get("creative_power").getDefaultState());
+		world.setBlockState(span.east(), RcBlocks.get("pylon").getDefaultState());
+		world.setBlockState(far, RcBlocks.get("pylon").getDefaultState());
+		world.setBlockState(far.east(), RcBlocks.get("creative_rack").getDefaultState());
+		MachineBlockEntity pylonSource = machine(world, span);
+		MachineBlockEntity pylonLoad = machine(world, far.east());
+		pylonSource.setCreativeValue(CreativeSettings.OUTPUT_KW, 5000);
+		pylonLoad.setCreativeValue(CreativeSettings.DRAW_KW, 1000);
+		for (int step = 0; step < 4; step++) SimTicker.stepNow(world);
+		boolean dark = pylonLoad.powerSatisfaction() < 0.01;
+		ItemStack linker = new ItemStack(RcItems.ITEMS.get("pylon_linker"));
+		String first = dev.rackcraft.item.PylonLinkerItem.link(world, linker, span.east());
+		String second = dev.rackcraft.item.PylonLinkerItem.link(world, linker, far);
+		for (int step = 0; step < 4; step++) SimTicker.stepNow(world);
+		double expected = 1000 * (1 + dev.rackcraft.world.PylonLinks.lossFraction(100, false));
+		boolean lit = pylonLoad.powerSatisfaction() > 0.99 && Math.abs(pylonLoad.networkDemandKw() - expected) < 1;
+		check("BT3.a", dark && lit && second.startsWith("Span strung"),
+				"darkBefore=" + dark + " lit=" + lit + " demand=" + pylonLoad.networkDemandKw() + " expected=" + expected + " msg=" + second, failures);
+		// Superconducting pylons waste nothing and reach twice as far; an ordinary one can't reach 200 blocks.
+		dev.rackcraft.world.PylonLinks.get(world).unlink(span.east());
+		world.setBlockState(span.east(), RcBlocks.get("superconducting_pylon").getDefaultState());
+		world.setBlockState(far, RcBlocks.get("superconducting_pylon").getDefaultState());
+		dev.rackcraft.item.PylonLinkerItem.link(world, linker, span.east());
+		String superSpan = dev.rackcraft.item.PylonLinkerItem.link(world, linker, far);
+		for (int step = 0; step < 4; step++) SimTicker.stepNow(world);
+		boolean lossless = Math.abs(pylonLoad.networkDemandKw() - 1000) < 0.5 && pylonLoad.powerSatisfaction() > 0.99;
+		BlockPos tooFar = span.east(200);
+		world.getChunk(tooFar);
+		clearArea(world, tooFar, 3, 3, 3);
+		world.setBlockState(tooFar, RcBlocks.get("pylon").getDefaultState());
+		world.setBlockState(span.east(2), RcBlocks.get("pylon").getDefaultState());
+		dev.rackcraft.item.PylonLinkerItem.link(world, linker, span.east(2));
+		String refused = dev.rackcraft.item.PylonLinkerItem.link(world, linker, tooFar);
+		check("BT3.b", lossless && superSpan.contains("no loss") && refused.startsWith("Too far"),
+				"lossless=" + lossless + " msg=" + superSpan + " ordinary200=" + refused, failures);
+		world.setBlockState(far, Blocks.AIR.getDefaultState());
+		boolean unlinked = dev.rackcraft.world.PylonLinks.get(world).count(span.east()) == 0;
+		for (int step = 0; step < 3; step++) SimTicker.stepNow(world);
+		check("BT3.c", unlinked && pylonLoad.powerSatisfaction() < 0.01,
+				"spansLeft=" + dev.rackcraft.world.PylonLinks.get(world).count(span.east()) + " satisfaction=" + pylonLoad.powerSatisfaction(), failures);
+		dev.rackcraft.world.PylonLinks.get(world).reset();
+
+		// ---- A5: a Power Beacon feeds a Beacon Receiver in range, and not one out of range.
+		lab.reset();
+		BlockPos beam = o.south(20);
+		world.setBlockState(beam, RcBlocks.get("creative_power").getDefaultState());
+		world.setBlockState(beam.east(), RcBlocks.get("power_beacon").getDefaultState());
+		BlockPos near = beam.east(9);
+		BlockPos away = beam.east(30);
+		clearArea(world, away, 4, 3, 3);
+		world.setBlockState(near, RcBlocks.get("beacon_receiver").getDefaultState());
+		world.setBlockState(near.east(), RcBlocks.get("creative_rack").getDefaultState());
+		world.setBlockState(away, RcBlocks.get("beacon_receiver").getDefaultState());
+		world.setBlockState(away.east(), RcBlocks.get("creative_rack").getDefaultState());
+		machine(world, beam).setCreativeValue(CreativeSettings.OUTPUT_KW, 5000);
+		MachineBlockEntity nearLoad = machine(world, near.east());
+		MachineBlockEntity awayLoad = machine(world, away.east());
+		nearLoad.setCreativeValue(CreativeSettings.DRAW_KW, 500);
+		awayLoad.setCreativeValue(CreativeSettings.DRAW_KW, 500);
+		for (int step = 0; step < 6; step++) SimTicker.stepNow(world);
+		boolean locked = nearLoad.powerSatisfaction() < 0.01;
+		lab.complete(world, dev.rackcraft.compute.Research.get("wireless_power"));
+		for (int step = 0; step < 8; step++) SimTicker.stepNow(world);
+		MachineBlockEntity beacon = machine(world, beam.east());
+		boolean fed = nearLoad.powerSatisfaction() > 0.99;
+		boolean outOfRange = awayLoad.powerSatisfaction() < 0.01;
+		double asked = beacon.networkDemandKw();
+		check("BT4.a", locked && fed && outOfRange,
+				"inertBeforeResearch=" + locked + " inRangeFed=" + fed + " outOfRangeDark=" + outOfRange + " beaconNetworkDemand=" + asked, failures);
+		// What arrives is 85% of what leaves: the source's network sees the load plus the loss.
+		double wanted = 500 / (1 - RackcraftConfig.values.building.beaconLoss);
+		check("BT4.b", Math.abs(machine(world, beam).powerKw() - wanted) < 2,
+				"sourceOutput=" + machine(world, beam).powerKw() + " expected=" + wanted, failures);
+		lab.reset();
+		clearArea(world, beam, 40, 4, 4);
+
+		// ---- A2: the Cable Planner routes round a wall, ghosts it, and lays only what it can afford.
+		BlockPos lane = o.south(28);
+		BlockPos from = lane;
+		BlockPos to = lane.east(10);
+		for (int y = 0; y < 3; y++) for (int z = -2; z <= 2; z++) world.setBlockState(lane.east(5).add(0, y, z), Blocks.STONE.getDefaultState());
+		var straight = dev.rackcraft.world.CablePlanner.route(world, from, to, 0, powerCable);
+		var shortest = dev.rackcraft.world.CablePlanner.route(world, from, to, 2, powerCable);
+		var hugging = dev.rackcraft.world.CablePlanner.route(world, from, to, 3, powerCable);
+		boolean straightBlocked = straight.stream().anyMatch(cell -> cell.flag() == dev.rackcraft.world.CablePlanner.BLOCKED);
+		boolean clear = !shortest.isEmpty() && shortest.stream().noneMatch(cell -> cell.flag() == dev.rackcraft.world.CablePlanner.BLOCKED)
+				&& shortest.get(0).pos().equals(from) && shortest.get(shortest.size() - 1).pos().equals(to);
+		boolean contiguous = true;
+		for (int index = 1; index < shortest.size(); index++) {
+			if (shortest.get(index).pos().getManhattanDistance(shortest.get(index - 1).pos()) != 1) contiguous = false;
+		}
+		boolean huggingClear = !hugging.isEmpty() && hugging.stream().noneMatch(cell -> cell.flag() == dev.rackcraft.world.CablePlanner.BLOCKED);
+		check("BT5.a", straightBlocked && clear && contiguous && huggingClear && shortest.size() > straight.size(),
+				"straightBlocked=" + straightBlocked + " shortestClear=" + clear + " contiguous=" + contiguous + " hugClear=" + huggingClear
+						+ " lengths=" + straight.size() + "/" + shortest.size() + "/" + hugging.size(), failures);
+		// Laying: three uses on faces, taking cables from the inventory and stopping when they run out.
+		ItemStack planner = new ItemStack(RcItems.ITEMS.get("cable_planner"));
+		planner.getOrCreateNbt().putInt("Style", 2);
+		player.getInventory().clear();
+		player.getInventory().setStack(5, new ItemStack(powerCable.asItem(), shortest.size() - 3));
+		player.setStackInHand(net.minecraft.util.Hand.MAIN_HAND, planner);
+		BlockPos floorA = from.down();
+		BlockPos floorB = to.down();
+		world.setBlockState(floorA, Blocks.STONE.getDefaultState());
+		world.setBlockState(floorB, Blocks.STONE.getDefaultState());
+		for (BlockPos floor : List.of(floorA, floorB, floorA)) {
+			var hit = new net.minecraft.util.hit.BlockHitResult(net.minecraft.util.math.Vec3d.ofCenter(floor), Direction.UP, floor, false);
+			planner.getItem().useOnBlock(new net.minecraft.item.ItemUsageContext(world, player, net.minecraft.util.Hand.MAIN_HAND, planner, hit));
+		}
+		// The route is worked out again as it is laid, and the floor stones changed which way round the wall is shortest.
+		long laidBlocks = BlockPos.stream(lane.add(-1, -3, -4), lane.add(11, 5, 4))
+				.filter(pos -> world.getBlockState(pos).getBlock() instanceof CableBlock).count();
+		check("BT5.b", laidBlocks == shortest.size() - 3 && player.getInventory().count(powerCable.asItem()) == 0
+						&& dev.rackcraft.item.CablePlannerItem.start(planner) == null,
+				"laid=" + laidBlocks + " of " + shortest.size() + " carried=" + (shortest.size() - 3), failures);
+		check("BT5.c", dev.rackcraft.world.CablePlanner.route(world, from, from.east(600), 0, powerCable).isEmpty(),
+				"tooLongRefused", failures);
+
+		// ---- A6: the Constructor's Gauntlet builds and removes in bulk, and leaves machines alone.
+		lab.reset();
+		BlockPos site = o.south(36);
+		clearArea(world, site, 12, 6, 12);
+		player.getInventory().clear();
+		player.getInventory().setStack(5, new ItemStack(Blocks.STONE.asItem(), 64));
+		player.getInventory().setStack(6, new ItemStack(RcItems.ITEMS.get("battery_cell"), 2));
+		ItemStack gauntlet = new ItemStack(RcItems.ITEMS.get("constructor_gauntlet"));
+		gauntlet.getOrCreateNbt().putInt("Mode", 2);
+		player.setStackInHand(net.minecraft.util.Hand.MAIN_HAND, gauntlet);
+		player.setStackInHand(net.minecraft.util.Hand.OFF_HAND, new ItemStack(Blocks.STONE.asItem()));
+		player.setPosition(site.getX(), site.getY(), site.getZ());
+		for (BlockPos mark : List.of(site, site.add(2, 2, 2))) {
+			// Aim at the face of the block under the cell, so the click lands on the open cell itself.
+			var hit = new net.minecraft.util.hit.BlockHitResult(net.minecraft.util.math.Vec3d.ofCenter(mark), Direction.UP, mark.down(), false);
+			gauntlet.getItem().useOnBlock(new net.minecraft.item.ItemUsageContext(world, player, net.minecraft.util.Hand.MAIN_HAND, gauntlet, hit));
+		}
+		long stones = BlockPos.stream(site, site.add(2, 2, 2)).filter(pos -> world.getBlockState(pos).isOf(Blocks.STONE)).count();
+		// The off-hand block counts as stock too: 64 in the pack and one in the hand.
+		check("BT6.a", stones == 27 && player.getInventory().count(Blocks.STONE.asItem()) == 65 - 27
+						&& player.getInventory().count(RcItems.ITEMS.get("battery_cell")) == 1,
+				"stoneBlocks=" + stones + " stoneLeft=" + player.getInventory().count(Blocks.STONE.asItem())
+						+ " cellsLeft=" + player.getInventory().count(RcItems.ITEMS.get("battery_cell")), failures);
+		// Swap stone for glass, then delete the lot: a machine in the box is skipped, the rest comes home.
+		BlockPos machineAt = site.add(1, 1, 1);
+		world.setBlockState(machineAt, RcBlocks.get("server_rack").getDefaultState());
+		player.getInventory().setStack(7, new ItemStack(Blocks.GLASS.asItem(), 64));
+		var swap = dev.rackcraft.world.Earthworks.gauntlet(world, player, dev.rackcraft.world.BuildStock.of(player),
+				dev.rackcraft.world.Earthworks.Mode.SWAP, site.add(2, 0, 0), site.add(2, 2, 2), Blocks.GLASS);
+		long glass = BlockPos.stream(site, site.add(2, 2, 2)).filter(pos -> world.getBlockState(pos).isOf(Blocks.GLASS)).count();
+		var delete = dev.rackcraft.world.Earthworks.gauntlet(world, player, dev.rackcraft.world.BuildStock.of(player),
+				dev.rackcraft.world.Earthworks.Mode.DELETE, site, site.add(2, 2, 2), null);
+		boolean rackSurvived = world.getBlockState(machineAt).isOf(RcBlocks.get("server_rack"));
+		long left = BlockPos.stream(site, site.add(2, 2, 2)).filter(pos -> !world.getBlockState(pos).isAir()).count();
+		check("BT6.b", swap.changed() == 9 && glass == 9 && delete.changed() > 0 && rackSurvived && left == 1,
+				"swapped=" + swap.changed() + " glass=" + glass + " deleted=" + delete.changed() + " rackSurvived=" + rackSurvived + " left=" + left, failures);
+		var huge = dev.rackcraft.world.Earthworks.gauntlet(world, player, dev.rackcraft.world.BuildStock.of(player),
+				dev.rackcraft.world.Earthworks.Mode.BOX, site, site.add(60, 60, 60), Blocks.STONE);
+		boolean shortReach = dev.rackcraft.item.ConstructorGauntletItem.reach(world) == RackcraftConfig.values.building.gauntletReach;
+		lab.complete(world, dev.rackcraft.compute.Research.get("long_reach"));
+		boolean longReach = dev.rackcraft.item.ConstructorGauntletItem.reach(world) == RackcraftConfig.values.building.gauntletLongReach;
+		lab.reset();
+		check("BT6.d", shortReach && longReach, "reach32=" + shortReach + " longReach128=" + longReach, failures);
+		check("BT6.c", huge.changed() == 0 && huge.note().startsWith("Too big"), "note=" + huge.note(), failures);
+
+		// ---- A7: the Terraformer Cannon flattens a hill, fills a pit, and spends hydrogen for what it moves.
+		BlockPos ground = o.south(54);
+		clearArea(world, ground.add(-12, 0, -12), 24, 8, 24);
+		for (BlockPos pos : BlockPos.iterate(ground.add(-12, -1, -12), ground.add(12, -1, 12))) world.setBlockState(pos, Blocks.DIRT.getDefaultState());
+		for (BlockPos pos : BlockPos.iterate(ground.add(-2, 0, -2), ground.add(2, 2, 2))) world.setBlockState(pos, Blocks.STONE.getDefaultState());
+		for (BlockPos pos : BlockPos.iterate(ground.add(4, -1, 0), ground.add(5, -1, 1))) world.setBlockState(pos, Blocks.AIR.getDefaultState());
+		BlockPos protectedColumn = ground.add(-1, 0, 3);
+		world.setBlockState(protectedColumn, RcBlocks.get("server_rack").getDefaultState());
+		BlockPos target = ground.add(2, -1, -4);
+		var flatten = dev.rackcraft.world.Earthworks.terraform(world, dev.rackcraft.world.Earthworks.Terrain.FLATTEN, target, 8);
+		boolean planned = flatten != null && flatten.moved() >= 45 && dev.rackcraft.world.Earthworks.canisters(flatten) >= 1;
+		player.getInventory().clear();
+		ItemStack cannon = new ItemStack(RcItems.ITEMS.get("terraformer_cannon"));
+		cannon.getOrCreateNbt().putInt("Radius", 8);
+		player.setStackInHand(net.minecraft.util.Hand.MAIN_HAND, cannon);
+		player.setStackInHand(net.minecraft.util.Hand.OFF_HAND, ItemStack.EMPTY);
+		var dry = new net.minecraft.util.hit.BlockHitResult(net.minecraft.util.math.Vec3d.ofCenter(target), Direction.UP, target, false);
+		cannon.getItem().useOnBlock(new net.minecraft.item.ItemUsageContext(world, player, net.minecraft.util.Hand.MAIN_HAND, cannon, dry));
+		boolean refusedDry = world.getBlockState(ground.add(0, 2, 0)).isOf(Blocks.STONE);
+		player.getInventory().setStack(5, new ItemStack(RcItems.ITEMS.get("hydrogen_canister"), 4));
+		cannon.getItem().useOnBlock(new net.minecraft.item.ItemUsageContext(world, player, net.minecraft.util.Hand.MAIN_HAND, cannon, dry));
+		boolean levelled = BlockPos.stream(ground.add(-2, 0, -2), ground.add(2, 2, 2)).noneMatch(pos -> world.getBlockState(pos).isOf(Blocks.STONE));
+		int spent = 4 - player.getInventory().count(RcItems.ITEMS.get("hydrogen_canister"));
+		boolean rackKept = world.getBlockState(protectedColumn).isOf(RcBlocks.get("server_rack"));
+		check("BT7.a", planned && refusedDry && levelled && spent >= 1 && rackKept,
+				"planned=" + planned + " refusedWithoutHydrogen=" + refusedDry + " levelled=" + levelled + " canistersSpent=" + spent
+						+ " rackKept=" + rackKept, failures);
+		var fill = dev.rackcraft.world.Earthworks.terraform(world, dev.rackcraft.world.Earthworks.Terrain.FILL, target, 8);
+		for (BlockPos pos : BlockPos.iterate(ground.add(-1, 3, -9), ground.add(1, 5, -7))) world.setBlockState(pos, Blocks.STONE.getDefaultState());
+		var hollow = dev.rackcraft.world.Earthworks.terraform(world, dev.rackcraft.world.Earthworks.Terrain.HOLLOW, ground.add(0, 4, -8), 3);
+		var smooth = dev.rackcraft.world.Earthworks.terraform(world, dev.rackcraft.world.Earthworks.Terrain.SMOOTH, target, 8);
+		if (hollow != null) dev.rackcraft.world.Earthworks.apply(world, hollow);
+		boolean hollowed = hollow != null && hollow.moved() == 27 && BlockPos.stream(ground.add(-1, 3, -9), ground.add(1, 5, -7)).allMatch(pos -> world.getBlockState(pos).isAir());
+		check("BT7.b", fill != null && hollowed && smooth != null,
+				"fill=" + (fill == null ? "null" : fill.moved()) + " hollow=" + (hollow == null ? "null" : hollow.moved())
+						+ " smooth=" + (smooth == null ? "null" : smooth.moved()), failures);
+		// A held Multimeter overrides a machine's screen: the block passes the click on to the item, which reads it out.
+		BlockPos meterAt = o.south(60);
+		world.setBlockState(meterAt, RcBlocks.get("diesel_generator").getDefaultState());
+		player.setStackInHand(net.minecraft.util.Hand.MAIN_HAND, new ItemStack(RcItems.ITEMS.get("multimeter")));
+		var meterHit = new net.minecraft.util.hit.BlockHitResult(net.minecraft.util.math.Vec3d.ofCenter(meterAt), Direction.UP, meterAt, false);
+		var blockResult = world.getBlockState(meterAt).onUse(world, player, net.minecraft.util.Hand.MAIN_HAND, meterHit);
+		player.setStackInHand(net.minecraft.util.Hand.MAIN_HAND, ItemStack.EMPTY);
+		var emptyResult = world.getBlockState(meterAt).onUse(world, player, net.minecraft.util.Hand.MAIN_HAND, meterHit);
+		ItemStack meter = new ItemStack(RcItems.ITEMS.get("multimeter"));
+		var itemResult = meter.getItem().useOnBlock(new net.minecraft.item.ItemUsageContext(world, player, net.minecraft.util.Hand.MAIN_HAND, meter, meterHit));
+		player.closeHandledScreen();
+		check("BT9.a", blockResult == net.minecraft.util.ActionResult.PASS && emptyResult != net.minecraft.util.ActionResult.PASS
+						&& itemResult.isAccepted(),
+				"multimeterHeld=" + blockResult + " emptyHand=" + emptyResult + " itemReadout=" + itemResult, failures);
+		world.setBlockState(meterAt, Blocks.AIR.getDefaultState());
+		// The hardware-built tools are made, not bought; the cheap conveniences are priced like any other parts.
+		List<String> notForSale = List.of("power_beacon", "beacon_receiver", "constructor_gauntlet", "terraformer_cannon", "superconducting_pylon");
+		List<String> sold = notForSale.stream().filter(id -> ExchangeCatalog.price(Registries.ITEM.get(Rackcraft.id(id))) != null).toList();
+		check("BT8.a", sold.isEmpty() && ExchangeCatalog.price(RcBlocks.get("trunk_bundle").asItem()) != null,
+				"soldButShouldNotBe=" + sold, failures);
+		// Every new thing has a recipe, and the three projects that unlock them are in the R&D chain.
+		List<String> unmade = List.of("trunk_bundle", "patch_panel", "pylon", "superconducting_pylon", "pylon_linker", "power_beacon",
+				"beacon_receiver", "cable_planner", "battery_cell", "constructor_gauntlet", "terraformer_cannon").stream()
+				.filter(id -> world.getServer().getRecipeManager().get(Rackcraft.id(id)).isEmpty()).toList();
+		boolean projects = dev.rackcraft.compute.Research.get("structured_cabling") != null
+				&& dev.rackcraft.compute.Research.get("long_reach").requires().contains("structured_cabling")
+				&& dev.rackcraft.compute.Research.get("wireless_power").requires().contains("silicon_photonics");
+		check("BT8.b", unmade.isEmpty() && projects, "missingRecipes=" + unmade + " projects=" + projects, failures);
+		player.getInventory().clear();
+		player.setStackInHand(net.minecraft.util.Hand.MAIN_HAND, ItemStack.EMPTY);
+		player.setStackInHand(net.minecraft.util.Hand.OFF_HAND, ItemStack.EMPTY);
+		lab.reset();
+		dev.rackcraft.world.PatchPanels.get(world).reset();
+		dev.rackcraft.world.PylonLinks.get(world).reset();
+		dev.rackcraft.world.WirelessPower.reset(world);
+	}
+
 	private static void checkPerformance(ServerWorld world, int[] failures) {
 		BlockPos origin = clearArea(world, new BlockPos(-2100, 150, -1536), 44, 4, 24);
 		world.setBlockState(origin.west(), RcBlocks.get("creative_power").getDefaultState());

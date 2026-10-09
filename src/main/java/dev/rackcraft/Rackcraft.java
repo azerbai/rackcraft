@@ -44,6 +44,7 @@ public final class Rackcraft implements ModInitializer {
 		Worldgen.register();
 		SimTicker.register();
 		dev.rackcraft.world.CableUpgrader.register();
+		dev.rackcraft.world.PylonLines.register();
 		RackcraftCommands.register();
 		RackcraftNetworking.registerServer();
 		ExchangeCatalog.register();

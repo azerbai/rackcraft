@@ -1,0 +1,29 @@
+{
+  "key": {
+    "G": {
+      "item": "rackcraft:gallium_nitride"
+    },
+    "J": {
+      "item": "rackcraft:photonic_chip"
+    },
+    "P": {
+      "item": "rackcraft:pdu"
+    },
+    "S": {
+      "item": "rackcraft:steel_block"
+    },
+    "W": {
+      "item": "rackcraft:superconducting_wire"
+    }
+  },
+  "pattern": [
+    "GJG",
+    "SPS",
+    "WSW"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:power_beacon"
+  },
+  "type": "minecraft:crafting_shaped"
+}

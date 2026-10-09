@@ -126,10 +126,23 @@ public final class MultimeterItem extends Item {
 			lines.add(row("Status", Text.literal("CUT: right-click with a Repair Kit"), Formatting.RED));
 			return lines;
 		}
-		Set<BlockPos> component = NetworkManager.get(world).component(pos, cable.kind());
+		if (cable.gate() != null && !dev.rackcraft.compute.ResearchLab.get(world).done(cable.gate())) {
+			lines.add(row("Status", Text.literal("inert until " + dev.rackcraft.compute.Research.get(cable.gate()).name() + " is researched"),
+					Formatting.RED));
+			return lines;
+		}
+		for (NetKind kind : cable.kinds()) {
+			if (cable.isTrunk()) lines.add(Text.literal(kind.name().charAt(0) + kind.name().substring(1).toLowerCase(Locale.ROOT) + " lane").formatted(Formatting.DARK_AQUA));
+			cableLane(world, pos, kind, lines);
+		}
+		return lines;
+	}
+
+	private static void cableLane(ServerWorld world, BlockPos pos, NetKind kind, List<Text> lines) {
+		Set<BlockPos> component = NetworkManager.get(world).component(pos, kind);
 		long machines = component.stream().filter(member -> world.getBlockEntity(member) instanceof MachineBlockEntity).count();
 		lines.add(row("Connected machines", Text.literal(Long.toString(machines)), Formatting.WHITE));
-		switch (cable.kind()) {
+		switch (kind) {
 			case POWER -> component.stream().map(world::getBlockEntity).filter(MachineBlockEntity.class::isInstance)
 					.map(MachineBlockEntity.class::cast).findFirst().ifPresent(machine -> lines.add(powerLine(machine)));
 			case DATA -> lines.add(dataLine(world, pos));
@@ -149,7 +162,6 @@ public final class MultimeterItem extends Item {
 						storage == 0 ? Formatting.RED : Formatting.GREEN));
 			}
 		}
-		return lines;
 	}
 
 	private static Text loopLine(MachineBlockEntity machine) {

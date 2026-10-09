@@ -3,8 +3,11 @@ package dev.rackcraft.block;
 import dev.rackcraft.Rackcraft;
 import dev.rackcraft.sim.NetKind;
 import dev.rackcraft.world.NetworkManager;
+import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import net.minecraft.block.AbstractBlock;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockEntityProvider;
@@ -32,19 +35,28 @@ import net.minecraft.server.world.ServerWorld;
 public final class CableBlock extends Block implements BlockEntityProvider {
 	public static final BooleanProperty CUT = BooleanProperty.of("cut");
 	private final NetKind kind;
+	private final Set<NetKind> kinds;
 	private final double halfWidth;
+	/** The research project a trunk waits for; ordinary cables need none. */
+	private final String gate;
 	private final Map<BlockState, VoxelShape> shapes = new HashMap<>();
 
 	public CableBlock(AbstractBlock.Settings settings, NetKind kind) {
-		super(settings);
-		this.kind = kind;
-		// Must match CABLE_HALF_WIDTH in tools/gen_assets.py.
-		this.halfWidth = switch (kind) {
+		this(settings, EnumSet.of(kind), switch (kind) {
 			case POWER -> 2;
 			case COOLANT -> 3;
 			case DATA -> 1;
 			case ITEM -> 2.5;
-		};
+		}, null);
+	}
+
+	/** A trunk: one block carrying several networks at once. Half width must match CABLE_HALF_WIDTH in tools/gen_assets.py. */
+	public CableBlock(AbstractBlock.Settings settings, Set<NetKind> kinds, double halfWidth, String gate) {
+		super(settings);
+		this.kinds = Set.copyOf(kinds);
+		this.kind = kinds.iterator().next();
+		this.halfWidth = halfWidth;
+		this.gate = gate;
 		BlockState state = getStateManager().getDefaultState().with(CUT, false);
 		for (BooleanProperty property : ConnectingBlock.FACING_PROPERTIES.values()) state = state.with(property, false);
 		setDefaultState(state);
@@ -56,13 +68,23 @@ public final class CableBlock extends Block implements BlockEntityProvider {
 		ConnectingBlock.FACING_PROPERTIES.values().forEach(builder::add);
 	}
 
+	/** The first network this block carries; ordinary cables carry exactly one. */
 	public NetKind kind() { return kind; }
+
+	public Set<NetKind> kinds() { return kinds; }
+
+	public boolean isTrunk() { return kinds.size() > 1; }
+
+	/** The research project this block is inert without, or null. */
+	public String gate() { return gate; }
 
 	/** Cables join cables of the same kind and any machine that sits on that kind of network. */
 	private boolean connectsTo(BlockState neighbour) {
-		if (neighbour.getBlock() instanceof CableBlock cable) return cable.kind == kind;
+		if (neighbour.getBlock() instanceof CableBlock cable) return !Collections.disjoint(cable.kinds, kinds);
+		if (neighbour.getBlock() instanceof PatchPanelBlock) return true;
 		if (neighbour.getBlock() instanceof MachineBlock) {
-			return MachineBlockEntity.networkKinds(Registries.BLOCK.getId(neighbour.getBlock()).getPath()).contains(kind);
+			Set<NetKind> theirs = MachineBlockEntity.networkKinds(Registries.BLOCK.getId(neighbour.getBlock()).getPath());
+			return !Collections.disjoint(theirs, kinds);
 		}
 		return false;
 	}

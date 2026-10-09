@@ -2,6 +2,8 @@
 
 Ideas tabled for later updates. Nothing here is built yet, and the numbers are starting points for balancing.
 
+See also [POSTGAME_IDEAS.md](POSTGAME_IDEAS.md) for the postgame brainstorm: building tools, wiring tools, movement, hydrogen and energy weapons, raids, fusion and orbit.
+
 ## Destructive launch failures
 
 A failed launch is currently only particles and sound. A real explosion that damages the pad and its surroundings would mean a spaceport has to be built well away from the base.

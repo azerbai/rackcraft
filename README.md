@@ -173,6 +173,9 @@ The late game: once the cluster is big, the Operations Terminal's **R&D** tab tu
 | Structural Engineering | Reactor Uprate | 5,000,000 RC + 100M general | Cube multiblocks up to 7x7x7 |
 | Space Frame Design | Structural Engineering | 25,000,000 RC + 400M general | Cube multiblocks up to 9x9x9 |
 | Arcology | Space Frame Design | 100,000,000 RC + 1.5B general | Cube multiblocks up to 10x10x10 |
+| Structured Cabling | Custom Firmware | 400,000 RC + 8M general | Unlocks Trunk Bundles, Patch Panels and Pylons |
+| Long Reach | Structured Cabling | 1,500,000 RC + 20M general | The Constructor's Gauntlet reaches 128 blocks, not 32 |
+| Wireless Power | Silicon Photonics, Structured Cabling | 12,000,000 RC + 150M general | Unlocks Power Beacons and Beacon Receivers |
 
 Every cube multiblock (reactors, batteries, the processing and utility cubes, the Electrolyser) stops at 5x5x5 until the megastructure research is done, so a new world can't build its way straight to the end. A cube bigger than the research allows stays a pile of lone blocks, and the fault finder and its screen say which research it needs. Bigger cubes keep getting better, more gently past 5: fuel and power per core drop 2.5% per step (67.5% at 10x10x10), batteries hold 5% more per bank per step (65% more at 10) and reach 99% efficiency. Cubes from 6x6x6 to 9x9x9 wear a heavy steel casing with hazard-striped corners, and a 10x10x10 its own gold-trimmed one.
 
@@ -299,7 +302,21 @@ A **Respirator** (helmet slot) keeps all of it out until its charcoal filter clo
 
 ## Cables
 
-Power cables, coolant pipes, fiber and item pipes connect only toward cables of the same kind and toward machines on that network, forming straight runs, corners and junctions. Cables placed with older versions are upgraded when their chunk loads.
+Power cables, coolant pipes, fiber and item pipes connect only toward cables of the same kind and toward machines on that network, forming straight runs, corners and junctions. Cables placed with older versions are upgraded when their chunk loads. See *Building and Wiring* for Trunk Bundles, Patch Panels, Pylons and the tools that lay cable for you.
+
+## Building and Wiring
+
+The tools for when the base outgrows the cable. Everything here is crafted from parts you already make (steel, circuit boards, Superconducting Wire, Hydrogen Canisters), and the machines wait for their research.
+
+- **Trunk Bundle:** one thick conduit carrying power, coolant and fiber at once, each on its own lane. It joins any cable of those kinds it touches, and machines on those networks, so no tap blocks are needed: run a trunk down the hall and branch off with ordinary cable. A cut trunk cuts all three lanes, and one Repair Kit splice mends them. The Multimeter reads each lane. Crafted four at a time from one power cable, one coolant pipe, one fiber cable, two steel ingots and an aluminum ingot. Inert until **Structured Cabling**.
+- **Cable Planner:** use a block face to set the start, another for the end, and a ghost of the route hangs in the world: cyan outlines for the cable, red where something is in the way, dim green where the cable already is. Use in the air to cycle the route style (Straight, Zig-zag, Shortest, Hug the walls), sneak-use in the air to cycle the cable (power, coolant, fiber, item pipe, trunk). A third use on any block lays the route from your inventory (or a Wireless Terminal's storage), and stops at the first thing in the way. Sneak-use on a block clears it. Routes are limited to 512 blocks.
+- **Patch Panel:** each of its six faces has a port from 0 to 8. Blocks on two faces with the same non-zero port are joined, on every network at once; port 0 is isolated. Right-click a face with an empty hand to cycle it, label it with a Name Tag, read the wiring with a Multimeter. It carries nothing itself. Inert until **Structured Cabling**.
+- **Pylons:** two **Pylons** up to 128 blocks apart, strung with a **Pylon Linker** (use on one, then the other; sneak-use cuts), carry power as if cabled, shown as a sagging line of grey sparks. A span wastes 3% of its network's load per 64 blocks of length; between two **Superconducting Pylons** (range 256) it wastes nothing. A Pylon holds two spans, both ends must be loaded, and breaking a pylon cuts its spans.
+- **Power Beacon and Beacon Receiver:** a beacon on one network beams up to 1 MW (15% lost on the way) to the receivers within 16 blocks, each of which feeds the network it touches, drawn before any other source. It asks its network for what the receivers' network wants, so an idle receiver costs nothing, and several receivers share the beam. A visible spark line follows each beam. Needs **Wireless Power**; none of it is sold at the Exchange.
+- **Constructor's Gauntlet:** a powered glove that builds at 32 blocks (128 with **Long Reach**). Sneak-use in the air to cycle Line, Plane, Box fill, Swap and Delete; use on a block for the first corner and again for the second. It places the block in your off hand (swapping every block like the first corner for it, in Swap mode), taking blocks from your inventory or a Wireless Terminal's storage, and puts what it deletes back there. It leaves machines, chests and anything unbreakable alone, does at most 4,096 blocks a use, and burns a Battery Cell every 16 uses.
+- **Terraformer Cannon:** flatten, fill, hollow or smooth ground within 3 to 16 blocks of the block you fire at. Use in the air for the radius, sneak-use for the mode. It burns a Hydrogen Canister for every 256 blocks moved, and leaves any column with a machine or chest in it alone.
+
+Tunable in `config/rackcraft.json` under `building`: `beaconRange`, `beaconMaxKw`, `beaconLoss`, `gauntletReach`, `gauntletLongReach`, `maxBlocksPerUse`, `cannonBlocksPerCanister`, `gauntletUsesPerCell`.
 
 ## Storage and Autocrafting
 

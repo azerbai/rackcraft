@@ -1,0 +1,29 @@
+{
+  "key": {
+    "B": {
+      "item": "rackcraft:battery_cell"
+    },
+    "M": {
+      "item": "rackcraft:electric_motor"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    },
+    "T": {
+      "item": "rackcraft:wireless_terminal"
+    },
+    "W": {
+      "item": "rackcraft:superconducting_wire"
+    }
+  },
+  "pattern": [
+    "WMW",
+    "STS",
+    "WBW"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:constructor_gauntlet"
+  },
+  "type": "minecraft:crafting_shaped"
+}

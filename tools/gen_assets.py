@@ -11,7 +11,7 @@ RESOURCES = ROOT / "src/main/resources"
 CONTENT = json.loads((ROOT / "tools/content.json").read_text(encoding="utf-8"))
 MACHINE_IDS = {entry["id"] for entry in CONTENT["blocks"] if entry.get("machine")}
 AIRFLOW_BLOCKING = {entry["id"] for entry in CONTENT["blocks"] if entry.get("blocksAirflow")}
-CABLE_IDS = {"power_cable", "coolant_pipe", "fiber_cable", "item_pipe"}
+CABLE_IDS = {"power_cable", "coolant_pipe", "fiber_cable", "item_pipe", "trunk_bundle"}
 # Cubes that make no items, so they have no port core.
 NO_PORT = ("battery_bank", "desalination_plant", "grid_substation", "heat_recovery_plant", "hydrogen_tank")
 ANIMATION_FRAMETIME = 4
@@ -38,7 +38,7 @@ def write_json(path, value):
 
 
 # Must match CableBlock#halfWidth.
-CABLE_HALF_WIDTH = {"power_cable": 2, "coolant_pipe": 3, "fiber_cable": 1, "item_pipe": 2.5}
+CABLE_HALF_WIDTH = {"power_cable": 2, "coolant_pipe": 3, "fiber_cable": 1, "item_pipe": 2.5, "trunk_bundle": 3.5}
 ARM_ROTATIONS = {"north": {}, "east": {"y": 90}, "south": {"y": 180}, "west": {"y": 270}, "up": {"x": 270}, "down": {"x": 90}}
 
 

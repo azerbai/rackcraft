@@ -1,0 +1,30 @@
+{
+  "ingredients": [
+    {
+      "item": "rackcraft:circuit_board"
+    },
+    {
+      "item": "minecraft:ender_eye"
+    },
+    {
+      "item": "rackcraft:copper_wire"
+    },
+    {
+      "item": "rackcraft:copper_wire"
+    },
+    {
+      "item": "rackcraft:copper_wire"
+    },
+    {
+      "item": "rackcraft:copper_wire"
+    },
+    {
+      "item": "rackcraft:survey_stake"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:cable_planner"
+  },
+  "type": "minecraft:crafting_shapeless"
+}

@@ -1,0 +1,36 @@
+{
+  "variants": {
+    "facing=east,lit=false": {
+      "model": "rackcraft:block/superconducting_pylon",
+      "y": 90
+    },
+    "facing=east,lit=true": {
+      "model": "rackcraft:block/superconducting_pylon_on",
+      "y": 90
+    },
+    "facing=north,lit=false": {
+      "model": "rackcraft:block/superconducting_pylon",
+      "y": 0
+    },
+    "facing=north,lit=true": {
+      "model": "rackcraft:block/superconducting_pylon_on",
+      "y": 0
+    },
+    "facing=south,lit=false": {
+      "model": "rackcraft:block/superconducting_pylon",
+      "y": 180
+    },
+    "facing=south,lit=true": {
+      "model": "rackcraft:block/superconducting_pylon_on",
+      "y": 180
+    },
+    "facing=west,lit=false": {
+      "model": "rackcraft:block/superconducting_pylon",
+      "y": 270
+    },
+    "facing=west,lit=true": {
+      "model": "rackcraft:block/superconducting_pylon_on",
+      "y": 270
+    }
+  }
+}

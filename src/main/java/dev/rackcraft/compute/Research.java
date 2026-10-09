@@ -110,6 +110,16 @@ public final class Research {
 					List.of("silicon_photonics", "immersion_cooling", "structural_engineering"),
 					"Assembly Robots can build Exascale Cabinets: 24 bays, +20% compute and mining, half the bandwidth",
 					"A quintillion operations a second, give or take, and a power bill with its own area code."),
+			// Building and wiring tools.
+			project("structured_cabling", "Structured Cabling", Kind.GENERAL, 400_000, 8e6, List.of("firmware"),
+					"Unlocks Trunk Bundles, Patch Panels and Pylons",
+					"Someone finally labelled the cables. Both of them. The rest is a surprise."),
+			project("long_reach", "Long Reach", Kind.GENERAL, 1_500_000, 2e7, List.of("structured_cabling"),
+					"The Constructor's Gauntlet reaches 128 blocks instead of 32",
+					"A longer arm, a stronger servo and a shocking amount of trust in line of sight."),
+			project("wireless_power", "Wireless Power", Kind.GENERAL, 12_000_000, 1.5e8, List.of("silicon_photonics", "structured_cabling"),
+					"Unlocks Power Beacons and Beacon Receivers",
+					"Tesla was right. Tesla was also broke. You have the budget he never had."),
 			// The Assembly Line: each one doubles the speed of every Conveyor Belt and every Welding, Riveting and Assembly Robot.
 			project("line_speed_1", "Brisk Belts", Kind.GENERAL, 1_500_000, 2e7, List.of("predictive_maintenance", "psu_titanium"),
 					"Conveyor Belts and Assembly Line robots work twice as fast",

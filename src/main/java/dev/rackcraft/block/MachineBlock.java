@@ -111,6 +111,8 @@ public class MachineBlock extends BlockWithEntity {
 			BlockHitResult hit) {
 		// A Survey Stake hands its site to a Site Planner (SurveyStakeItem) rather than opening the screen.
 		if (player.getStackInHand(hand).isOf(dev.rackcraft.RcItems.ITEMS.get("survey_stake"))) return ActionResult.PASS;
+		// A held Multimeter takes the click for a readout instead of the machine's screen.
+		if (player.getStackInHand(hand).isOf(dev.rackcraft.RcItems.ITEMS.get("multimeter"))) return ActionResult.PASS;
 		if (!world.isClient && world.getBlockEntity(pos) instanceof MachineBlockEntity machine) {
 			if (Racks.isRack(machine)
 					&& player.getStackInHand(hand).isOf(dev.rackcraft.RcItems.ITEMS.get("thermal_scanner"))) {

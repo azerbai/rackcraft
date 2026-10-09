@@ -32,6 +32,9 @@ public final class RcBlocks {
 				case "coolant_pipe" -> new CableBlock(settings, NetKind.COOLANT);
 				case "fiber_cable" -> new CableBlock(settings, NetKind.DATA);
 				case "item_pipe" -> new CableBlock(settings, NetKind.ITEM);
+				case "trunk_bundle" -> new CableBlock(settings, java.util.EnumSet.of(NetKind.POWER, NetKind.COOLANT, NetKind.DATA), 3.5, "structured_cabling");
+				case "patch_panel" -> new dev.rackcraft.block.PatchPanelBlock(settings);
+				case "pylon", "superconducting_pylon" -> new dev.rackcraft.block.PylonBlock(settings.nonOpaque());
 				case "server_rack", "high_density_rack", "immersion_rack", "exascale_cabinet" -> new dev.rackcraft.block.RackBlock(settings);
 				// See-through lattice: non-opaque so the blocks behind it still draw.
 				case "launch_tower" -> new Block(settings.nonOpaque());

@@ -170,7 +170,8 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 				"facility_controller", "cdu", "modular_reactor", "freshwater_pump", "smog_scrubber",
 				"rear_door_cooler", "dry_cooler", "chiller", "water_heat_exchanger", "desalination_plant", "grid_substation",
 				"welding_arm", "riveting_arm", "assembly_arm", "drone_dock", "launch_control", "rectenna",
-				"solar_array", "solar_array_tracking", "wind_nacelle", "tower_section", "site_planner", "cryostat", "procurement_wall")
+				"solar_array", "solar_array_tracking", "wind_nacelle", "tower_section", "site_planner", "cryostat", "procurement_wall",
+				"pylon", "superconducting_pylon", "power_beacon", "beacon_receiver")
 				.contains(id) || ServerModel.Tier.isRack(id)) kinds.add(NetKind.POWER);
 		// The coolant loop: racks (liquid-cooled modules) and reactors put heat in; towers, coolers and chillers take it out.
 		if (COOLANT_MACHINES.contains(id)) kinds.add(NetKind.COOLANT);

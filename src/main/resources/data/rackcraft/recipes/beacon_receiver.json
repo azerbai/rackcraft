@@ -1,0 +1,25 @@
+{
+  "key": {
+    "G": {
+      "item": "rackcraft:gallium_nitride"
+    },
+    "J": {
+      "item": "rackcraft:photonic_chip"
+    },
+    "P": {
+      "item": "rackcraft:pdu"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    }
+  },
+  "pattern": [
+    "GJG",
+    "SPS"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:beacon_receiver"
+  },
+  "type": "minecraft:crafting_shaped"
+}

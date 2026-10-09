@@ -1,0 +1,21 @@
+{
+  "ingredients": [
+    {
+      "item": "rackcraft:pylon"
+    },
+    {
+      "item": "rackcraft:superconducting_wire"
+    },
+    {
+      "item": "rackcraft:superconducting_wire"
+    },
+    {
+      "item": "rackcraft:cryo_coil"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:superconducting_pylon"
+  },
+  "type": "minecraft:crafting_shapeless"
+}

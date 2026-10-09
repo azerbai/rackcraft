@@ -1,0 +1,23 @@
+{
+  "key": {
+    "I": {
+      "item": "minecraft:iron_ingot"
+    },
+    "P": {
+      "item": "rackcraft:power_cable"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    }
+  },
+  "pattern": [
+    " P ",
+    "SIS",
+    "SIS"
+  ],
+  "result": {
+    "count": 2,
+    "item": "rackcraft:pylon"
+  },
+  "type": "minecraft:crafting_shaped"
+}

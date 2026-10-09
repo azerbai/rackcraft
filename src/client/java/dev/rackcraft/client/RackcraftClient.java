@@ -27,6 +27,7 @@ public final class RackcraftClient implements ClientModInitializer {
 		ProcurementHud.register();
 		FaultOverlay.register();
 		SurveyOutline.register();
+		CableGhost.register();
 		RocketShake.register();
 		ScreenRegistry.register(RcScreenHandlers.RACK, RackScreen::new);
 		ScreenRegistry.register(RcScreenHandlers.SINGLE_SLOT, SingleSlotScreen::new);

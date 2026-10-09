@@ -1,0 +1,95 @@
+{
+  "display": {
+    "gui": {
+      "rotation": [
+        30,
+        45,
+        0
+      ],
+      "scale": [
+        0.8,
+        0.8,
+        0.8
+      ]
+    }
+  },
+  "elements": [
+    {
+      "faces": {
+        "down": {
+          "rotation": 90,
+          "texture": "#side",
+          "uv": [
+            0,
+            4.5,
+            16,
+            11.5
+          ]
+        },
+        "east": {
+          "texture": "#side",
+          "uv": [
+            0,
+            4.5,
+            16,
+            11.5
+          ]
+        },
+        "north": {
+          "texture": "#end",
+          "uv": [
+            4.5,
+            4.5,
+            11.5,
+            11.5
+          ]
+        },
+        "south": {
+          "texture": "#end",
+          "uv": [
+            4.5,
+            4.5,
+            11.5,
+            11.5
+          ]
+        },
+        "up": {
+          "rotation": 90,
+          "texture": "#side",
+          "uv": [
+            0,
+            4.5,
+            16,
+            11.5
+          ]
+        },
+        "west": {
+          "texture": "#side",
+          "uv": [
+            0,
+            4.5,
+            16,
+            11.5
+          ]
+        }
+      },
+      "from": [
+        4.5,
+        4.5,
+        0
+      ],
+      "to": [
+        11.5,
+        11.5,
+        16
+      ]
+    }
+  ],
+  "parent": "minecraft:block/block",
+  "textures": {
+    "end": "rackcraft:block/trunk_bundle_end",
+    "joint": "rackcraft:block/trunk_bundle_joint",
+    "particle": "rackcraft:block/trunk_bundle",
+    "side": "rackcraft:block/trunk_bundle"
+  }
+}

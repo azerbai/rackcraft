@@ -1,0 +1,27 @@
+{
+  "ingredients": [
+    {
+      "item": "rackcraft:power_cable"
+    },
+    {
+      "item": "rackcraft:coolant_pipe"
+    },
+    {
+      "item": "rackcraft:fiber_cable"
+    },
+    {
+      "item": "rackcraft:steel_ingot"
+    },
+    {
+      "item": "rackcraft:steel_ingot"
+    },
+    {
+      "item": "rackcraft:aluminum_ingot"
+    }
+  ],
+  "result": {
+    "count": 4,
+    "item": "rackcraft:trunk_bundle"
+  },
+  "type": "minecraft:crafting_shapeless"
+}
