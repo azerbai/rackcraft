@@ -95,7 +95,7 @@ public final class SitePlanner {
 	public enum Phase { NONE, CLEAR, LEVEL, BUILD, WIRE, DOCK, DONE }
 
 	/** What the planner is doing, or why it isn't. */
-	public enum Status { NO_AREA, NOT_LOADED, PAUSED, NO_POWER, WORKING, NO_DRONES, NO_TERRAFORMERS, NO_FUEL, NEEDS_MATERIALS, BLOCKED, DONE }
+	public enum Status { NO_AREA, NOT_LOADED, PAUSED, NO_POWER, WORKING, NO_DRONES, NO_TERRAFORMERS, NO_FUEL, NEEDS_MATERIALS, BLOCKED, DONE, TOO_SMALL }
 
 	// Readings for the planner's screen (MachineBlockEntity.siteReading).
 	public static final int R_PHASE = 0;
@@ -413,6 +413,10 @@ public final class SitePlanner {
 			planner.setSiteReading(R_HALL_MODULE, Registries.ITEM.getRawId(RcItems.ITEMS.get(hall.module())));
 			List<Structure> structures = structures(world, site, layout, level, hall);
 			planner.setSiteReading(R_TOTAL, structures.size());
+			if (structures.isEmpty()) {
+				report(planner, Phase.NONE, Status.TOO_SMALL, !out.isEmpty());
+				return;
+			}
 			planner.setSiteReading(R_DRAW_KW, (int) Math.min(Integer.MAX_VALUE, Math.round(fullDrawKw(structures, hall))));
 			if (levelling.left() > 0 || terraformers > 0) {
 				phase = Phase.LEVEL;

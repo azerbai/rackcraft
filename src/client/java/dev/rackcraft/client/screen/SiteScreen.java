@@ -108,10 +108,13 @@ public final class SiteScreen extends RackcraftHandledScreen {
 			case NEEDS_MATERIALS -> "Waiting for materials";
 			case BLOCKED -> "Stuck: something on the site is in the way";
 			case DONE -> "Done: the site is built and wired in";
+			case TOO_SMALL -> chosen == SitePlanner.Layout.HALL ? "Too small: a Data Hall needs a site at least 5 deep"
+					: "Too small: nothing in this layout fits the site";
 		};
 		int color = switch (status) {
 			case WORKING, DONE -> GOOD;
 			case PAUSED, NO_AREA -> MUTED;
+			case TOO_SMALL -> BAD;
 			case NO_POWER, NO_FUEL -> BAD;
 			default -> WARN;
 		};
