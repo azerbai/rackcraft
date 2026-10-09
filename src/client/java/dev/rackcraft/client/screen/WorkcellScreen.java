@@ -31,8 +31,27 @@ public final class WorkcellScreen extends RackcraftHandledScreen {
 	}
 
 	@Override
+	protected void init() {
+		super.init();
+		if (!blockId().equals("pod_port")) return;
+		int left = (width - backgroundWidth) / 2;
+		int top = (height - backgroundHeight) / 2;
+		addDrawableChild(net.minecraft.client.gui.widget.ButtonWidget.builder(Text.literal("Fill pod"), button -> click(MachineScreenHandler.POD_FILL_BUTTON))
+				.dimensions(left + 8, top + 86, 76, 14).tooltip(net.minecraft.client.gui.tooltip.Tooltip.of(Text.literal(
+						"Fill every empty bay in every rack of the pod, from the storage on this port's fiber network, then from your inventory."))).build());
+		addDrawableChild(net.minecraft.client.gui.widget.ButtonWidget.builder(Text.literal("Empty pod"), button -> click(MachineScreenHandler.POD_EMPTY_BUTTON))
+				.dimensions(left + 92, top + 86, 76, 14).tooltip(net.minecraft.client.gui.tooltip.Tooltip.of(Text.literal(
+						"Take every module out of every rack in the pod, into storage if there is room, else your inventory."))).build());
+	}
+
+	private void click(int button) {
+		if (client != null && client.interactionManager != null) client.interactionManager.clickButton(handler.syncId, button);
+	}
+
+	@Override
 	protected void drawDashboard(DrawContext context) {
 		switch (blockId()) {
+			case "pod_port" -> drawPod(context);
 			case "drone_dock" -> drawDock(context);
 			case "belt_loader" -> drawLoader(context);
 			case "belt_unloader" -> drawUnloader(context);
@@ -140,6 +159,30 @@ public final class WorkcellScreen extends RackcraftHandledScreen {
 		wrapped(context, Text.literal("Tankers top up docks, planners and Launch Controls within "
 				+ dev.rackcraft.world.HydrogenTanks.TANKER_RANGE + " blocks."), 8, 78, 160, MUTED);
 		line(context, "Tanker Drones", 8, 105, MUTED);
+	}
+
+	private void drawPod(DrawContext context) {
+		int state = stat(Stat.SITE + dev.rackcraft.world.ComputePods.R_STATE);
+		var states = dev.rackcraft.world.ComputePods.State.values();
+		var shown = states[Math.max(0, Math.min(states.length - 1, state))];
+		String headline = switch (shown) {
+			case LOCKED -> "Locked: research Compute Pods at the Operations Terminal";
+			case NO_POD -> "No pod: touch a solid block of at least four High-Density Racks (or better) with this port";
+			case FABRIC_OFF -> "Fused, fabric off: needs " + stat(Stat.SITE + dev.rackcraft.world.ComputePods.R_NEED)
+					+ " Photonic Interconnects below (has " + stat(Stat.SITE + dev.rackcraft.world.ComputePods.R_HAVE) + ")";
+			case ACTIVE -> "Pod running: +" + stat(Stat.SITE + dev.rackcraft.world.ComputePods.R_BONUS) + "% AI compute";
+			case TRIPPED -> "Breaker tripped: a rack overheated. It resets when every rack is under "
+					+ (int) dev.rackcraft.world.ComputePods.RESET_C + " C";
+		};
+		wrappedClamped(context, Text.literal(headline), 8, 30, 160, 3, shown == dev.rackcraft.world.ComputePods.State.ACTIVE ? GOOD
+				: shown == dev.rackcraft.world.ComputePods.State.TRIPPED ? BAD : shown == dev.rackcraft.world.ComputePods.State.FABRIC_OFF ? WARN : MUTED);
+		int racks = stat(Stat.SITE + dev.rackcraft.world.ComputePods.R_RACKS);
+		if (racks > 0) {
+			lineFit(context, racks + " racks, " + stat(Stat.SITE + dev.rackcraft.world.ComputePods.R_BAYS_USED) + " of "
+					+ stat(Stat.SITE + dev.rackcraft.world.ComputePods.R_BAYS) + " bays used", 8, 62, 160, TEXT);
+		}
+		lineFit(context, "Draws " + kw(stat(Stat.POWER)) + ", grid covers " + stat(Stat.SATISFACTION) + "%", 8, 74, 160, MUTED);
+		line(context, "Interconnects (one per four racks)", 8, 105, MUTED);
 	}
 
 	private void drawCryostat(DrawContext context) {

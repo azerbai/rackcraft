@@ -37,6 +37,7 @@ import net.minecraft.registry.tag.TagKey;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.world.LightType;
@@ -246,6 +247,11 @@ public final class SimTicker {
 		pinCreativeCoolers(world, machines, heat);
 		Map<MachineBlockEntity, ServerModel.RackStep> rackSteps = new HashMap<>();
 		List<RackHeat> rackHeat = new ArrayList<>();
+		List<ComputePods.Pod> pods = ComputePods.scan(world, machines);
+		Set<MachineBlockEntity> podHeld = ComputePods.apply(machines, pods);
+		ComputePods.idle(world, machines, pods);
+		int overclockCap = Overclocking.cap(world);
+		boolean overclockCooling = ResearchLab.get(world).done(Overclocking.COOLING);
 		for (MachineBlockEntity rack : machines) {
 			if (!Racks.isRack(rack)) continue;
 			ServerModel.Tier tier = Racks.tier(rack);
@@ -266,13 +272,26 @@ public final class SimTicker {
 			boolean hasCdu = adjacentMachine(byPos, rack.getPos(), "cdu");
 			boolean cryostat = !Cryostats.beside(rack.getPos(), byPos, satisfaction).isEmpty();
 			if (supplied < 0.5) rack.setTripped(true);
+			// A pod shares one breaker: while it is tripped every rack in it stays off.
+			boolean podTripped = podHeld.contains(rack);
+			if (podTripped) rack.setTripped(true);
 			// Racks boot slowly once they have power, and go cold again when they lose it.
 			double bootSeconds = ServerModel.bootSeconds(rack.modules()) * RackcraftConfig.values.sim.rackBootScale * research.bootScale();
 			if (supplied < 0.5 || rack.modules().isEmpty()) rack.setBootProgress(0);
 			else rack.setBootProgress(bootSeconds <= 0 ? 1 : rack.bootProgress() + dt / bootSeconds);
-			ServerModel.RackStep result = scalePower(ServerModel.calculate(tier, rack.modules(), rack.loadLimitPercent(),
+			int limit = Math.min(rack.loadLimitPercent(), overclockCap);
+			ServerModel.RackStep result = scalePower(ServerModel.calculate(tier, rack.modules(), limit,
 					supplied, rated, hasCdu, cryostat, loops.cooled(rack.getPos()), rack.bootProgress()), research.rackPower());
-			if (rack.isTripped() && rated < 32 && result.thermalFactor() > 0) rack.setTripped(false);
+			// Pushed past 100%, modules can burn out.
+			if (limit > 100 && result.load() > 0) {
+				int burned = Overclocking.burn(world, rack, limit, dt, research.safeHardware(), overclockCooling);
+				if (burned > 0) {
+					ServerPlayerEntity first = world.getPlayers().isEmpty() ? null : world.getPlayers().get(0);
+					if (first != null) first.sendMessage(Text.literal("An overclocked rack at " + rack.getPos().toShortString() + " burned out "
+							+ burned + (burned == 1 ? " module" : " modules")).formatted(Formatting.GOLD), false);
+				}
+			}
+			if (rack.isTripped() && !podTripped && rated < 32 && result.thermalFactor() > 0) rack.setTripped(false);
 			if (rack.isTripped()) result = new ServerModel.RackStep(result.usedBays(), result.demandKw(),
 					0, 0, result.thermalFactor(), result.quantumBlocked(), result.tripped(), result.waterBlocked(), result.cryoBlocked());
 			rackSteps.put(rack, result);
@@ -623,12 +642,14 @@ public final class SimTicker {
 
 	private static double demandFor(MachineBlockEntity machine) {
 		if (Racks.isRack(machine)) {
-			return ServerModel.calculate(Racks.tier(machine), machine.modules(), machine.loadLimitPercent(), 1,
+			return ServerModel.calculate(Racks.tier(machine), machine.modules(),
+					machine.getWorld() instanceof ServerWorld limitWorld ? Overclocking.effectiveLimit(limitWorld, machine) : Math.min(100, machine.loadLimitPercent()), 1,
 					machine.inletCelsius() - effects(machine).thermalOffset(), true, true, true, nextBoot(machine)).demandKw()
 					* effects(machine).rackPower();
 		}
 		return switch (machine.blockId()) {
 			case "cryostat" -> Cryostats.KW;
+			case "pod_port" -> 0.5;
 			case "power_beacon" -> machine.getWorld() instanceof ServerWorld beaconWorld ? WirelessPower.beaconDemandKw(beaconWorld, machine) : 0;
 			case "exhaust_fan" -> 0.2;
 			case "cooling_tower" -> 4;

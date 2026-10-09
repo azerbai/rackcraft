@@ -80,7 +80,7 @@ require(RESOURCES / "assets/rackcraft/textures/entity/rocket.png")
 
 require(RESOURCES / "assets/rackcraft/textures/entity/wind_rotor.png")
 
-if len(CONTENT["blocks"]) != 91 or len(CONTENT["items"]) != 89:
-    raise SystemExit("content catalog must contain exactly 91 blocks and 89 standalone items")
+if len(CONTENT["blocks"]) != 92 or len(CONTENT["items"]) != 91:
+    raise SystemExit("content catalog must contain exactly 92 blocks and 91 standalone items")
 
 print(f"Rackcraft assets ok: {len(CONTENT['blocks'])} blocks, {len(CONTENT['items'])} standalone items, {len(CONTENT['recipes'])} recipes")

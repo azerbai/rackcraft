@@ -26,7 +26,7 @@ public final class RackScreen extends RackcraftHandledScreen {
 	private final int right;
 	private static final int HINT_TOP = 103;
 	private static final int HINT_LINES = 5;
-	private static final int[] LIMITS = {25, 50, 75, 100};
+	private static final int[] LIMITS = {25, 50, 75, 100, 125, 150};
 	private final List<ButtonWidget> limitButtons = new ArrayList<>();
 	private boolean hintCut;
 	/** 0 fills with the best module on hand (or what the rack already holds); n fills with the nth kind the rack accepts. */
@@ -53,9 +53,13 @@ public final class RackScreen extends RackcraftHandledScreen {
 		int top = (height - backgroundHeight) / 2;
 		for (int index = 0; index < LIMITS.length; index++) {
 			int limit = LIMITS[index];
-			limitButtons.add(addDrawableChild(ButtonWidget.builder(Text.literal(limit + "%"), button ->
+			limitButtons.add(addDrawableChild(ButtonWidget.builder(Text.literal(Integer.toString(limit)), button ->
 					ClientNet.setLoadLimit(handler.pos(), limit))
-					.dimensions(left + right + 32 + index * 39, top + 157, 36, 16).build()));
+					.dimensions(left + right + 32 + index * 26, top + 157, 25, 16)
+					.tooltip(Tooltip.of(Text.literal(limit <= 100 ? "Load limit " + limit + "%."
+							: "Overclock to " + limit + "%: " + limit + "% of the work for " + Math.round(limit * limit / 100.0)
+							+ "% of the power and heat, and modules can burn out. Needs Overclocking"
+							+ (limit > 125 ? " and Liquid Hydrogen Cooling" : "") + " researched."))).build()));
 		}
 		addDrawableChild(ButtonWidget.builder(Text.literal("Fill"), button -> click(MachineScreenHandler.FILL_BUTTON + fillChoice))
 				.dimensions(left + right, top + 174, 36, 14).tooltip(Tooltip.of(Text.literal(

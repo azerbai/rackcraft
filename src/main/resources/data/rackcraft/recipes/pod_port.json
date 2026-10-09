@@ -1,0 +1,29 @@
+{
+  "key": {
+    "J": {
+      "item": "rackcraft:photonic_chip"
+    },
+    "P": {
+      "item": "rackcraft:pdu"
+    },
+    "R": {
+      "item": "rackcraft:core_router"
+    },
+    "S": {
+      "item": "rackcraft:steel_block"
+    },
+    "W": {
+      "item": "rackcraft:superconducting_wire"
+    }
+  },
+  "pattern": [
+    "JRJ",
+    "WPW",
+    "SSS"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:pod_port"
+  },
+  "type": "minecraft:crafting_shaped"
+}

@@ -93,6 +93,7 @@ public final class ProcurementScreen extends HandledScreen<ProcurementScreenHand
 			case DONE -> "done";
 			case TOO_SMALL -> "site too small";
 			case AWAITING_APPROVAL -> "waiting for your yes";
+			case NOTHING_HERE -> "nothing to do yet";
 		};
 	}
 

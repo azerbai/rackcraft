@@ -73,6 +73,10 @@ public final class SitePlanner {
 	public static final int FIRST_MATERIAL = 3;
 	public static final int CLEAR_PER_TRIP = 16;
 	public static final int CABLE_PER_TRIP = 24;
+	/** Most blocks of a Blueprint one drone trip prints. */
+	public static final int BLUEPRINT_PIECES_PER_TRIP = 100;
+	/** Racks one Retrofit trip upgrades. */
+	public static final int RETROFITS_PER_TRIP = 4;
 	private static final int SCAN_TICKS = 40;
 	/** How far apart Wind Towers stand, and how far in from the edge: the blades sweep two blocks either side. */
 	public static final int TOWER_SPACING = 6;
@@ -83,7 +87,9 @@ public final class SitePlanner {
 		TRACKING("Tracking Solar Field", "solar_array_tracking"),
 		WIND("Wind Farm", "wind_nacelle"),
 		HALL("Data Hall", "server_rack"),
-		REACTOR("Reactor Cube", "modular_reactor");
+		REACTOR("Reactor Cube", "modular_reactor"),
+		BLUEPRINT("Blueprint", "server_rack"),
+		RETROFIT("Retrofit", "server_rack");
 
 		public final String label;
 		public final String block;
@@ -97,7 +103,7 @@ public final class SitePlanner {
 	public enum Phase { NONE, CLEAR, LEVEL, BUILD, WIRE, DOCK, DONE }
 
 	/** What the planner is doing, or why it isn't. */
-	public enum Status { NO_AREA, NOT_LOADED, PAUSED, NO_POWER, WORKING, NO_DRONES, NO_TERRAFORMERS, NO_FUEL, NEEDS_MATERIALS, BLOCKED, DONE, TOO_SMALL, AWAITING_APPROVAL }
+	public enum Status { NO_AREA, NOT_LOADED, PAUSED, NO_POWER, WORKING, NO_DRONES, NO_TERRAFORMERS, NO_FUEL, NEEDS_MATERIALS, BLOCKED, DONE, TOO_SMALL, AWAITING_APPROVAL, NOTHING_HERE }
 
 	// Readings for the planner's screen (MachineBlockEntity.siteReading).
 	public static final int R_PHASE = 0;
@@ -128,7 +134,12 @@ public final class SitePlanner {
 	public static final int R_QUOTE_LINES = 25;
 	public static final int R_EDGE = 26;
 	public static final int R_CUBES = 27;
-	public static final int READINGS = 28;
+	/** Blueprint layout: 0 fine, 1 locked (Digital Twin), 2 no readable Blueprint in the slots, 3 too big for the site; and its size. Retrofit: racks left alone. */
+	public static final int R_BP_STATE = 28;
+	public static final int R_BP_WIDTH = 29;
+	public static final int R_BP_DEPTH = 30;
+	public static final int R_SKIPPED = 31;
+	public static final int READINGS = 32;
 	/** What the planner stocks each of its docks to, and when it tops them up. */
 	public static final int DOCK_DRONES = 8;
 	public static final int DOCK_FUEL = 16;
@@ -137,7 +148,7 @@ public final class SitePlanner {
 	private static final int MAX_DOCKS = 6;
 
 	/** What a drone does at one stop. */
-	public enum Action { CLEAR, DIG, FILL, PLACE, ARRAY, CABLE, SUPPLY }
+	public enum Action { CLEAR, DIG, FILL, PLACE, ARRAY, CABLE, SUPPLY, RETROFIT }
 
 	/** One stop: where, what to do, and for a placement which block and which way it faces. */
 	public record Step(BlockPos pos, Action action, String block, Direction facing) {
@@ -371,7 +382,35 @@ public final class SitePlanner {
 
 	/** Layouts whose parts and cable the planner buys whether or not Buy is on: a hall of racks or a cube of reactors is bought, not carried. */
 	private static boolean buysAnyway(Layout layout) {
-		return layout == Layout.HALL || layout == Layout.REACTOR;
+		return layout == Layout.HALL || layout == Layout.REACTOR || layout == Layout.BLUEPRINT || layout == Layout.RETROFIT;
+	}
+
+	/** Layouts that get Drone Docks when Docks is on: not a cube of reactors, and not a copy or upgrade of something you built. */
+	private static boolean docksAllowed(Layout layout) {
+		return layout != Layout.REACTOR && layout != Layout.BLUEPRINT && layout != Layout.RETROFIT;
+	}
+
+	/**
+	 * The first readable Blueprint in the planner's material slots, or null (also null unless the layout is Blueprint).
+	 * {@link #blueprintProblem} says why there isn't one.
+	 */
+	public static Blueprints.Blueprint blueprint(MachineBlockEntity planner) {
+		if (layout(planner) != Layout.BLUEPRINT) return null;
+		for (int slot = FIRST_MATERIAL; slot < Math.min(9, planner.size()); slot++) {
+			Blueprints.Blueprint blueprint = Blueprints.read(planner.getStack(slot));
+			if (blueprint != null) return blueprint;
+		}
+		return null;
+	}
+
+	/** 0 if a Blueprint can be printed on this site, else 1 locked, 2 none to read, 3 too big. */
+	private static int blueprintProblem(ServerWorld world, MachineBlockEntity planner, Site site) {
+		if (!dev.rackcraft.compute.ResearchLab.get(world).done(dev.rackcraft.item.BlueprintScannerItem.GATE)) return 1;
+		Blueprints.Blueprint blueprint = blueprint(planner);
+		if (blueprint == null) return 2;
+		planner.setSiteReading(R_BP_WIDTH, blueprint.width());
+		planner.setSiteReading(R_BP_DEPTH, blueprint.depth());
+		return blueprint.width() > site.width() || blueprint.depth() > site.depth() ? 3 : 0;
 	}
 
 	/**
@@ -392,11 +431,17 @@ public final class SitePlanner {
 			level = heights.get(heights.size() / 2);
 		}
 		boolean buyAll = buysAnyway(layout) || buying(planner);
-		List<Structure> structures = structures(world, site, layout, level, hall(planner), edge);
+		List<Structure> structures = structures(world, site, layout, level, hall(planner), edge, blueprint(planner));
 		// What each source of need asks for, and whether the planner may buy it.
 		record Want(Item item, long count, boolean permitted) {}
 		List<Want> wants = new ArrayList<>();
 		Map<Item, Long> parts = new LinkedHashMap<>();
+		if (layout == Layout.RETROFIT) {
+			ServerModel.Tier target = Retrofits.target(world, planner);
+			for (Retrofits.Job job : Retrofits.pending(world, site, target)) {
+				Retrofits.parts(job.from(), target).forEach((item, count) -> parts.merge(item, (long) count, Long::sum));
+			}
+		}
 		for (Structure structure : structures) {
 			for (Piece piece : structure.pieces()) {
 				if (!placed(world, piece)) parts.merge(RcBlocks.get(piece.block()).asItem(), 1L, Long::sum);
@@ -405,7 +450,7 @@ public final class SitePlanner {
 			}
 		}
 		parts.forEach((item, count) -> wants.add(new Want(item, count, buyAll)));
-		if (!structures.isEmpty()) {
+		if (!structures.isEmpty() && layout != Layout.RETROFIT) {
 			long missing = cables(world, planner.getPos(), site, layout, structures, level).stream()
 					.filter(pos -> !world.getBlockState(pos).isOf(RcBlocks.get("power_cable"))).count();
 			if (missing > 0) wants.add(new Want(RcBlocks.get("power_cable").asItem(), missing, buyAll));
@@ -420,7 +465,7 @@ public final class SitePlanner {
 			}
 		}
 		if (fills > cuts) wants.add(new Want(Items.DIRT, fills - cuts, buying(planner)));
-		if (docking(planner) && layout != Layout.REACTOR && !structures.isEmpty()) {
+		if (docking(planner) && docksAllowed(layout) && !structures.isEmpty()) {
 			long[] spots = planner.site().getLongArray("DockAt");
 			long unplaced = spots.length == 0 ? 1 : unplacedDocks(world, spots);
 			if (unplaced > 0) wants.add(new Want(RcBlocks.get("drone_dock").asItem(), unplaced, true));
@@ -625,6 +670,14 @@ public final class SitePlanner {
 		StorageNetwork storage = storage(world, planner);
 		int edge = layout == Layout.REACTOR ? effectiveEdge(world, planner, site) : 0;
 		if (layout == Layout.REACTOR) planner.setSiteReading(R_EDGE, edge);
+		if (layout == Layout.BLUEPRINT) {
+			int why = blueprintProblem(world, planner, site);
+			planner.setSiteReading(R_BP_STATE, why);
+			if (why != 0) {
+				report(planner, Phase.NONE, Status.NOTHING_HERE, !out.isEmpty());
+				return;
+			}
+		}
 		// Nothing is bought until the player has seen what the job costs. A job with nothing to buy needs no say-so.
 		if (running && !approved(planner) && !planner.site().contains("Quote") && !planner.site().getBoolean("JobDone")) {
 			List<QuoteLine> lines = quote(world, planner, storage, survey, layout, edge);
@@ -648,7 +701,33 @@ public final class SitePlanner {
 		}
 		Phase phase;
 		Status status;
-		if (!survey.soft().isEmpty()) {
+		if (layout == Layout.RETROFIT) {
+			// A retrofit works on what is already standing: no clearing, no levelling, no new blocks.
+			purpose = "Retrofit";
+			ServerModel.Tier target = Retrofits.target(world, planner);
+			List<MachineBlockEntity> racks = Retrofits.racksIn(world, site);
+			List<Retrofits.Job> todo = Retrofits.pending(world, site, target);
+			int skipped = Retrofits.skipped(world, site, target);
+			planner.setSiteReading(R_HALL_RACK, hall(planner).tier().ordinal());
+			planner.setSiteReading(R_BP_WIDTH, target.ordinal());
+			planner.setSiteReading(R_BP_STATE, target != hall(planner).tier() ? 1 : 0);
+			planner.setSiteReading(R_SKIPPED, skipped);
+			planner.setSiteReading(R_TOTAL, racks.size());
+			planner.setSiteReading(R_BUILT, racks.size() - todo.size() - skipped);
+			if (racks.isEmpty()) {
+				report(planner, Phase.NONE, Status.NOTHING_HERE, !out.isEmpty());
+				return;
+			}
+			if (todo.isEmpty()) {
+				phase = Phase.DONE;
+				status = Status.DONE;
+			} else {
+				phase = Phase.BUILD;
+				planner.setSiteReading(R_LEFT, todo.size());
+				status = act ? dispatch(world, planner, storage, false, builders,
+						() -> retrofitTrip(world, planner, storage, todo, target, claimed)) : Status.WORKING;
+			}
+		} else if (!survey.soft().isEmpty()) {
 			purpose = "Clearing";
 			phase = Phase.CLEAR;
 			planner.setSiteReading(R_LEFT, survey.soft().size());
@@ -663,7 +742,7 @@ public final class SitePlanner {
 			purpose = "Fill";
 			planner.setSiteReading(R_HALL_RACK, hall.tier().ordinal());
 			planner.setSiteReading(R_HALL_MODULE, Registries.ITEM.getRawId(RcItems.ITEMS.get(hall.module())));
-			List<Structure> structures = structures(world, site, layout, level, hall, edge);
+			List<Structure> structures = structures(world, site, layout, level, hall, edge, blueprint(planner));
 			planner.setSiteReading(R_TOTAL, structures.size());
 			planner.setSiteReading(R_CUBES, layout == Layout.REACTOR && edge > 0 ? structures.size() / edge : 0);
 			if (structures.isEmpty()) {
@@ -695,7 +774,7 @@ public final class SitePlanner {
 						status = act ? dispatch(world, planner, storage, false, builders,
 								() -> wireTrip(world, planner, storage, missing, claimed, buysAnyway(layout))) : Status.WORKING;
 					} else {
-						List<BlockPos> docks = docking(planner) && layout != Layout.REACTOR ? dockSpots(world, planner, site, layout, structures, cables, level) : List.of();
+						List<BlockPos> docks = docking(planner) && docksAllowed(layout) ? dockSpots(world, planner, site, layout, structures, cables, level) : List.of();
 						List<BlockPos> unplaced = docks.stream().filter(pos -> !world.getBlockState(pos).isOf(RcBlocks.get("drone_dock"))).toList();
 						planner.setSiteReading(R_DOCKS, docks.size());
 						planner.setSiteReading(R_DOCKS_PLACED, docks.size() - unplaced.size());
@@ -1124,9 +1203,30 @@ public final class SitePlanner {
 	// ---------------------------------------------------------------- building
 
 	/** Everything the layout puts on the levelled site, nearest the planner's corner first. */
-	private static List<Structure> structures(ServerWorld world, Site site, Layout layout, int level, Hall hall, int edge) {
+	private static List<Structure> structures(ServerWorld world, Site site, Layout layout, int level, Hall hall, int edge,
+			Blueprints.Blueprint blueprint) {
 		List<Structure> structures = new ArrayList<>();
 		int base = level + 1;
+		if (layout == Layout.RETROFIT) return structures;
+		if (layout == Layout.BLUEPRINT) {
+			// A blueprint prints with its south-west corner at the site's, a layer at a time (one trip is at most
+			// BLUEPRINT_PIECES_PER_TRIP blocks), the bottom layer on the levelled ground.
+			if (blueprint == null || blueprint.width() > site.width() || blueprint.depth() > site.depth()
+					|| base + blueprint.height() >= world.getTopY()) return structures;
+			Map<Integer, List<Piece>> layers = new java.util.TreeMap<>();
+			for (Blueprints.Cell cell : blueprint.cells()) {
+				layers.computeIfAbsent(cell.y(), ignored -> new ArrayList<>())
+						.add(new Piece(new BlockPos(site.x0() + cell.x(), base + cell.y(), site.z0() + cell.z()), cell.block(), cell.facing(), cell.module()));
+			}
+			for (Map.Entry<Integer, List<Piece>> layer : layers.entrySet()) {
+				List<Piece> pieces = layer.getValue();
+				for (int from = 0; from < pieces.size(); from += BLUEPRINT_PIECES_PER_TRIP) {
+					List<Piece> chunk = new ArrayList<>(pieces.subList(from, Math.min(pieces.size(), from + BLUEPRINT_PIECES_PER_TRIP)));
+					structures.add(new Structure(chunk, layer.getKey() == 0 ? base : Integer.MIN_VALUE));
+				}
+			}
+			return structures;
+		}
 		if (layout == Layout.WIND) {
 			int top = nacelleY(level);
 			if (top >= world.getTopY()) return structures;
@@ -1300,9 +1400,36 @@ public final class SitePlanner {
 		List<Step> steps = new ArrayList<>();
 		for (Piece piece : structure.pieces()) {
 			boolean place = !placed(world, piece);
-			if (place) steps.add(new Step(piece.pos(), Renewables.isArray(piece.block()) ? Action.ARRAY : Action.PLACE, piece.block(), piece.facing()));
+			if (place) steps.add(new Step(piece.pos(), Renewables.isArray(piece.block()) ? Action.ARRAY : RcBlocks.get(piece.block()) instanceof CableBlock ? Action.CABLE : Action.PLACE, piece.block(), piece.facing()));
 			if (emptyBays(world, piece) > 0) steps.add(new Step(piece.pos(), Action.SUPPLY, null));
 			claimed.add(piece.pos());
+		}
+		return new Trip(steps, cargo, Status.WORKING);
+	}
+
+	/** A trip that upgrades the few racks nearest the planner, carrying the parts they need. */
+	private static Trip retrofitTrip(ServerWorld world, MachineBlockEntity planner, StorageNetwork storage, List<Retrofits.Job> todo,
+			ServerModel.Tier target, Set<BlockPos> claimed) {
+		BlockPos home = planner.getPos();
+		List<Retrofits.Job> open = todo.stream().filter(job -> !claimed.contains(job.rack().getPos()))
+				.sorted(Comparator.comparingDouble(job -> job.rack().getPos().getSquaredDistance(home))).limit(RETROFITS_PER_TRIP).toList();
+		if (open.isEmpty()) return Trip.none(Status.WORKING);
+		Map<Item, Integer> wanted = new LinkedHashMap<>();
+		for (Retrofits.Job job : open) Retrofits.parts(job.from(), target).forEach((item, count) -> wanted.merge(item, count, Integer::sum));
+		for (Map.Entry<Item, Integer> entry : wanted.entrySet()) {
+			if (available(planner, storage, entry.getKey(), true) < entry.getValue()) {
+				long total = 0;
+				for (Retrofits.Job job : todo) total += Retrofits.parts(job.from(), target).getOrDefault(entry.getKey(), 0);
+				needs(planner, entry.getKey(), total - available(planner, storage, entry.getKey(), true));
+				return Trip.none(Status.NEEDS_MATERIALS);
+			}
+		}
+		List<ItemStack> cargo = new ArrayList<>();
+		wanted.forEach((item, count) -> cargo.addAll(take(planner, storage, item, count, true)));
+		List<Step> steps = new ArrayList<>();
+		for (Retrofits.Job job : open) {
+			steps.add(new Step(job.rack().getPos(), Action.RETROFIT, target.blockId(), job.rack().getCachedState().get(MachineBlock.FACING)));
+			claimed.add(job.rack().getPos());
 		}
 		return new Trip(steps, cargo, Status.WORKING);
 	}
@@ -1322,6 +1449,8 @@ public final class SitePlanner {
 	private static List<BlockPos> cables(ServerWorld world, BlockPos planner, Site site, Layout layout, List<Structure> structures, int level) {
 		Set<BlockPos> cells = new LinkedHashSet<>();
 		int base = level + 1;
+		// A blueprint prints its own cabling, and a retrofit builds nothing new: neither runs a cable back to the planner.
+		if (layout == Layout.BLUEPRINT || layout == Layout.RETROFIT) return List.of();
 		if (layout == Layout.WIND) {
 			for (int z = site.z0() + TOWER_MARGIN; z <= site.z1() - TOWER_MARGIN; z += TOWER_SPACING) {
 				int last = site.x0() + TOWER_MARGIN;
@@ -1646,6 +1775,10 @@ public final class SitePlanner {
 				if (!(world.getBlockEntity(pos) instanceof MachineBlockEntity dock) || !dock.blockId().equals("drone_dock")) return;
 				unload(hold, dock, DroneDocks.DRONE_SLOT, RcItems.ITEMS.get("maintenance_drone"));
 				unload(hold, dock, DroneDocks.FUEL_SLOT, RcItems.ITEMS.get("hydrogen_canister"));
+			}
+			case RETROFIT -> {
+				ServerModel.Tier target = ServerModel.Tier.of(step.block());
+				if (target != null && Retrofits.upgrade(world, pos, target, hold)) placeSound(world, pos);
 			}
 			case CLEAR -> {
 				if (soft(world, pos, state)) dig(world, pos, state, hold);

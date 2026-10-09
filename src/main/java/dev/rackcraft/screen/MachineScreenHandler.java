@@ -114,7 +114,7 @@ public final class MachineScreenHandler extends ScreenHandler {
 			if (id.equals("assembly_arm") || id.equals("drone_dock") || id.equals("belt_unloader")
 					|| id.equals("storage_exporter")) {
 				for (int index = 0; index < 9; index++) addSlot(new MachineSlot(machineInventory, index, 8 + index * 18, 116));
-			} else if (id.equals("belt_loader") || id.equals("hydrogen_tank") || id.equals("cryostat")) {
+			} else if (id.equals("belt_loader") || id.equals("hydrogen_tank") || id.equals("cryostat") || id.equals("pod_port")) {
 				addSlot(new MachineSlot(machineInventory, 0, 80, 116));
 			}
 			addPlayerInventory(playerInventory, 8, 152);
@@ -201,6 +201,9 @@ public final class MachineScreenHandler extends ScreenHandler {
 	public static final int HALL_MODULE_BUTTON = 7;
 	/** Button 8 on a Site Planner: the next Reactor Cube size. */
 	public static final int REACTOR_EDGE_BUTTON = 8;
+	/** Buttons 9 and 10 on a Pod Port: fill every bay of the pod's racks, or take every module out. */
+	public static final int POD_FILL_BUTTON = 9;
+	public static final int POD_EMPTY_BUTTON = 10;
 	/** Button 99 on a rack: take every module out. Buttons 100 and up fill: 100 + 0 automatic, 100 + n the nth module kind. */
 	public static final int EMPTY_BUTTON = 99;
 	public static final int FILL_BUTTON = 100;
@@ -223,6 +226,19 @@ public final class MachineScreenHandler extends ScreenHandler {
 				int in = dev.rackcraft.block.Racks.fill(machine, network, player, id - FILL_BUTTON);
 				player.sendMessage(net.minecraft.text.Text.literal(in > 0 ? "Filled " + in + (in == 1 ? " bay" : " bays")
 						: "No bays filled: nothing suitable in storage or your inventory, or the rack is full"), true);
+			}
+			return true;
+		}
+		if ((id == POD_FILL_BUTTON || id == POD_EMPTY_BUTTON) && mode == Mode.WORKCELL && machine != null
+				&& machine.blockId().equals("pod_port") && machine.getWorld() instanceof ServerWorld podWorld) {
+			var pod = dev.rackcraft.world.ComputePods.podOf(podWorld, machine);
+			if (pod == null) {
+				player.sendMessage(net.minecraft.text.Text.literal("No pod here: a solid block of racks must touch this port"), true);
+			} else {
+				boolean empty = id == POD_EMPTY_BUTTON;
+				int moved = dev.rackcraft.world.ComputePods.fillAll(podWorld, pod, player, empty);
+				player.sendMessage(net.minecraft.text.Text.literal(empty ? (moved > 0 ? "Took " + moved + " modules out of the pod" : "Nothing to take out")
+						: (moved > 0 ? "Filled " + moved + " bays across the pod" : "No bays filled: nothing suitable in storage or your inventory, or the pod is full")), true);
 			}
 			return true;
 		}

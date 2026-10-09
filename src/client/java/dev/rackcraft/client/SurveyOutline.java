@@ -25,20 +25,25 @@ final class SurveyOutline {
 			MinecraftClient client = MinecraftClient.getInstance();
 			if (client.player == null || context.consumers() == null) return;
 			ItemStack stake = client.player.getMainHandStack();
-			if (!stake.isOf(RcItems.ITEMS.get("survey_stake"))) stake = client.player.getOffHandStack();
-			if (!stake.isOf(RcItems.ITEMS.get("survey_stake"))) return;
+			boolean scanner = stake.isOf(RcItems.ITEMS.get("blueprint_scanner"));
+			if (!scanner && !stake.isOf(RcItems.ITEMS.get("survey_stake"))) {
+				stake = client.player.getOffHandStack();
+				scanner = stake.isOf(RcItems.ITEMS.get("blueprint_scanner"));
+			}
+			if (!scanner && !stake.isOf(RcItems.ITEMS.get("survey_stake"))) return;
 			BlockPos a = SurveyStakeItem.corner(stake, SurveyStakeItem.FIRST);
 			if (a == null) return;
 			BlockPos b = SurveyStakeItem.corner(stake, SurveyStakeItem.SECOND);
 			Box box = b == null ? new Box(a)
 					: new Box(Math.min(a.getX(), b.getX()), Math.min(a.getY(), b.getY()), Math.min(a.getZ(), b.getZ()),
-							Math.max(a.getX(), b.getX()) + 1, Math.max(a.getY(), b.getY()) + 4, Math.max(a.getZ(), b.getZ()) + 1);
+							Math.max(a.getX(), b.getX()) + 1, Math.max(a.getY(), b.getY()) + (scanner ? 1 : 4), Math.max(a.getZ(), b.getZ()) + 1);
 			Vec3d camera = context.camera().getPos();
 			MatrixStack matrices = context.matrixStack();
 			matrices.push();
 			matrices.translate(-camera.x, -camera.y, -camera.z);
 			VertexConsumer lines = context.consumers().getBuffer(RenderLayer.getLines());
-			WorldRenderer.drawBox(matrices, lines, box.expand(0.002), 1.0f, 0.55f, 0.1f, 1.0f);
+			if (scanner) WorldRenderer.drawBox(matrices, lines, box.expand(0.002), 0.3f, 0.75f, 1.0f, 1.0f);
+			else WorldRenderer.drawBox(matrices, lines, box.expand(0.002), 1.0f, 0.55f, 0.1f, 1.0f);
 			matrices.pop();
 		});
 	}

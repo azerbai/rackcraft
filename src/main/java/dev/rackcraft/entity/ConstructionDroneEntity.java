@@ -178,6 +178,7 @@ public final class ConstructionDroneEntity extends Entity {
 			case ARRAY -> 30;
 			case CABLE -> 4;
 			case SUPPLY -> 20;
+			case RETROFIT -> 24;
 		};
 	}
 

@@ -33,6 +33,7 @@
     "rackcraft:superconducting_pylon",
     "rackcraft:power_beacon",
     "rackcraft:beacon_receiver",
+    "rackcraft:pod_port",
     "rackcraft:uplink_router",
     "rackcraft:core_router",
     "rackcraft:facility_controller",

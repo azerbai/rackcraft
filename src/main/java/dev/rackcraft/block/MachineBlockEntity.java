@@ -126,6 +126,8 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 	private int dataRacks;
 	// Racks: how far through booting, 0 to 1. Saved, so a reload doesn't cold-start the hall.
 	private double bootProgress;
+	/** Compute Pod fabric bonus on this rack's AI compute (1 when it is in no active pod). Not saved: rebuilt every step. */
+	private double podBonus = 1;
 
 	public MachineBlockEntity(BlockPos pos, BlockState state) {
 		super(RcBlocks.MACHINE_ENTITY, pos, state);
@@ -171,7 +173,7 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 				"rear_door_cooler", "dry_cooler", "chiller", "water_heat_exchanger", "desalination_plant", "grid_substation",
 				"welding_arm", "riveting_arm", "assembly_arm", "drone_dock", "launch_control", "rectenna",
 				"solar_array", "solar_array_tracking", "wind_nacelle", "tower_section", "site_planner", "cryostat", "procurement_wall",
-				"pylon", "superconducting_pylon", "power_beacon", "beacon_receiver")
+				"pylon", "superconducting_pylon", "power_beacon", "beacon_receiver", "pod_port")
 				.contains(id) || ServerModel.Tier.isRack(id)) kinds.add(NetKind.POWER);
 		// The coolant loop: racks (liquid-cooled modules) and reactors put heat in; towers, coolers and chillers take it out.
 		if (COOLANT_MACHINES.contains(id)) kinds.add(NetKind.COOLANT);
@@ -258,6 +260,7 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 			// away starter hardware.
 			return slot < tier.bays() && tier.accepts(Racks.module(stack));
 		}
+		if (blockId.equals("pod_port")) return slot == 0 && stack.isOf(dev.rackcraft.RcItems.ITEMS.get("photonic_chip"));
 		if (blockId.equals("cryostat")) return slot == 0 && stack.isOf(dev.rackcraft.RcItems.ITEMS.get("hydrogen_canister"));
 		if (blockId.equals("diesel_generator")) return slot == 0;
 		if (blockId.equals("modular_reactor")) return slot == 0 && stack.isOf(dev.rackcraft.RcItems.ITEMS.get("fuel_cell"));
@@ -287,7 +290,7 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 
 	public int loadLimitPercent() { return loadLimitPercent; }
 	public void setLoadLimitPercent(int value) {
-		if (value == 25 || value == 50 || value == 75 || value == 100) {
+		if (value == 25 || value == 50 || value == 75 || value == 100 || value == 125 || value == 150) {
 			loadLimitPercent = value;
 			markDirty();
 		}
@@ -328,6 +331,8 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 	public double powerSatisfaction() { return powerSatisfaction; }
 	public double powerKw() { return powerKw; }
 	public double load() { return load; }
+	public double podBonus() { return podBonus; }
+	public void setPodBonus(double value) { podBonus = value; }
 	public double thermalFactor() { return thermalFactor; }
 	public int dieselSpinupSteps() { return dieselSpinupSteps; }
 	public void setDieselSpinupSteps(int value) { dieselSpinupSteps = Math.max(0, Math.min(20, value)); }
@@ -546,7 +551,7 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 			case "uranium_mill", "gas_centrifuge", "fuel_fabricator", "cask_sealer", "wafer_fab", "silicon_foundry", "ewaste_recycler", "electrolyser",
 					"cvd_furnace", "epitaxy_reactor" -> MachineScreenHandler.Mode.PROCESSOR;
 			case "welding_arm", "riveting_arm", "assembly_arm", "drone_dock", "belt_loader", "belt_unloader", "storage_exporter", "hydrogen_tank",
-					"cryostat" -> MachineScreenHandler.Mode.WORKCELL;
+					"cryostat", "pod_port" -> MachineScreenHandler.Mode.WORKCELL;
 			case "launch_control" -> MachineScreenHandler.Mode.LAUNCH;
 			case "site_planner" -> MachineScreenHandler.Mode.SITE;
 			case "crypto_exchange" -> MachineScreenHandler.Mode.EXCHANGE;
@@ -597,7 +602,7 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 		super.readNbt(nbt);
 		Inventories.readNbt(nbt, inventory);
 		modules = null;
-		loadLimitPercent = MathHelper.clamp(nbt.getInt("LoadLimit"), 25, 100);
+		loadLimitPercent = MathHelper.clamp(nbt.getInt("LoadLimit"), 25, 150);
 		chargeKws = Math.max(0, nbt.getDouble("ChargeKws"));
 		tripped = nbt.getBoolean("Tripped");
 		feedLabel = nbt.getString("FeedLabel").equals("B") ? "B" : "A";

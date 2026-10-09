@@ -138,8 +138,20 @@ public final class ServerModel {
 
 	/** Of this much rack heat, how much the coolant loop takes when the rack is liquid-cooled. */
 	public static double liquidHeatKw(List<Module> modules, double load) {
+		double powered = powerLoad(load);
 		return modules.stream().filter(Module::liquidCooled)
-				.mapToDouble(module -> module.idleKw() + (module.maxKw() - module.idleKw()) * load).sum() * LIQUID_SHARE;
+				.mapToDouble(module -> module.idleKw() + (module.maxKw() - module.idleKw()) * powered).sum() * LIQUID_SHARE;
+	}
+
+	/** The most a rack can be pushed to, as a share of its rated load: 150% with Liquid Hydrogen Cooling. */
+	public static final double MAX_OVERCLOCK = 1.5;
+
+	/**
+	 * What a load draws (and so heats) as a share of the rated range. Up to 100% it is the load itself; an overclocked
+	 * rack makes load times as much work but pays the square of it, so 125% costs 156% and 150% costs 225%.
+	 */
+	public static double powerLoad(double load) {
+		return load > 1 ? load * load : load;
 	}
 
 	/**
@@ -231,12 +243,13 @@ public final class ServerModel {
 		boolean cryoBlocked = modules.contains(Module.QUANTUM_ANNEALER) && !cryostat;
 		double thermal = thermalFactor(inletCelsius);
 		double power = clamp(powerSatisfaction, 0, 1);
-		double load = clamp(loadLimitPercent / 100.0, 0, 1) * power * thermal * clamp(boot, 0, 1);
+		double load = clamp(loadLimitPercent / 100.0, 0, MAX_OVERCLOCK) * power * thermal * clamp(boot, 0, 1);
 		boolean waterBlocked = !liquidCooling && !modules.isEmpty() && (tier.immersed() || needsLiquidCooling(modules));
 		if (power < 0.5 || thermal == 0 || quantumBlocked || cryoBlocked || waterBlocked) load = 0;
 		final double effectiveLoad = load;
+		final double poweredLoad = powerLoad(effectiveLoad);
 		double demandKw = modules.stream().mapToDouble(module -> module.idleKw()
-				+ (module.maxKw() - module.idleKw()) * effectiveLoad).sum() + (modules.isEmpty() ? 0 : tier.overheadKw());
+				+ (module.maxKw() - module.idleKw()) * poweredLoad).sum() + (modules.isEmpty() ? 0 : tier.overheadKw());
 		double creditsPerSecond = modules.stream().mapToDouble(Module::creditsPerSecond).sum() * effectiveLoad * tier.bonus();
 		return new RackStep(usedBays, demandKw, creditsPerSecond, load, thermal,
 				quantumBlocked, inletCelsius >= 40, waterBlocked, cryoBlocked);

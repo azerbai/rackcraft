@@ -334,6 +334,7 @@ public final class OpsScreenHandler extends ScreenHandler {
 		Map<String, int[]> rackGroups = new java.util.LinkedHashMap<>();
 		Map<String, BlockPos> rackGroupAt = new java.util.HashMap<>();
 		int racks = 0;
+		int overclocked = 0;
 		int stopped = 0;
 		int slowed = 0;
 		for (MachineBlockEntity machine : machines) {
@@ -341,6 +342,7 @@ public final class OpsScreenHandler extends ScreenHandler {
 			switch (machine.blockId()) {
 				case "server_rack", "high_density_rack", "immersion_rack", "exascale_cabinet" -> {
 					racks++;
+					if (machine.loadLimitPercent() > 100 && dev.rackcraft.world.Overclocking.cap(world) > 100) overclocked++;
 					RackStatus status = machine.rackStatus();
 					boolean bad = problem(status);
 					boolean slow = status == RackStatus.THROTTLED || status == RackStatus.NETWORK_LIMITED;
@@ -434,6 +436,9 @@ public final class OpsScreenHandler extends ScreenHandler {
 			alerts.add(new OpsSnapshot.Alert(group[0], group[1] == 1 ? "Rack at " + pos.toShortString() + ": " + what
 					: group[1] + " racks " + what + " around " + pos.toShortString()));
 		});
+		if (overclocked > 0) {
+			alerts.add(new OpsSnapshot.Alert(1, overclocked + (overclocked == 1 ? " rack is" : " racks are") + " overclocked: modules can burn out"));
+		}
 		if (stopped + slowed > 0) {
 			// Severity 3 sorts the summary above the alerts it sums up.
 			alerts.add(new OpsSnapshot.Alert(stopped > 0 ? 3 : 1, String.format(Locale.ROOT,

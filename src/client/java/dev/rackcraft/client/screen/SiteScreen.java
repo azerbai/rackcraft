@@ -20,7 +20,7 @@ import net.minecraft.text.Text;
  */
 public final class SiteScreen extends RackcraftHandledScreen {
 	private static final int WIDTH = 176;
-	private static final String[] UNITS = {"arrays", "tracking arrays", "towers", "rack columns", "reactor layers"};
+	private static final String[] UNITS = {"arrays", "tracking arrays", "towers", "rack columns", "reactor layers", "print trips", "racks"};
 	private ButtonWidget start;
 	private ButtonWidget layout;
 	private ButtonWidget buy;
@@ -73,7 +73,8 @@ public final class SiteScreen extends RackcraftHandledScreen {
 		layout.active = !running;
 		boolean hall = chosen == SitePlanner.Layout.HALL;
 		boolean reactor = chosen == SitePlanner.Layout.REACTOR;
-		hallRack.active = hall && !running;
+		boolean retrofit = chosen == SitePlanner.Layout.RETROFIT;
+		hallRack.active = (hall || retrofit) && !running;
 		hallModule.active = hall && !running;
 		hallRack.visible = !reactor;
 		hallModule.visible = !reactor;
@@ -89,8 +90,10 @@ public final class SiteScreen extends RackcraftHandledScreen {
 		String moduleName = new ItemStack(Registries.ITEM.get(site(SitePlanner.R_HALL_MODULE))).getName().getString();
 		hallRack.setMessage(Text.literal(textRenderer.trimToWidth(rackName, 68)));
 		hallModule.setMessage(Text.literal(textRenderer.trimToWidth(moduleName, 72)));
-		String tip = "Data Hall blueprint (Data Hall layout only): ";
-		hallRack.setTooltip(net.minecraft.client.gui.tooltip.Tooltip.of(Text.literal(tip + "the rack tier every rack in the hall is built from: " + rackName
+		String tip = retrofit ? "Retrofit layout: " : "Data Hall blueprint (Data Hall layout only): ";
+		hallRack.setTooltip(net.minecraft.client.gui.tooltip.Tooltip.of(Text.literal(retrofit
+				? tip + "every rack on the site below " + rackName + " is upgraded to it in place, keeping its modules. A rack whose modules the tier won't take is left alone, and so is any tier whose research isn't done."
+				: tip + "the rack tier every rack in the hall is built from: " + rackName
 				+ ". Higher tiers take only better modules; the hall adds Chillers as the racks get hotter.")));
 		hallModule.setTooltip(net.minecraft.client.gui.tooltip.Tooltip.of(Text.literal(tip + "the module that fills every bay: " + moduleName + ".")));
 		boolean docking = site(SitePlanner.R_DOCKING) != 0;
@@ -123,6 +126,11 @@ public final class SiteScreen extends RackcraftHandledScreen {
 					site(SitePlanner.R_QUOTE), site(SitePlanner.R_QUOTE_LINES), site(SitePlanner.R_QUOTE_LINES) == 1 ? "item" : "items");
 			case BLOCKED -> "Stuck: something on the site is in the way";
 			case DONE -> "Done: the site is built and wired in";
+			case NOTHING_HERE -> chosen == SitePlanner.Layout.RETROFIT ? "No racks on this site to upgrade"
+					: site(SitePlanner.R_BP_STATE) == 1 ? "Locked: research Digital Twin at the Operations Terminal"
+					: site(SitePlanner.R_BP_STATE) == 3 ? "Too big: the Blueprint is " + site(SitePlanner.R_BP_WIDTH) + " x " + site(SitePlanner.R_BP_DEPTH)
+							+ ", the site only " + site(SitePlanner.R_WIDTH) + " x " + site(SitePlanner.R_DEPTH)
+					: "Put a written Blueprint in one of the material slots";
 			case TOO_SMALL -> chosen == SitePlanner.Layout.HALL ? "Too small: a Data Hall needs a site at least 5 deep"
 					: chosen == SitePlanner.Layout.REACTOR ? "Too small: a Reactor Cube needs a site at least 2 x 2"
 					: "Too small: nothing in this layout fits the site";
@@ -159,7 +167,8 @@ public final class SiteScreen extends RackcraftHandledScreen {
 		String progress = switch (phase) {
 			case CLEAR -> "1 Clear: " + left + " soft blocks to go";
 			case LEVEL -> "2 Level: " + left + (left == 1 ? " block" : " blocks") + " to move";
-			case BUILD -> "3 Build: " + built + " of " + total + " " + UNITS[chosen.ordinal()] + " up";
+			case BUILD -> chosen == SitePlanner.Layout.RETROFIT ? "Retrofit: " + built + " of " + total + " racks up to tier, " + left + " to go"
+					: "3 Build: " + built + " of " + total + " " + UNITS[chosen.ordinal()] + " up";
 			case WIRE -> "4 Wire: " + left + " cable to lay";
 			case DOCK -> "5 Dock: " + site(SitePlanner.R_DOCKS_PLACED) + " of " + site(SitePlanner.R_DOCKS) + " Drone Docks placed";
 			case DONE -> "All " + total + " " + UNITS[chosen.ordinal()] + " built and wired"

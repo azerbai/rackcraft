@@ -67,7 +67,9 @@ public final class ExchangeCatalog {
 			// Assembly Line (which nothing here sells anyway), and the Cryostat is built from Superconducting Wire.
 			"graphene_sheet", "gallium_nitride", "chiplet_bronze", "chiplet_silver", "chiplet_gold", "cryostat",
 			// The postgame tools are built from that hardware and are not for sale either.
-			"power_beacon", "beacon_receiver", "constructor_gauntlet", "terraformer_cannon", "superconducting_pylon");
+			"power_beacon", "beacon_receiver", "constructor_gauntlet", "terraformer_cannon", "superconducting_pylon",
+			// Compute Pods and Blueprints are built from that hardware too.
+			"pod_port", "blueprint_scanner");
 
 	private static volatile Map<Item, Long> prices = Map.of();
 

@@ -93,6 +93,11 @@ public final class RackcraftConfig {
 		public int cannonBlocksPerCanister = 256;
 		/** Gauntlet uses per Battery Cell. */
 		public int gauntletUsesPerCell = 16;
+		/** Lowest rack tier a Compute Pod takes (0 Server, 1 High-Density, 2 Immersion, 3 Exascale), and the most racks in one. */
+		public int podMinTier = 1;
+		public int podMaxRacks = 64;
+		/** Most blocks in a Blueprint (64 x 64 x 64 is 262,144). */
+		public int blueprintMaxVolume = 64 * 64 * 64;
 	}
 
 	/** {@code rackBootScale} multiplies how long racks take to boot (1 by default, 0 for instant). */

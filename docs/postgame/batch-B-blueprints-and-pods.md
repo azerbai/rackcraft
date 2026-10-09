@@ -53,3 +53,14 @@ README: extend "Site Construction", "Compute", and "Advanced Hardware" (pods). F
 
 ## Acceptance
 Self-test passes; `./gradlew test` and `build` pass; client screens (pod bay list, Printer UI, ghost overlay) unverified visually: say so.
+
+## As built (2026-10-09)
+
+Built with 247 self-test checks passing (`OC*`, `PD*`, `BP*`, `RT*`), `./gradlew test` and `build`. Where it departs from the spec above:
+
+- **No Blueprint Printer block.** The Site Planner takes a written Blueprint in a material slot and a new **Blueprint** layout; that was the spec's own "least work" option. The planner's quote, ledger, Buy, drones and Procurement Wall come with it.
+- **Rackcraft blocks only.** Drones carry Rackcraft's blocks, so vanilla blocks (glass, concrete) are skipped when scanning. A rack prints full of its dominant module, not with its exact bay loadout. A Blueprint prints facing as scanned (no rotation). The Darknet blueprint lot was not built.
+- **Retrofit is a Site Planner layout**, not a new drone: the Rack button picks the target tier, a new `RETROFIT` drone action does the swap, and the parts come from `AssemblyLine.recipes()` so they can't drift from the real recipes.
+- **Compute Pod:** racks stay racks (the scheduler and sim are unchanged); touching racks already share networks, so the pod adds the Pod Port, the fabric bonus and the shared breaker. The "pooled bays" screen is the Port's Fill pod / Empty pod buttons, not a single giant bay list. The breaker resets by itself at 30 C instead of needing a manual reset, because the owner leaves the game open.
+- **Overclocking:** limit buttons 125 and 150 on the rack screen; the effective limit is min(setting, research cap). Burn-out is rolled per module each sim step.
+- The scanner outline, the Pod Port screen buttons and the new rack-screen buttons are client code and unverified visually.

@@ -64,6 +64,8 @@
      "desc":"Beams power through the air to any Beacon Receiver within 16 blocks, no cable needed. It draws what the receivers' network asks for, up to 1 MW, plus 15% lost to the sky. Receivers are shared out evenly, and a beam is a line of sparks you can follow. Needs Wireless Power."},
     {"id":"beacon_receiver","name":"Beacon Receiver","color":"4F8AA0","front":"antenna","side":"frame","top":"rectenna","machine":true,
      "desc":"The catching end of a Power Beacon: it pairs with the nearest beacon in range and feeds whatever power network it touches, drawn before any other source. Out of range, it just sits there looking smug."},
+    {"id":"pod_port","name":"Pod Port","color":"7A5CB8","front":"ports","side":"mesh","top":"mesh","machine":true,
+     "desc":"Turns a solid block of High-Density Racks or better into a Compute Pod. Build a solid cuboid of at least four racks (no more than 2 x 4 x 8, and 64 in all), touch it with a powered Pod Port, and put Photonic Interconnects in its slot, one for every four racks: the fabric then lends 10% more AI compute from 4 racks, 20% from 8 and 30% from 16. The cost is one breaker: if any rack in the pod overheats, the whole pod trips and lends nothing until every rack has cooled. Its screen fills and empties every bay in the pod at once. Draws 0.5 kW. Inert until Compute Pods is researched."},
     {"id":"uplink_router","name":"Uplink Router","color":"6594A8","front":"ports","side":"mesh","top":"mesh","machine":true,
      "desc":"Provides 100 units of bandwidth to its fiber network. A rack needs bandwidth equal to its mining rate in RC/s; with less, earnings are scaled down proportionally."},
     {"id":"core_router","name":"Core Router","color":"397A73","front":"core_ports","side":"mesh","top":"mesh","machine":true,
@@ -352,6 +354,10 @@
      "desc":"A fat little power cell for hand tools. The Constructor's Gauntlet and the Terraformer Cannon burn them. Not rechargeable; it was never going to be."},
     {"id":"pylon_linker","name":"Pylon Linker","color":"5F6F86","pattern":"linker",
      "desc":"Use it on a Pylon, then on another, to string a span between them. Sneak-use on a linked Pylon to cut its spans. Range 128 blocks, or 256 between two Superconducting Pylons."},
+    {"id":"blueprint","name":"Blueprint","color":"3A6FB0","pattern":"blueprint",
+     "desc":"A sheet of the future. Blank until a Blueprint Scanner writes a box of Rackcraft blocks into it: their kinds, which way they face, and for a rack the module that fills most of its bays. Put a written one in a Site Planner's material slots and pick the Blueprint layout, and the drones print it again wherever the site is."},
+    {"id":"blueprint_scanner","name":"Blueprint Scanner","color":"4A90C8","pattern":"scanner",
+     "desc":"Use on a block for one corner and another for the opposite; the box is outlined while you hold it. Use in the air to scan it into a blank Blueprint in your inventory, up to 64 blocks a side. It only reads Rackcraft blocks (the printer's drones carry nothing else), and nothing inside machines but a rack's main module. Needs Digital Twin researched."},
     {"id":"survey_stake","name":"Survey Stake","color":"E07020","pattern":"stake",
      "desc":"A stick with a flag on it, for telling a Site Planner where to build. Use it on the ground at one corner of the site and then at the opposite corner; while you hold it the site is outlined. Use it on a Site Planner to hand the site over. Sneak-use to start again."},
     {"id":"heavy_drone_frame","name":"Heavy Drone Frame","color":"8C949C","pattern":"heavy_drone_frame",
@@ -406,7 +412,7 @@
      "entries":["cvd_furnace","graphene_sheet","epitaxy_reactor","gallium_nitride","superconducting_wire","chiplet_bronze","chiplet_silver","chiplet_gold","hbm_stack","photonic_chip"]},
     {"id":"advanced_racks","title":"Advanced Racks and Modules","icon":"exascale_cabinet",
      "intro":"Three bigger racks, each built on the Assembly Line from the one below and each behind its own research. The High-Density Rack has 12 bays and a built-in rear-door cooler. The Liquid-Immersion Rack has 16 bays and puts all its heat into the coolant loop. The Exascale Cabinet has 24 bays, runs everything 20% faster on half the fiber bandwidth, and only takes tier 2 hardware and up. New modules all start as a Blade Chassis; the first part fitted decides what it becomes. Quantum Annealers mine twice what a Quantum Core does but need a Cryostat beside their rack, fed with hydrogen. NPUs serve contracts and leases only, and FPGAs can be reflashed between jobs.",
-     "entries":["high_density_rack","immersion_rack","exascale_cabinet","blade_chassis","fpga_module","npu_card","neuromorphic_core","photonic_tensor_core","quantum_annealer","cryostat"]},
+     "entries":["high_density_rack","immersion_rack","exascale_cabinet","blade_chassis","fpga_module","npu_card","neuromorphic_core","photonic_tensor_core","quantum_annealer","cryostat","pod_port"]},
     {"id":"utilities","title":"Utility Plants","icon":"grid_substation",
      "intro":"Big facilities make more than coin: spare power, waste heat and a thirst for fresh water. Three cube multiblocks (2x2x2 to 5x5x5, or 10x10x10 with research, like the nuclear machines) turn those into something useful. The Desalination Plant makes tower water from any water it touches, sea water included, and never drains it. The Grid-Tie Substation sells spare solar, wind and reactor power for RackCoin, cheap at midday and dear in the evening peak; it never touches batteries, diesel or the utility feed. The Heat Recovery Plant is a heat sink that sells your coolant loop's heat to nearby villages as district heating, 50 kW per villager, so the bigger the village the more it takes and pays.",
      "entries":["desalination_plant","grid_substation","heat_recovery_plant"]},
@@ -421,7 +427,7 @@
      "entries":["survey_stake","site_planner","procurement_wall","heavy_drone_frame","construction_drone","terraforming_drone"]},
     {"id":"wiring","title":"Building and Wiring","icon":"trunk_bundle",
      "intro":"Past the first hall, the work is routing. A Trunk Bundle carries power, coolant and fiber as one; the Cable Planner draws a run before you lay it; a Patch Panel rewires from a face click; Pylons and Power Beacons carry power where cable cannot go. The Constructor's Gauntlet and Terraformer Cannon do the heavy lifting by hand. Structured Cabling, Long Reach and Wireless Power in the R&D tab unlock the machines.",
-     "entries":["trunk_bundle","cable_planner","patch_panel","pylon","superconducting_pylon","pylon_linker","power_beacon","beacon_receiver","battery_cell","constructor_gauntlet","terraformer_cannon"]},
+     "entries":["blueprint","blueprint_scanner","trunk_bundle","cable_planner","patch_panel","pylon","superconducting_pylon","pylon_linker","power_beacon","beacon_receiver","battery_cell","constructor_gauntlet","terraformer_cannon"]},
     {"id":"space","title":"The Launch Programme","icon":"launch_control",
      "intro":"Hydrogen's real job. Build Rocket Stages and payloads on the Assembly Line, fill a Launch Control's tank with Hydrogen Canisters, and put things in orbit. Comms Satellites speed up the Darknet and add lease slots, Survey Satellites find a Hyperscale Campus for you, Orbital Data Centers add compute to every rack, and Dyson Mirrors beam power back down to Rectennas. The last two have no limit.",
      "entries":["launch_pad","launch_tower","launch_control","stage_frame","rocket_stage","satellite_bus","comms_satellite","survey_satellite","orbital_datacenter","dyson_mirror","rectenna"]},
@@ -566,6 +572,9 @@
     {"id":"cable_planner","kind":"shapeless","result":"cable_planner","ingredients":["rackcraft:circuit_board","minecraft:ender_eye","rackcraft:copper_wire","rackcraft:copper_wire","rackcraft:copper_wire","rackcraft:copper_wire","rackcraft:survey_stake"]},
     {"id":"battery_cell","kind":"shaped","result":"battery_cell","count":2,"pattern":[" C ","IRI","IRI"],"key":{"C":"minecraft:copper_ingot","I":"minecraft:iron_ingot","R":"minecraft:redstone"}},
     {"id":"constructor_gauntlet","kind":"shaped","result":"constructor_gauntlet","pattern":["WMW","STS","WBW"],"key":{"W":"rackcraft:superconducting_wire","M":"rackcraft:electric_motor","S":"rackcraft:steel_ingot","T":"rackcraft:wireless_terminal","B":"rackcraft:battery_cell"}},
-    {"id":"terraformer_cannon","kind":"shaped","result":"terraformer_cannon","pattern":["SMS","CTC","SMS"],"key":{"S":"rackcraft:steel_ingot","M":"rackcraft:electric_motor","C":"rackcraft:circuit_board","T":"rackcraft:hydrogen_tank"}}
+    {"id":"terraformer_cannon","kind":"shaped","result":"terraformer_cannon","pattern":["SMS","CTC","SMS"],"key":{"S":"rackcraft:steel_ingot","M":"rackcraft:electric_motor","C":"rackcraft:circuit_board","T":"rackcraft:hydrogen_tank"}},
+    {"id":"pod_port","kind":"shaped","result":"pod_port","pattern":["JRJ","WPW","SSS"],"key":{"J":"rackcraft:photonic_chip","R":"rackcraft:core_router","W":"rackcraft:superconducting_wire","P":"rackcraft:pdu","S":"rackcraft:steel_block"}},
+    {"id":"blueprint","kind":"shapeless","result":"blueprint","ingredients":["minecraft:paper","rackcraft:circuit_board","minecraft:blue_dye"]},
+    {"id":"blueprint_scanner","kind":"shapeless","result":"blueprint_scanner","ingredients":["rackcraft:circuit_board","rackcraft:circuit_board","minecraft:ender_eye","rackcraft:survey_stake","rackcraft:survey_stake","rackcraft:gpu_chip","rackcraft:gpu_chip","rackcraft:gpu_chip","rackcraft:gpu_chip"]}
   ]
 }

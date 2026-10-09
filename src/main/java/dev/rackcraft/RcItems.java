@@ -43,6 +43,8 @@ public final class RcItems {
 				case "field_manual" -> new FieldManualItem(settings);
 				case "multimeter" -> new MultimeterItem(settings.maxCount(1));
 				case "survey_stake" -> new dev.rackcraft.item.SurveyStakeItem(settings);
+				case "blueprint" -> new dev.rackcraft.item.BlueprintItem(settings);
+				case "blueprint_scanner" -> new dev.rackcraft.item.BlueprintScannerItem(settings);
 				case "cable_planner" -> new dev.rackcraft.item.CablePlannerItem(settings);
 				case "pylon_linker" -> new dev.rackcraft.item.PylonLinkerItem(settings);
 				case "constructor_gauntlet" -> new dev.rackcraft.item.ConstructorGauntletItem(settings);

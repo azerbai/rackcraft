@@ -79,7 +79,9 @@ public final class Cluster {
 		// Research makes every rack lend more.
 		Research.Effects effects = rack.getWorld() instanceof net.minecraft.server.world.ServerWorld world
 				? ResearchLab.effects(world) : Research.Effects.NONE;
-		return total * rack.load() * (kind == Kind.GENERAL ? effects.generalCompute() : effects.aiCompute());
+		// A Compute Pod's fabric lends more AI compute, never general compute.
+		double fabric = kind == Kind.GENERAL ? 1 : rack.podBonus();
+		return total * rack.load() * fabric * (kind == Kind.GENERAL ? effects.generalCompute() : effects.aiCompute());
 	}
 
 	/**

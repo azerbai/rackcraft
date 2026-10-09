@@ -1,0 +1,36 @@
+{
+  "ingredients": [
+    {
+      "item": "rackcraft:circuit_board"
+    },
+    {
+      "item": "rackcraft:circuit_board"
+    },
+    {
+      "item": "minecraft:ender_eye"
+    },
+    {
+      "item": "rackcraft:survey_stake"
+    },
+    {
+      "item": "rackcraft:survey_stake"
+    },
+    {
+      "item": "rackcraft:gpu_chip"
+    },
+    {
+      "item": "rackcraft:gpu_chip"
+    },
+    {
+      "item": "rackcraft:gpu_chip"
+    },
+    {
+      "item": "rackcraft:gpu_chip"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:blueprint_scanner"
+  },
+  "type": "minecraft:crafting_shapeless"
+}

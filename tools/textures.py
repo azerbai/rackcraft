@@ -3008,7 +3008,40 @@ def item_linker(base, key):
     return canvas
 
 
+def item_blueprint(base, key):
+    """A rolled-out sheet of blue paper with a white grid and a small outlined floor plan."""
+    canvas = Canvas()
+    canvas.rect(2, 2, 13, 13, base)
+    canvas.bevel(2, 2, 13, 13, lighten(base, 0.3), darken(base, 0.5))
+    grid = lighten(base, 0.25)
+    for i in (5, 8, 11):
+        canvas.vline(i, 3, 12, grid)
+        canvas.hline(3, 12, i, grid)
+    white = (235, 242, 250)
+    canvas.frame(4, 4, 10, 9, white)
+    canvas.vline(7, 4, 9, white)
+    canvas.set(11, 11, white)
+    return canvas
+
+
+def item_scanner(base, key):
+    """A handheld scanner: a lens with a sweeping beam over a corner-bracketed box."""
+    canvas = Canvas()
+    canvas.rect(3, 8, 12, 14, darken(base, 0.4))
+    canvas.bevel(3, 8, 12, 14, lighten(base, 0.35), darken(base, 0.7))
+    canvas.disc(7.5, 6, 3.2, darken(base, 0.55))
+    canvas.disc(7.5, 6, 2.0, (120, 230, 255))
+    canvas.set(7, 5, (255, 255, 255))
+    for x, y in ((1, 1), (1, 2), (2, 1), (14, 1), (13, 1), (14, 2)):
+        canvas.set(x, y, LED_AMBER)
+    canvas.set(10, 11, LED_GREEN)
+    canvas.rect(5, 11, 7, 12, lighten(base, 0.2))
+    return canvas
+
+
 ITEM_STYLES.update({
+    "blueprint": item_blueprint,
+    "scanner": item_scanner,
     "planner_tool": item_planner_tool,
     "gauntlet": item_gauntlet,
     "cannon": item_cannon,

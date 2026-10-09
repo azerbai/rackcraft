@@ -104,6 +104,19 @@ Past the Wafer-Scale Engine, hardware is manufactured on the Assembly Line, each
 
 Contracts pay 1.35 RC per AI-compute-second against a well-trained reference model, so AI work earns about 10% more than mining on GPUs and Quantum Cores, and about a third more with Tensor Accelerators (which can't mine). That holds even on free solar power.
 
+## Overclocking
+
+Once **Overclocking** is researched, the load-limit buttons on a rack's screen gain a **125** (and **150** with **Liquid Hydrogen Cooling**). The rack does that much more work, but pays the square of it in power and heat: 125% is a quarter more mining and compute for 56% more power, and 150% is half as much again for 125% more. The extra heat has to go somewhere, so a loop that was comfortable at 100% may not be. Every module below tier 3 has a chance each minute of burning out: 1% at 125% and 3% at 150%, halved by Predictive Maintenance and halved again by Liquid Hydrogen Cooling. A burnt-out module becomes a Failed Module that remembers what it was, so a Drone Dock can replace it. Tier 3 and 4 hardware never burns out. Without the research a limit above 100 is held to 100, and the Operations Terminal's Alerts tab counts the overclocked racks.
+
+## Compute Pods
+
+A **Compute Pod** is a solid block of High-Density Racks or better (at least four, at most 64, no more than 2 x 4 x 8) with a powered **Pod Port** touching it. Touching racks already share one power, coolant and fiber network, so a pod needs one connection; what the pod adds is a **fabric** and a **breaker**.
+
+- **Fabric:** the Port's slot takes **Photonic Interconnects**, one for every four racks, or the fabric is off. With it, AI compute (contracts, training, research) is **10% higher from 4 racks, 20% from 8 and 30% from 16**. General compute and mining are not changed.
+- **One breaker:** if any rack in the pod overheats, the whole pod trips and lends nothing until every rack's intake is under 30 C, and then it resets by itself. Concentrated heat is the price of the fabric, so a pod wants a loop that can take it.
+- **Fill pod / Empty pod:** the Port's screen fills every empty bay in every rack of the pod from the storage on its fiber network and then your inventory, or empties them all.
+- The Port draws 0.5 kW. A cuboid with no Port, an unpowered Port, a rack of a lower tier or a block with a gap is simply racks. Needs **Compute Pods**; the Port is built from Photonic Interconnects, a Core Router and Superconducting Wire and is not sold at the Exchange.
+
 ## AI Contracts
 
 Clients post work to the **Operations Terminal** every one to three minutes: "Image of a pig in a business suit as a stock photo", or an Essay, Legal Document, Homework, Cover Letter, Wedding Speech, Product Review, Apology Letter, Terms of Service, Fan Fiction or Patch Notes. Each offer shows the client, quantity, the quality required, the pay and how long you have once accepted. Offers lapse after ten minutes.
@@ -176,6 +189,10 @@ The late game: once the cluster is big, the Operations Terminal's **R&D** tab tu
 | Structured Cabling | Custom Firmware | 400,000 RC + 8M general | Unlocks Trunk Bundles, Patch Panels and Pylons |
 | Long Reach | Structured Cabling | 1,500,000 RC + 20M general | The Constructor's Gauntlet reaches 128 blocks, not 32 |
 | Wireless Power | Silicon Photonics, Structured Cabling | 12,000,000 RC + 150M general | Unlocks Power Beacons and Beacon Receivers |
+| Overclocking | Custom Firmware | 2,000,000 RC + 30M general | Racks can be set to a 125% load limit |
+| Liquid Hydrogen Cooling | Overclocking, Cryogenic Hydrogen Storage | 9,000,000 RC + 120M general | Racks can be set to 150%, and overclocked modules burn out half as often |
+| Compute Pods | Immersion Cooling | 10,000,000 RC + 120M general | Solid blocks of High-Density Racks or better fuse into Compute Pods |
+| Digital Twin | Chiplets and Advanced Packaging | 25,000,000 RC + 300M AI | Blueprint Scanner, and the Site Planner's Blueprint layout |
 
 Every cube multiblock (reactors, batteries, the processing and utility cubes, the Electrolyser) stops at 5x5x5 until the megastructure research is done, so a new world can't build its way straight to the end. A cube bigger than the research allows stays a pile of lone blocks, and the fault finder and its screen say which research it needs. Bigger cubes keep getting better, more gently past 5: fuel and power per core drop 2.5% per step (67.5% at 10x10x10), batteries hold 5% more per bank per step (65% more at 10) and reach 99% efficiency. Cubes from 6x6x6 to 9x9x9 wear a heavy steel casing with hazard-striped corners, and a 10x10x10 its own gold-trimmed one.
 
@@ -394,6 +411,13 @@ With **Docks** switched on, a fifth phase follows wiring: the planner works out 
 **The quote.** Before the drones buy anything, the planner works out the whole bill (everything the layout, its cable, its fill and its docks need, less what the slots and storage already hold, for whatever it may buy) and tells the players nearby, item by item, in chat. The job then waits: the Start button becomes **Approve**, and until it is pressed nothing is bought and no drone leaves. A job with nothing to buy is never quoted. Each job is quoted once: changing the site, layout, blueprint, cube size, Buy or Docks starts a new job, and so does a finished site being damaged and rebuilt.
 
 **Procurement Wall.** A Monitoring Wall that keeps the books. Powered from the same grid as one or more Site Planners (it draws 0.5 kW), it lists each planner's status and waiting quote (with an Approve button) and the ledger: every Exchange purchase the planners' drones made, with the count, the price each, the cost, what part of the job it was for (clearing, fill, build, racks, reactors, cable, docks) and how long ago. A planner remembers its last 400 purchases and keeps a running total. Within 48 blocks of a powered wall, a **HUD** in the top-right corner shows the same fleet's spending, any quote waiting for a yes, and the latest six purchases; the wall's screen has a button to turn it off (`hud.procurement` in `rackcraft.json`).
+
+## Blueprints and Retrofits
+
+Two more layouts for the **Site Planner** (press Layout): both go through the usual price quote and the Procurement Wall's books.
+
+- **Blueprint Scanner and Blueprint:** a blank **Blueprint** is paper, a circuit board and blue dye. Mark a box with the **Blueprint Scanner** (use on one corner, then the opposite; up to 64 blocks a side) and use it in the air to scan it into a blank Blueprint from your pack (**Digital Twin** research). It records Rackcraft blocks only: their kind, which way they face, and for a rack the module that fills most of its bays; vanilla blocks are skipped, and so are machines' drives, settings and contents. Put a written Blueprint in one of the planner's material slots, pick the **Blueprint** layout, mark a site at least as big as the blueprint, and the drones level it and print the copy with its south-west corner on the site's, buying what is missing. A rack prints full of its main module. A blueprint prints its own cables and does not run one back to the planner. The planner says if the research is missing, there is no readable Blueprint in the slots, or it is bigger than the site.
+- **Retrofit:** the **Rack** button picks a tier, and every rack on the site below it is upgraded in place by drones that carry the parts the next tier is built from (the Assembly Line's install steps, summed over every tier it jumps). Modules, load limit and facing are kept. A rack whose modules the tier won't take (an Exascale Cabinet takes only tier 2 hardware and better) is left alone, and the tier is held to the research done. It builds nothing new, so there is no clearing or levelling.
 
 ## Grid-Scale Batteries
 

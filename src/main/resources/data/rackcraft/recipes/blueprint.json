@@ -1,0 +1,18 @@
+{
+  "ingredients": [
+    {
+      "item": "minecraft:paper"
+    },
+    {
+      "item": "rackcraft:circuit_board"
+    },
+    {
+      "item": "minecraft:blue_dye"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:blueprint"
+  },
+  "type": "minecraft:crafting_shapeless"
+}

@@ -38,7 +38,7 @@ public final class RackcraftSelfTest {
 		RackcraftConfig.values.events.enabled = false;
 		dev.rackcraft.compute.ResearchLab.get(server.getOverworld()).reset();
 		dev.rackcraft.world.OrbitState.get(server.getOverworld()).reset();
-		check("S0.a", RcBlocks.BLOCKS.size() == 91 && RcItems.ITEMS.size() == 89,
+		check("S0.a", RcBlocks.BLOCKS.size() == 92 && RcItems.ITEMS.size() == 91,
 				"blocks=" + RcBlocks.BLOCKS.size() + " items=" + RcItems.ITEMS.size(), failures);
 		ServerWorld world = server.getOverworld();
 		BlockPos generatorPos = new BlockPos(0, 80, 0);
@@ -160,6 +160,10 @@ public final class RackcraftSelfTest {
 		checkRackFill(world, failures);
 		checkAdvancedHardware(world, failures);
 		checkBuildingTools(world, failures);
+		checkOverclocking(world, failures);
+		checkComputePods(world, failures);
+		checkBlueprints(world, failures);
+		checkRetrofit(world, failures);
 		checkPerformance(world, failures);
 		checkStructures(world, failures);
 		check("S0.b", SimTicker.failedSteps() == 0, "simulation steps that threw=" + SimTicker.failedSteps(), failures);
@@ -2645,6 +2649,438 @@ public final class RackcraftSelfTest {
 		dev.rackcraft.world.PatchPanels.get(world).reset();
 		dev.rackcraft.world.PylonLinks.get(world).reset();
 		dev.rackcraft.world.WirelessPower.reset(world);
+	}
+
+	/** Batch B: overclocking. Past 100% a rack does more work for the square of the power, and modules can burn out. */
+	private static void checkOverclocking(ServerWorld world, int[] failures) {
+		dev.rackcraft.compute.ResearchLab lab = dev.rackcraft.compute.ResearchLab.get(world);
+		lab.reset();
+		// The model: 125% is a quarter more work for 56% more power; 150% half as much again for 125% more.
+		var gpus = List.of(dev.rackcraft.sim.ServerModel.Module.GPU_BLADE, dev.rackcraft.sim.ServerModel.Module.GPU_BLADE);
+		var rated = dev.rackcraft.sim.ServerModel.calculate(dev.rackcraft.sim.ServerModel.Tier.HIGH_DENSITY, gpus, 100, 1, 20, true, true, true, 1);
+		var pushed = dev.rackcraft.sim.ServerModel.calculate(dev.rackcraft.sim.ServerModel.Tier.HIGH_DENSITY, gpus, 125, 1, 20, true, true, true, 1);
+		var over = dev.rackcraft.sim.ServerModel.calculate(dev.rackcraft.sim.ServerModel.Tier.HIGH_DENSITY, gpus, 150, 1, 20, true, true, true, 1);
+		double idle = 2 * dev.rackcraft.sim.ServerModel.Module.GPU_BLADE.idleKw();
+		double span = 2 * (dev.rackcraft.sim.ServerModel.Module.GPU_BLADE.maxKw() - dev.rackcraft.sim.ServerModel.Module.GPU_BLADE.idleKw());
+		check("OC1.a", Math.abs(pushed.creditsPerSecond() / rated.creditsPerSecond() - 1.25) < 1e-9
+						&& Math.abs(over.creditsPerSecond() / rated.creditsPerSecond() - 1.5) < 1e-9
+						&& Math.abs(pushed.demandKw() - (idle + span * 1.5625 + dev.rackcraft.sim.ServerModel.Tier.HIGH_DENSITY.overheadKw())) < 1e-6
+						&& Math.abs(over.demandKw() - (idle + span * 2.25 + dev.rackcraft.sim.ServerModel.Tier.HIGH_DENSITY.overheadKw())) < 1e-6
+						&& dev.rackcraft.sim.ServerModel.liquidHeatKw(gpus, 1.25) > dev.rackcraft.sim.ServerModel.liquidHeatKw(gpus, 1.0) * 1.35,
+				"work=" + pushed.creditsPerSecond() / rated.creditsPerSecond() + " power=" + pushed.demandKw() + "/" + rated.demandKw() + " at150=" + over.demandKw(), failures);
+		check("OC1.b", dev.rackcraft.world.Overclocking.perMinute(100, false, false) == 0
+						&& dev.rackcraft.world.Overclocking.perMinute(125, false, false) == 0.01
+						&& dev.rackcraft.world.Overclocking.perMinute(150, false, false) == 0.03
+						&& dev.rackcraft.world.Overclocking.perMinute(150, true, false) == 0.015
+						&& dev.rackcraft.world.Overclocking.perMinute(150, true, true) == 0.0075,
+				"burn chances", failures);
+
+		// In the world: the limit is held to the research, and a rack at 125% works a quarter harder.
+		BlockPos o = clearArea(world, new BlockPos(-3000, 120, -1536), 12, 6, 8);
+		world.setBlockState(o, RcBlocks.get("creative_power").getDefaultState());
+		MachineBlockEntity rack = place(world, o.east(), "server_rack", Direction.NORTH);
+		for (int slot = 0; slot < 8; slot++) rack.setStack(slot, new ItemStack(RcItems.ITEMS.get("server_1u")));
+		rack.setLoadLimitPercent(125);
+		for (int step = 0; step < 6; step++) SimTicker.stepNow(world);
+		double lockedLoad = rack.load();
+		double lockedKw = rack.powerKw();
+		lab.complete(world, dev.rackcraft.compute.Research.get("overclocking"));
+		for (int step = 0; step < 6; step++) SimTicker.stepNow(world);
+		double pushedLoad = rack.load();
+		double pushedKw = rack.powerKw();
+		rack.setLoadLimitPercent(150);
+		for (int step = 0; step < 6; step++) SimTicker.stepNow(world);
+		double cappedLoad = rack.load();
+		check("OC2.a", Math.abs(lockedLoad - 1) < 0.01 && Math.abs(pushedLoad - 1.25) < 0.01 && pushedKw > lockedKw * 1.3 && Math.abs(cappedLoad - 1.25) < 0.01,
+				"before=" + lockedLoad + " after=" + pushedLoad + " kw=" + lockedKw + "->" + pushedKw + " at150WithoutCooling=" + cappedLoad, failures);
+		lab.complete(world, dev.rackcraft.compute.Research.get("liquid_hydrogen_cooling"));
+		for (int step = 0; step < 6; step++) SimTicker.stepNow(world);
+		double fullLoad = rack.load();
+
+		// Burn-out: a tier 1 or 2 module can go, a tier 3 never does, and below 100% nothing does.
+		rack.setStack(0, new ItemStack(RcItems.ITEMS.get("server_1u")));
+		rack.setStack(1, new ItemStack(RcItems.ITEMS.get("neuromorphic_core")));
+		dev.rackcraft.world.Overclocking.roll = () -> 0;
+		rack.setLoadLimitPercent(150);
+		SimTicker.stepNow(world);
+		boolean burned = rack.getStack(0).isOf(RcItems.ITEMS.get("failed_module")) && rack.getStack(1).isOf(RcItems.ITEMS.get("neuromorphic_core"));
+		boolean remembers = burned && rack.getStack(0).getNbt().getString(dev.rackcraft.world.DroneDocks.FAILED_KEY).equals("rackcraft:server_1u");
+		rack.setStack(2, new ItemStack(RcItems.ITEMS.get("server_1u")));
+		rack.setLoadLimitPercent(100);
+		SimTicker.stepNow(world);
+		boolean safeAtRated = rack.getStack(2).isOf(RcItems.ITEMS.get("server_1u"));
+		dev.rackcraft.world.Overclocking.roll = () -> 1;
+		rack.setLoadLimitPercent(150);
+		SimTicker.stepNow(world);
+		boolean luck = rack.getStack(2).isOf(RcItems.ITEMS.get("server_1u"));
+		dev.rackcraft.world.Overclocking.roll = null;
+		check("OC3.a", Math.abs(fullLoad - 1.5) < 0.01 && burned && remembers && safeAtRated && luck,
+				"load150=" + fullLoad + " burned=" + burned + " remembers=" + remembers + " safeAtRated=" + safeAtRated + " luck=" + luck, failures);
+		rack.setLoadLimitPercent(100);
+		lab.reset();
+		clearArea(world, o, 12, 6, 8);
+	}
+
+	/** Batch B: Compute Pods. A solid block of High-Density Racks and a powered Pod Port; the fabric, the shared breaker, fill and empty. */
+	private static void checkComputePods(ServerWorld world, int[] failures) {
+		dev.rackcraft.compute.ResearchLab lab = dev.rackcraft.compute.ResearchLab.get(world);
+		lab.reset();
+		BlockPos o = clearArea(world, new BlockPos(-3100, 120, -1536), 14, 8, 14);
+		world.setBlockState(o, RcBlocks.get("creative_power").getDefaultState());
+		List<MachineBlockEntity> racks = new java.util.ArrayList<>();
+		for (int x = 0; x < 2; x++) for (int z = 0; z < 2; z++) {
+			MachineBlockEntity rack = place(world, o.add(1 + x, 0, z), "high_density_rack", Direction.NORTH);
+			for (int slot = 0; slot < 4; slot++) rack.setStack(slot, new ItemStack(RcItems.ITEMS.get("server_1u")));
+			racks.add(rack);
+		}
+		MachineBlockEntity port = place(world, o.add(3, 0, 0), "pod_port", Direction.NORTH);
+		for (int step = 0; step < 4; step++) SimTicker.stepNow(world);
+		double base = dev.rackcraft.compute.Cluster.compute(racks.get(0), dev.rackcraft.compute.Cluster.Kind.AI);
+		check("PD1.a", port.siteReading(dev.rackcraft.world.ComputePods.R_STATE) == dev.rackcraft.world.ComputePods.State.LOCKED.ordinal()
+						&& racks.get(0).podBonus() == 1 && base > 0,
+				"locked state=" + port.siteReading(dev.rackcraft.world.ComputePods.R_STATE) + " base=" + base, failures);
+		lab.complete(world, dev.rackcraft.compute.Research.get("compute_pods"));
+		for (int step = 0; step < 4; step++) SimTicker.stepNow(world);
+		boolean fused = port.siteReading(dev.rackcraft.world.ComputePods.R_STATE) == dev.rackcraft.world.ComputePods.State.FABRIC_OFF.ordinal()
+				&& port.siteReading(dev.rackcraft.world.ComputePods.R_RACKS) == 4 && racks.get(0).podBonus() == 1;
+		port.setStack(0, new ItemStack(RcItems.ITEMS.get("photonic_chip"), 1));
+		for (int step = 0; step < 4; step++) SimTicker.stepNow(world);
+		double boosted = dev.rackcraft.compute.Cluster.compute(racks.get(0), dev.rackcraft.compute.Cluster.Kind.AI);
+		double general = dev.rackcraft.compute.Cluster.compute(racks.get(0), dev.rackcraft.compute.Cluster.Kind.GENERAL);
+		check("PD1.b", fused && port.siteReading(dev.rackcraft.world.ComputePods.R_STATE) == dev.rackcraft.world.ComputePods.State.ACTIVE.ordinal()
+						&& Math.abs(boosted / base - 1.1) < 1e-6 && port.siteReading(dev.rackcraft.world.ComputePods.R_BONUS) == 10
+						&& Math.abs(general - dev.rackcraft.compute.Cluster.compute(racks.get(1), dev.rackcraft.compute.Cluster.Kind.GENERAL)) < 1e-9,
+				"fusedWithoutChips=" + fused + " boost=" + boosted / base + " state=" + port.siteReading(dev.rackcraft.world.ComputePods.R_STATE), failures);
+		check("PD1.c", dev.rackcraft.world.ComputePods.bonusFor(3) == 1 && dev.rackcraft.world.ComputePods.bonusFor(4) == 1.1
+						&& dev.rackcraft.world.ComputePods.bonusFor(8) == 1.2 && dev.rackcraft.world.ComputePods.bonusFor(16) == 1.3
+						&& dev.rackcraft.world.ComputePods.interconnectsFor(4) == 1 && dev.rackcraft.world.ComputePods.interconnectsFor(5) == 2
+						&& dev.rackcraft.world.ComputePods.interconnectsFor(16) == 4,
+				"bonus table", failures);
+
+		// Eight racks need two interconnects for the next bonus; one is not enough.
+		for (int x = 0; x < 2; x++) for (int z = 0; z < 2; z++) {
+			MachineBlockEntity rack = place(world, o.add(1 + x, 1, z), "high_density_rack", Direction.NORTH);
+			for (int slot = 0; slot < 4; slot++) rack.setStack(slot, new ItemStack(RcItems.ITEMS.get("server_1u")));
+			racks.add(rack);
+		}
+		for (int step = 0; step < 4; step++) SimTicker.stepNow(world);
+		boolean starved = port.siteReading(dev.rackcraft.world.ComputePods.R_STATE) == dev.rackcraft.world.ComputePods.State.FABRIC_OFF.ordinal()
+				&& port.siteReading(dev.rackcraft.world.ComputePods.R_NEED) == 2 && racks.get(5).podBonus() == 1;
+		port.setStack(0, new ItemStack(RcItems.ITEMS.get("photonic_chip"), 2));
+		for (int step = 0; step < 4; step++) SimTicker.stepNow(world);
+		boolean eight = port.siteReading(dev.rackcraft.world.ComputePods.R_RACKS) == 8 && port.siteReading(dev.rackcraft.world.ComputePods.R_BONUS) == 20
+				&& Math.abs(racks.get(5).podBonus() - 1.2) < 1e-9;
+		check("PD2.a", starved && eight, "starved=" + starved + " eight=" + eight, failures);
+
+		// One breaker: a rack that overheats takes the whole pod down, and it comes back when they have all cooled.
+		world.setBlockState(o.add(2, 0, -2), RcBlocks.get("creative_cooler").getDefaultState().with(MachineBlock.FACING, Direction.SOUTH));
+		MachineBlockEntity cooler = machine(world, o.add(2, 0, -2));
+		cooler.setCreativeValue(CreativeSettings.TARGET_C, 60);
+		for (int step = 0; step < 6; step++) SimTicker.stepNow(world);
+		boolean tripped = port.isTripped() && racks.stream().allMatch(MachineBlockEntity::isTripped)
+				&& racks.stream().allMatch(rack -> dev.rackcraft.compute.Cluster.compute(rack, dev.rackcraft.compute.Cluster.Kind.AI) == 0)
+				&& port.siteReading(dev.rackcraft.world.ComputePods.R_STATE) == dev.rackcraft.world.ComputePods.State.TRIPPED.ordinal();
+		cooler.setCreativeValue(CreativeSettings.TARGET_C, 24);
+		for (int step = 0; step < 10; step++) SimTicker.stepNow(world);
+		boolean recovered = !port.isTripped() && racks.stream().noneMatch(MachineBlockEntity::isTripped)
+				&& dev.rackcraft.compute.Cluster.compute(racks.get(0), dev.rackcraft.compute.Cluster.Kind.AI) > 0;
+		check("PD3.a", tripped && recovered, "tripped=" + tripped + " recovered=" + recovered + " portTripped=" + port.isTripped(), failures);
+		world.setBlockState(o.add(2, 0, -2), Blocks.AIR.getDefaultState());
+
+		// Fill and empty reach every rack of the pod.
+		var player = net.fabricmc.fabric.api.entity.FakePlayer.get(world);
+		player.getInventory().clear();
+		for (int slot = 0; slot < 30; slot++) player.getInventory().setStack(slot % 36, new ItemStack(RcItems.ITEMS.get("pi_node")));
+		for (MachineBlockEntity rack : racks) for (int slot = 0; slot < 12; slot++) rack.setStack(slot, ItemStack.EMPTY);
+		var pod = dev.rackcraft.world.ComputePods.podOf(world, port);
+		int filled = pod == null ? -1 : dev.rackcraft.world.ComputePods.fillAll(world, pod, player, false);
+		int inRacks = racks.stream().mapToInt(rack -> rack.modules().size()).sum();
+		int emptied = pod == null ? -1 : dev.rackcraft.world.ComputePods.fillAll(world, pod, player, true);
+		int left = racks.stream().mapToInt(rack -> rack.modules().size()).sum();
+		check("PD4.a", pod != null && filled == 30 && inRacks == 30 && emptied == 30 && left == 0,
+				"filled=" + filled + " inRacks=" + inRacks + " emptied=" + emptied + " left=" + left, failures);
+		player.getInventory().clear();
+
+		// Not a pod: a rack knocked out of the cuboid, a pod too small, a low tier rack in it, or no port.
+		world.setBlockState(o.add(1, 1, 1), Blocks.AIR.getDefaultState());
+		for (int step = 0; step < 3; step++) SimTicker.stepNow(world);
+		boolean notSolid = port.siteReading(dev.rackcraft.world.ComputePods.R_STATE) == dev.rackcraft.world.ComputePods.State.NO_POD.ordinal()
+				&& racks.get(0).podBonus() == 1;
+		world.setBlockState(o.add(1, 1, 1), RcBlocks.get("server_rack").getDefaultState());
+		for (int step = 0; step < 3; step++) SimTicker.stepNow(world);
+		boolean lowTier = port.siteReading(dev.rackcraft.world.ComputePods.R_STATE) == dev.rackcraft.world.ComputePods.State.NO_POD.ordinal();
+		for (BlockPos pos : BlockPos.iterate(o.add(1, 1, 0), o.add(2, 1, 1))) world.setBlockState(pos, Blocks.AIR.getDefaultState());
+		world.setBlockState(o.add(1, 0, 1), Blocks.AIR.getDefaultState());
+		for (int step = 0; step < 3; step++) SimTicker.stepNow(world);
+		boolean tooSmall = port.siteReading(dev.rackcraft.world.ComputePods.R_STATE) == dev.rackcraft.world.ComputePods.State.NO_POD.ordinal();
+		check("PD5.a", notSolid && lowTier && tooSmall, "notSolid=" + notSolid + " lowTier=" + lowTier + " tooSmall=" + tooSmall, failures);
+		lab.reset();
+		clearArea(world, o, 14, 8, 14);
+	}
+
+	/** A flat dirt site, a powered Site Planner on it with drones and hydrogen, and its chunks forced; returns the planner. */
+	private static MachineBlockEntity siteHarness(ServerWorld world, BlockPos origin) {
+		clearArea(world, origin, 22, 14, 22);
+		for (int cx = (origin.getX() - 4) >> 4; cx <= (origin.getX() + 22) >> 4; cx++) {
+			for (int cz = (origin.getZ() - 4) >> 4; cz <= (origin.getZ() + 22) >> 4; cz++) world.setChunkForced(cx, cz, true);
+		}
+		for (BlockPos pos : BlockPos.iterate(origin.add(-2, -1, -2), origin.add(20, 0, 20))) world.setBlockState(pos, Blocks.DIRT.getDefaultState());
+		BlockPos plannerPos = origin.add(0, 1, 4);
+		MachineBlockEntity planner = place(world, plannerPos, "site_planner", Direction.NORTH);
+		world.setBlockState(plannerPos.north(), RcBlocks.get("creative_power").getDefaultState());
+		planner.setStack(0, new ItemStack(RcItems.ITEMS.get("construction_drone"), 4));
+		planner.setStack(2, new ItemStack(RcItems.ITEMS.get("hydrogen_canister"), 16));
+		return planner;
+	}
+
+	private static void siteCleanup(ServerWorld world, BlockPos origin) {
+		world.getEntitiesByClass(net.minecraft.entity.ItemEntity.class, new net.minecraft.util.math.Box(origin).expand(60), item -> true)
+				.forEach(net.minecraft.entity.Entity::discard);
+		for (BlockPos pos : BlockPos.iterate(origin.add(-2, -1, -2), origin.add(20, 12, 20))) world.setBlockState(pos, Blocks.AIR.getDefaultState());
+		for (int cx = (origin.getX() - 4) >> 4; cx <= (origin.getX() + 22) >> 4; cx++) {
+			for (int cz = (origin.getZ() - 4) >> 4; cz <= (origin.getZ() + 22) >> 4; cz++) world.setChunkForced(cx, cz, false);
+		}
+	}
+
+	/** Batch B: Blueprints. Scanning, reading (and refusing damaged ones), the scanner item, and printing through a Site Planner. */
+	private static void checkBlueprints(ServerWorld world, int[] failures) {
+		dev.rackcraft.compute.ResearchLab lab = dev.rackcraft.compute.ResearchLab.get(world);
+		lab.reset();
+		BlockPos src = clearArea(world, new BlockPos(-3200, 120, -1536), 12, 8, 12);
+		MachineBlockEntity rack = place(world, src.add(1, 0, 1), "server_rack", Direction.EAST);
+		for (int slot = 0; slot < 3; slot++) rack.setStack(slot, new ItemStack(RcItems.ITEMS.get("server_1u")));
+		CableBlock cable = (CableBlock) RcBlocks.get("power_cable");
+		world.setBlockState(src.add(2, 0, 1), cable.withConnections(cable.getDefaultState(), world, src.add(2, 0, 1)));
+		place(world, src.add(3, 0, 1), "diesel_generator", Direction.SOUTH);
+		world.setBlockState(src.add(1, 1, 1), Blocks.STONE.getDefaultState());
+		ItemStack blank = new ItemStack(RcItems.ITEMS.get("blueprint"));
+		boolean blankReads = dev.rackcraft.world.Blueprints.read(blank) == null && !dev.rackcraft.world.Blueprints.written(blank);
+		int blocks = dev.rackcraft.world.Blueprints.scan(world, src, src.add(4, 2, 2), blank);
+		var blueprint = dev.rackcraft.world.Blueprints.read(blank);
+		var rackCell = blueprint == null ? null : blueprint.cells().stream().filter(cell -> cell.block().equals("server_rack")).findFirst().orElse(null);
+		var generatorCell = blueprint == null ? null : blueprint.cells().stream().filter(cell -> cell.block().equals("diesel_generator")).findFirst().orElse(null);
+		check("BP1.a", blankReads && blocks == 3 && blueprint != null && blueprint.blocks() == 3 && blueprint.skipped() == 1
+						&& blueprint.width() == 5 && blueprint.height() == 3 && blueprint.depth() == 3
+						&& rackCell != null && rackCell.x() == 1 && rackCell.y() == 0 && rackCell.z() == 1 && rackCell.facing() == Direction.EAST
+						&& "server_1u".equals(rackCell.module()) && generatorCell != null && generatorCell.facing() == Direction.SOUTH && generatorCell.module() == null,
+				"blank=" + blankReads + " blocks=" + blocks + " blueprint=" + (blueprint == null ? "null" : blueprint.blocks() + "/" + blueprint.skipped())
+						+ " rack=" + rackCell, failures);
+		var parts = blueprint == null ? java.util.Map.<net.minecraft.item.Item, Long>of() : dev.rackcraft.world.Blueprints.parts(blueprint);
+		check("BP1.b", parts.get(RcBlocks.get("server_rack").asItem()) == 1L && parts.get(RcItems.ITEMS.get("server_1u")) == 8L
+						&& parts.get(RcBlocks.get("power_cable").asItem()) == 1L && parts.get(RcBlocks.get("diesel_generator").asItem()) == 1L && parts.size() == 4,
+				"parts=" + parts, failures);
+
+		// A damaged or hostile blueprint is refused, never trusted.
+		java.util.function.Function<java.util.function.Consumer<net.minecraft.nbt.NbtCompound>, Boolean> refused = tamper -> {
+			ItemStack copy = blank.copy();
+			tamper.accept(copy.getSubNbt(dev.rackcraft.world.Blueprints.KEY));
+			return dev.rackcraft.world.Blueprints.read(copy) == null;
+		};
+		boolean hugeSize = refused.apply(nbt -> nbt.putIntArray("Size", new int[] {100, 1, 1}));
+		boolean zeroSize = refused.apply(nbt -> nbt.putIntArray("Size", new int[] {0, 1, 1}));
+		boolean badRuns = refused.apply(nbt -> nbt.putIntArray("Runs", new int[] {0, 5}));
+		boolean negative = refused.apply(nbt -> nbt.putIntArray("Runs", new int[] {0, -3, 0, 48}));
+		boolean oddRuns = refused.apply(nbt -> nbt.putIntArray("Runs", new int[] {0}));
+		boolean unknownBlock = refused.apply(nbt -> {
+			var palette = nbt.getList("Palette", net.minecraft.nbt.NbtElement.STRING_TYPE);
+			palette.set(1, net.minecraft.nbt.NbtString.of("no_such_block|0|"));
+		});
+		boolean creativeBlock = refused.apply(nbt -> {
+			var palette = nbt.getList("Palette", net.minecraft.nbt.NbtElement.STRING_TYPE);
+			palette.set(1, net.minecraft.nbt.NbtString.of("creative_power|0|"));
+		});
+		boolean moduleOnGenerator = refused.apply(nbt -> {
+			var palette = nbt.getList("Palette", net.minecraft.nbt.NbtElement.STRING_TYPE);
+			palette.set(1, net.minecraft.nbt.NbtString.of("diesel_generator|0|server_1u"));
+		});
+		boolean badFacing = refused.apply(nbt -> {
+			var palette = nbt.getList("Palette", net.minecraft.nbt.NbtElement.STRING_TYPE);
+			palette.set(1, net.minecraft.nbt.NbtString.of("diesel_generator|9|"));
+		});
+		boolean notAPalette = refused.apply(nbt -> nbt.put("Palette", new net.minecraft.nbt.NbtList()));
+		boolean tooBig = dev.rackcraft.world.Blueprints.scan(world, src, src.add(70, 1, 1), new ItemStack(RcItems.ITEMS.get("blueprint"))) == -1
+				&& dev.rackcraft.world.Blueprints.scan(world, src, src.add(1, 1, 1), new ItemStack(Items.PAPER)) == -2;
+		check("BP2.a", hugeSize && zeroSize && badRuns && negative && oddRuns && unknownBlock && creativeBlock && moduleOnGenerator && badFacing && notAPalette && tooBig,
+				"size=" + hugeSize + "/" + zeroSize + " runs=" + badRuns + "/" + negative + "/" + oddRuns + " palette=" + unknownBlock + "/" + creativeBlock
+						+ "/" + moduleOnGenerator + "/" + badFacing + "/" + notAPalette + " tooBig=" + tooBig, failures);
+
+		// The scanner item: it marks the box, needs Digital Twin, and writes into a blank Blueprint from the inventory.
+		var player = net.fabricmc.fabric.api.entity.FakePlayer.get(world);
+		player.getInventory().clear();
+		ItemStack scanner = new ItemStack(RcItems.ITEMS.get("blueprint_scanner"));
+		for (BlockPos mark : List.of(src, src.add(4, 2, 2))) {
+			var hit = new net.minecraft.util.hit.BlockHitResult(net.minecraft.util.math.Vec3d.ofCenter(mark), Direction.UP, mark, false);
+			scanner.getItem().useOnBlock(new net.minecraft.item.ItemUsageContext(world, player, net.minecraft.util.Hand.MAIN_HAND, scanner, hit));
+		}
+		player.setStackInHand(net.minecraft.util.Hand.MAIN_HAND, scanner);
+		ItemStack inPack = new ItemStack(RcItems.ITEMS.get("blueprint"));
+		player.getInventory().setStack(5, inPack);
+		scanner.getItem().use(world, player, net.minecraft.util.Hand.MAIN_HAND);
+		boolean locked = !dev.rackcraft.world.Blueprints.written(inPack);
+		lab.complete(world, dev.rackcraft.compute.Research.get("digital_twin"));
+		scanner.getItem().use(world, player, net.minecraft.util.Hand.MAIN_HAND);
+		boolean written = dev.rackcraft.world.Blueprints.written(inPack) && dev.rackcraft.world.Blueprints.read(inPack) != null
+				&& dev.rackcraft.world.Blueprints.read(inPack).blocks() == 3;
+		player.getInventory().setStack(5, ItemStack.EMPTY);
+		ItemStack scanned = inPack.copy();
+		scanner.getItem().use(world, player, net.minecraft.util.Hand.MAIN_HAND);
+		boolean needsBlank = player.getInventory().count(RcItems.ITEMS.get("blueprint")) == 0;
+		check("BP3.a", locked && written && needsBlank, "lockedBeforeResearch=" + locked + " written=" + written + " needsBlank=" + needsBlank, failures);
+		player.getInventory().clear();
+		player.setStackInHand(net.minecraft.util.Hand.MAIN_HAND, ItemStack.EMPTY);
+
+		// Printing: the Site Planner's Blueprint layout. It says why it can't, then prints what was scanned, on bought parts.
+		lab.reset();
+		BlockPos origin = new BlockPos(-3300, 100, -1536);
+		MachineBlockEntity planner = siteHarness(world, origin);
+		for (int press = 0; press < 5; press++) dev.rackcraft.world.SitePlanner.cycleLayout(planner);
+		check("BP4.a", dev.rackcraft.world.SitePlanner.layout(planner) == dev.rackcraft.world.SitePlanner.Layout.BLUEPRINT, "layout", failures);
+		dev.rackcraft.world.SitePlanner.setArea(planner, origin.add(2, 0, 2), origin.add(8, 0, 6));
+		FacilityManager.get(world).addCredits(10_000_000_000L);
+		planner.setStack(3, scanned.copy());
+		dev.rackcraft.world.SitePlanner.toggleRunning(planner);
+		dev.rackcraft.world.SitePlanner.scanNow(world);
+		int lockedWhy = planner.siteReading(dev.rackcraft.world.SitePlanner.R_BP_STATE);
+		boolean lockedStatus = planner.processStatus() == dev.rackcraft.world.SitePlanner.Status.NOTHING_HERE.ordinal();
+		lab.complete(world, dev.rackcraft.compute.Research.get("digital_twin"));
+		planner.setStack(3, ItemStack.EMPTY);
+		dev.rackcraft.world.SitePlanner.scanNow(world);
+		int noneWhy = planner.siteReading(dev.rackcraft.world.SitePlanner.R_BP_STATE);
+		planner.setStack(3, scanned.copy());
+		dev.rackcraft.world.SitePlanner.toggleRunning(planner);
+		dev.rackcraft.world.SitePlanner.setArea(planner, origin.add(2, 0, 2), origin.add(4, 0, 3));
+		dev.rackcraft.world.SitePlanner.toggleRunning(planner);
+		dev.rackcraft.world.SitePlanner.scanNow(world);
+		int bigWhy = planner.siteReading(dev.rackcraft.world.SitePlanner.R_BP_STATE);
+		check("BP4.b", lockedWhy == 1 && lockedStatus && noneWhy == 2 && bigWhy == 3
+						&& planner.siteReading(dev.rackcraft.world.SitePlanner.R_BP_WIDTH) == 5 && planner.siteReading(dev.rackcraft.world.SitePlanner.R_BP_DEPTH) == 3,
+				"locked=" + lockedWhy + " none=" + noneWhy + " tooBig=" + bigWhy, failures);
+		dev.rackcraft.world.SitePlanner.toggleRunning(planner);
+		dev.rackcraft.world.SitePlanner.setArea(planner, origin.add(2, 0, 2), origin.add(8, 0, 6));
+		int shown = dev.rackcraft.world.SitePlanner.quotesShown();
+		dev.rackcraft.world.SitePlanner.toggleRunning(planner);
+		runSite(world, planner);
+		BlockPos printedRack = origin.add(2 + 1, 1, 2 + 1);
+		MachineBlockEntity copy = world.getBlockEntity(printedRack) instanceof MachineBlockEntity entity ? entity : null;
+		boolean rackOk = copy != null && copy.blockId().equals("server_rack") && copy.getCachedState().get(MachineBlock.FACING) == Direction.EAST
+				&& copy.modules().size() == 8 && copy.modules().stream().allMatch(module -> module == dev.rackcraft.sim.ServerModel.Module.SERVER_1U);
+		boolean cableOk = world.getBlockState(origin.add(2 + 2, 1, 2 + 1)).isOf(RcBlocks.get("power_cable"));
+		boolean generatorOk = world.getBlockState(origin.add(2 + 3, 1, 2 + 1)).isOf(RcBlocks.get("diesel_generator"))
+				&& world.getBlockState(origin.add(2 + 3, 1, 2 + 1)).get(MachineBlock.FACING) == Direction.SOUTH;
+		boolean noVanilla = world.getBlockState(origin.add(2 + 1, 2, 2 + 1)).isAir();
+		check("BP5.a", rackOk && cableOk && generatorOk && noVanilla && planner.processStatus() == dev.rackcraft.world.SitePlanner.Status.DONE.ordinal(),
+				"rack=" + rackOk + " cable=" + cableOk + " generator=" + generatorOk + " noVanilla=" + noVanilla + " status=" + planner.processStatus(), failures);
+		check("BP6.a", ExchangeCatalog.price(RcBlocks.get("pod_port").asItem()) == null
+						&& ExchangeCatalog.price(RcItems.ITEMS.get("blueprint_scanner")) == null && ExchangeCatalog.price(RcItems.ITEMS.get("blueprint")) != null,
+				"podPortSold=" + ExchangeCatalog.price(RcBlocks.get("pod_port").asItem()), failures);
+		check("BP5.b", planner.site().getLong("Spent") > 0 && dev.rackcraft.world.SitePlanner.quotesShown() == shown + 1
+						&& dev.rackcraft.world.SitePlanner.ledger(planner).stream().anyMatch(purchase -> purchase.item().equals("rackcraft:server_rack")),
+				"spent=" + planner.site().getLong("Spent") + " quotes=" + (dev.rackcraft.world.SitePlanner.quotesShown() - shown), failures);
+		lab.reset();
+		siteCleanup(world, origin);
+		clearArea(world, src, 12, 8, 12);
+	}
+
+	/** Batch B: the Retrofit layout upgrades racks in place and keeps what is in them. */
+	private static void checkRetrofit(ServerWorld world, int[] failures) {
+		dev.rackcraft.compute.ResearchLab lab = dev.rackcraft.compute.ResearchLab.get(world);
+		lab.reset();
+		BlockPos origin = new BlockPos(-3400, 100, -1536);
+		MachineBlockEntity planner = siteHarness(world, origin);
+		for (int press = 0; press < 6; press++) dev.rackcraft.world.SitePlanner.cycleLayout(planner);
+		check("RT0.a", dev.rackcraft.world.SitePlanner.layout(planner) == dev.rackcraft.world.SitePlanner.Layout.RETROFIT, "layout", failures);
+		MachineBlockEntity rackA = place(world, origin.add(3, 1, 3), "server_rack", Direction.WEST);
+		for (int slot = 0; slot < 3; slot++) rackA.setStack(slot, new ItemStack(RcItems.ITEMS.get("server_1u")));
+		rackA.setLoadLimitPercent(75);
+		MachineBlockEntity rackB = place(world, origin.add(5, 1, 3), "server_rack", Direction.NORTH);
+		for (int slot = 0; slot < 8; slot++) rackB.setStack(slot, new ItemStack(RcItems.ITEMS.get("pi_node")));
+		MachineBlockEntity rackC = place(world, origin.add(7, 1, 3), "high_density_rack", Direction.NORTH);
+		dev.rackcraft.world.SitePlanner.setArea(planner, origin.add(2, 0, 2), origin.add(8, 0, 5));
+		FacilityManager.get(world).addCredits(10_000_000_000L);
+
+		// Held back to the research: with none, the target is a Server Rack and there is nothing to do.
+		dev.rackcraft.world.SitePlanner.cycleHallRack(planner);
+		dev.rackcraft.world.SitePlanner.toggleRunning(planner);
+		dev.rackcraft.world.SitePlanner.scanNow(world);
+		boolean held = dev.rackcraft.world.Retrofits.target(world, planner) == dev.rackcraft.sim.ServerModel.Tier.SERVER
+				&& planner.siteReading(dev.rackcraft.world.SitePlanner.R_BP_STATE) == 1
+				&& planner.processStatus() == dev.rackcraft.world.SitePlanner.Status.DONE.ordinal();
+		dev.rackcraft.world.SitePlanner.toggleRunning(planner);
+		lab.complete(world, dev.rackcraft.compute.Research.get("dense_racks"));
+		check("RT1.a", held && dev.rackcraft.world.Retrofits.target(world, planner) == dev.rackcraft.sim.ServerModel.Tier.HIGH_DENSITY
+						&& dev.rackcraft.world.Retrofits.pending(world, dev.rackcraft.world.SitePlanner.site(planner), dev.rackcraft.sim.ServerModel.Tier.HIGH_DENSITY).size() == 2,
+				"held=" + held + " pending=" + dev.rackcraft.world.Retrofits.pending(world, dev.rackcraft.world.SitePlanner.site(planner), dev.rackcraft.sim.ServerModel.Tier.HIGH_DENSITY).size(), failures);
+
+		// Approve and run: two racks upgraded in place, modules, limit and facing kept, the one already there untouched.
+		dev.rackcraft.world.SitePlanner.toggleRunning(planner);
+		runSite(world, planner);
+		MachineBlockEntity nowA = world.getBlockEntity(origin.add(3, 1, 3)) instanceof MachineBlockEntity entity ? entity : null;
+		MachineBlockEntity nowB = world.getBlockEntity(origin.add(5, 1, 3)) instanceof MachineBlockEntity entity ? entity : null;
+		boolean upgradedA = nowA != null && nowA.blockId().equals("high_density_rack") && nowA.size() >= 12
+				&& nowA.modules().size() == 3 && nowA.loadLimitPercent() == 75 && nowA.getCachedState().get(MachineBlock.FACING) == Direction.WEST;
+		boolean upgradedB = nowB != null && nowB.blockId().equals("high_density_rack") && nowB.modules().size() == 8
+				&& nowB.getCachedState().get(MachineBlock.FACING) == Direction.NORTH;
+		boolean untouched = world.getBlockEntity(origin.add(7, 1, 3)) == rackC;
+		check("RT2.a", upgradedA && upgradedB && untouched && planner.processStatus() == dev.rackcraft.world.SitePlanner.Status.DONE.ordinal(),
+				"A=" + upgradedA + " B=" + upgradedB + " untouched=" + untouched + " status=" + planner.processStatus(), failures);
+		long coils = 0;
+		long doors = 0;
+		for (var purchase : dev.rackcraft.world.SitePlanner.ledger(planner)) {
+			if (purchase.item().equals("rackcraft:cryo_coil")) coils += purchase.count();
+			if (purchase.item().equals("rackcraft:rear_door_cooler")) doors += purchase.count();
+		}
+		boolean noDrops = world.getEntitiesByClass(net.minecraft.entity.ItemEntity.class, new net.minecraft.util.math.Box(origin).expand(30),
+				item -> Racks_isModule(item.getStack())).isEmpty();
+		check("RT2.b", coils == 4 && doors == 2 && planner.site().getLong("Spent") > 0 && noDrops,
+				"coils=" + coils + " doors=" + doors + " spent=" + planner.site().getLong("Spent") + " noDroppedModules=" + noDrops, failures);
+
+		// Several tiers at once, with the parts of every tier in between; and a rack that wouldn't fit is left alone.
+		var exa = dev.rackcraft.sim.ServerModel.Tier.EXASCALE;
+		var parts = dev.rackcraft.world.Retrofits.parts(dev.rackcraft.sim.ServerModel.Tier.SERVER, exa);
+		var partIds = parts.entrySet().stream().collect(java.util.stream.Collectors.toMap(
+				entry -> Registries.ITEM.getId(entry.getKey()).getPath(), java.util.Map.Entry::getValue));
+		check("RT3.a", partIds.get("cryo_coil") == 2 && partIds.get("cdu") == 3 && partIds.get("rear_door_cooler") == 1 && partIds.get("coolant_pipe") == 8
+						&& partIds.get("graphene_sheet") == 4 && partIds.get("photonic_chip") == 8 && partIds.get("superconducting_wire") == 4
+						&& partIds.get("core_router") == 1 && partIds.get("hbm_stack") == 4 && partIds.size() == 9,
+				"parts=" + partIds, failures);
+		BlockPos far = origin.add(10, 1, 3);
+		MachineBlockEntity cheap = place(world, far, "server_rack", Direction.SOUTH);
+		cheap.setStack(0, new ItemStack(RcItems.ITEMS.get("neuromorphic_core")));
+		cheap.setStack(1, new ItemStack(RcItems.ITEMS.get("neuromorphic_core")));
+		cheap.setLoadLimitPercent(50);
+		net.minecraft.inventory.SimpleInventory hold = new net.minecraft.inventory.SimpleInventory(27);
+		parts.forEach((item, count) -> hold.addStack(new ItemStack(item, count)));
+		ItemStack cryo = hold.getStack(0);
+		cryo.decrement(1);
+		boolean short_ = !dev.rackcraft.world.Retrofits.upgrade(world, far, exa, hold) && world.getBlockState(far).isOf(RcBlocks.get("server_rack"));
+		cryo.increment(1);
+		boolean jumped = dev.rackcraft.world.Retrofits.upgrade(world, far, exa, hold);
+		MachineBlockEntity cabinet = world.getBlockEntity(far) instanceof MachineBlockEntity entity ? entity : null;
+		boolean keptAll = cabinet != null && cabinet.blockId().equals("exascale_cabinet") && cabinet.size() >= 24 && cabinet.modules().size() == 2
+				&& cabinet.loadLimitPercent() == 50 && cabinet.getCachedState().get(MachineBlock.FACING) == Direction.SOUTH && hold.isEmpty();
+		BlockPos pi = origin.add(12, 1, 3);
+		MachineBlockEntity starter = place(world, pi, "server_rack", Direction.NORTH);
+		starter.setStack(0, new ItemStack(RcItems.ITEMS.get("pi_node")));
+		net.minecraft.inventory.SimpleInventory again = new net.minecraft.inventory.SimpleInventory(27);
+		parts.forEach((item, count) -> again.addStack(new ItemStack(item, count)));
+		boolean wontFit = !dev.rackcraft.world.Retrofits.fits(starter, exa) && !dev.rackcraft.world.Retrofits.upgrade(world, pi, exa, again)
+				&& world.getBlockState(pi).isOf(RcBlocks.get("server_rack")) && !again.isEmpty();
+		boolean downhill = !dev.rackcraft.world.Retrofits.upgrade(world, far, dev.rackcraft.sim.ServerModel.Tier.HIGH_DENSITY, again);
+		check("RT3.b", short_ && jumped && keptAll && wontFit && downhill,
+				"shortOfAPart=" + short_ + " jumped=" + jumped + " kept=" + keptAll + " wontFit=" + wontFit + " downhill=" + downhill, failures);
+
+		// An empty site has nothing to retrofit.
+		dev.rackcraft.world.SitePlanner.toggleRunning(planner);
+		dev.rackcraft.world.SitePlanner.setArea(planner, origin.add(14, 0, 10), origin.add(18, 0, 14));
+		dev.rackcraft.world.SitePlanner.toggleRunning(planner);
+		dev.rackcraft.world.SitePlanner.scanNow(world);
+		check("RT4.a", planner.processStatus() == dev.rackcraft.world.SitePlanner.Status.NOTHING_HERE.ordinal(), "status=" + planner.processStatus(), failures);
+		lab.reset();
+		siteCleanup(world, origin);
+	}
+
+	private static boolean Racks_isModule(ItemStack stack) {
+		return dev.rackcraft.block.Racks.module(stack) != null;
 	}
 
 	private static void checkPerformance(ServerWorld world, int[] failures) {
