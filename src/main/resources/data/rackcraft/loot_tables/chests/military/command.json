@@ -1,0 +1,98 @@
+{
+  "type": "minecraft:chest",
+  "pools": [
+    {
+      "rolls": {
+        "type": "minecraft:uniform",
+        "min": 1,
+        "max": 1
+      },
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:written_book",
+          "weight": 1,
+          "functions": [
+            {
+              "function": "minecraft:set_nbt",
+              "tag": "{title: \"Mission Log\", author: \"Sergeant Fuse\", pages: [\"{\\\"text\\\": \\\"MISSION LOG\\\\nForward Operating Base Gigabyte\\\\n\\\\nPurpose: to guard a vault. The vault contains things. We were told not to ask what, and then told what, and then told to forget it.\\\"}\", \"{\\\"text\\\": \\\"DAY 1: Fence built. Turrets installed. Generator installed outside the fence, because the colonel said \\\\\\\"redundancy\\\\\\\" and then walked off.\\\\n\\\\nDAY 9: Nobody has attacked. We have started attacking the pigeons.\\\"}\", \"{\\\"text\\\": \\\"DAY 40: The turrets run off the shed outside the south wall. If somebody cuts the line the turrets and the vault door stop, which is the single design flaw I am not allowed to write on the whiteboard.\\\"}\", \"{\\\"text\\\": \\\"NOTE TO SELF: the vault door is held shut by a live cable behind it. Cut the cable and it opens. Hit it with an EMP and it opens. Ask it nicely and it will not.\\\\n\\\\nFile this under \\\\\\\"features\\\\\\\".\\\"}\", \"{\\\"text\\\": \\\"FINAL ENTRY: Command has gone quiet. The Security Robots have started humming. If you are reading this, please close the gate on your way out. It is a very expensive gate.\\\"}\"]}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "rolls": {
+        "type": "minecraft:uniform",
+        "min": 1,
+        "max": 2
+      },
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "rackcraft:battery_cell",
+          "weight": 3,
+          "functions": [
+            {
+              "function": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 1,
+                "max": 3
+              }
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "rackcraft:emp_grenade",
+          "weight": 2,
+          "functions": [
+            {
+              "function": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 1,
+                "max": 1
+              }
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "rackcraft:circuit_board",
+          "weight": 3,
+          "functions": [
+            {
+              "function": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 2,
+                "max": 4
+              }
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "rackcraft:steel_ingot",
+          "weight": 3,
+          "functions": [
+            {
+              "function": "minecraft:set_count",
+              "count": {
+                "type": "minecraft:uniform",
+                "min": 2,
+                "max": 4
+              }
+            }
+          ]
+        },
+        {
+          "type": "minecraft:empty",
+          "weight": 3
+        }
+      ]
+    }
+  ]
+}

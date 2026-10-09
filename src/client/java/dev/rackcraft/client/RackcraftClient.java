@@ -60,6 +60,11 @@ public final class RackcraftClient implements ClientModInitializer {
 				dev.rackcraft.client.render.RobotArmRenderer::new);
 		net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry.register(dev.rackcraft.entity.RcEntities.MAGLEV_CAR,
 				dev.rackcraft.client.render.MaglevCarRenderer::new);
+		net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry.register(dev.rackcraft.entity.RcEntities.SOLDIER, context -> new dev.rackcraft.client.render.GuardRenderer(context, "soldier"));
+		net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry.register(dev.rackcraft.entity.RcEntities.SECURITY_ROBOT, context -> new dev.rackcraft.client.render.GuardRenderer(context, "security_robot"));
+		net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry.register(dev.rackcraft.entity.RcEntities.SCAVENGER, context -> new dev.rackcraft.client.render.GuardRenderer(context, "scavenger"));
+		net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry.register(dev.rackcraft.entity.BoltEntity.TYPE, net.minecraft.client.render.entity.FlyingItemEntityRenderer::new);
+		net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry.register(dev.rackcraft.entity.EmpGrenadeEntity.TYPE, net.minecraft.client.render.entity.FlyingItemEntityRenderer::new);
 		net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry.register(dev.rackcraft.entity.RcEntities.MAINTENANCE_DRONE,
 				dev.rackcraft.client.render.DroneRenderer::maintenance);
 		net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry.register(dev.rackcraft.entity.RcEntities.CONSTRUCTION_DRONE,

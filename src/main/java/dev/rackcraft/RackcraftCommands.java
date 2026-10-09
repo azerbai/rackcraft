@@ -61,7 +61,7 @@ public final class RackcraftCommands {
 				.executes(context -> locateDataCenter(context.getSource(), null, DEFAULT_LOCATE_RADIUS))
 				.then(argument("variant", StringArgumentType.word()).suggests(VARIANTS)
 						.executes(context -> locateDataCenter(context.getSource(), StringArgumentType.getString(context, "variant"),
-								StringArgumentType.getString(context, "variant").equals("hyperscale_campus") ? CAMPUS_LOCATE_RADIUS
+								DataCenterLayouts.isRare(StringArgumentType.getString(context, "variant")) ? CAMPUS_LOCATE_RADIUS
 										: DEFAULT_LOCATE_RADIUS))
 						.then(argument("radius", IntegerArgumentType.integer(1, 3000))
 								.executes(context -> locateDataCenter(context.getSource(), StringArgumentType.getString(context, "variant"),

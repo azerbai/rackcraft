@@ -1,0 +1,32 @@
+{
+  "key": {
+    "B": {
+      "item": "rackcraft:battery_cell"
+    },
+    "C": {
+      "item": "rackcraft:cryo_coil"
+    },
+    "G": {
+      "item": "rackcraft:graphene_sheet"
+    },
+    "M": {
+      "item": "rackcraft:electric_motor"
+    },
+    "S": {
+      "item": "rackcraft:steel_block"
+    },
+    "W": {
+      "item": "rackcraft:superconducting_wire"
+    }
+  },
+  "pattern": [
+    "SWS",
+    "CWC",
+    "MBG"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:railgun"
+  },
+  "type": "minecraft:crafting_shaped"
+}

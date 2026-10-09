@@ -38,7 +38,7 @@ For things the Exchange won't sell, there's the darknet: an auction house in a b
 
 ## Abandoned Data Centers
 
-Thirteen kinds of ruined data center generate as real structures (so `/locate structure #rackcraft:data_centers` works too). They are ruins, not free farms: their racks hold mostly Failed Modules, empty bays and the odd Pi Node or 1U Server, with only a small chance of anything better, and their loot is parts rather than hardware. The Field Manual is how you learn to build the real thing. Most have a cut cable or two and a loot chest:
+Seventeen kinds of ruined data center (and one military base) generate as real structures (so `/locate structure #rackcraft:data_centers` works too). They are ruins, not free farms: their racks hold mostly Failed Modules, empty bays and the odd Pi Node or 1U Server, with only a small chance of anything better, and their loot is parts rather than hardware. The Field Manual is how you learn to build the real thing. Most have a cut cable or two and a loot chest:
 
 | Variant | Where | What's there |
 | --- | --- | --- |
@@ -55,8 +55,10 @@ Thirteen kinds of ruined data center generate as real structures (so `/locate st
 | `solar_farm` | Deserts, savannas, plains | Rows of panels and a control hut |
 | `tape_archive` | Temperate | Tape libraries and storage arrays behind the cobwebs |
 | `hyperscale_campus` | Plains, savannas, deserts, snowy plains, meadows (**extremely rare**: never within 5,000 blocks of spawn, at most one per 320 x 320 chunks and only a third of those) | **176 x 176 blocks, fully working**: four data halls (192 racks of ASICs, GPUs, 1U servers and Tensor Accelerators, all with Rear-Door Coolers and chiller banks), a quantum vault (8 Quantum Core racks cooled by towers on the reservoir), a 3x3x3 reactor array with spare Fuel Cells, an operations centre with an AI wing, and backup utility, diesel and batteries. Only five cut cables keep it dark; repair kits are in the guard hut by the gate |
+| `military_base` | Plains, savannas, deserts, snowy plains, meadows (**extremely rare**, same rules as the campus) | **90 x 90 and guarded**: Forward Operating Base Gigabyte. See Arms and Ruins below |
+| `hostile_container_farm`, `hostile_bunker`, `hostile_tape_archive`, `hostile_ai_lab` | As their quiet twins; about a fifth of those four ruins are the hostile kind | The same building, **occupied by Scavengers** who are stripping the racks for parts, and a stash chest or two of components they have already pulled out |
 
-Operators can find one with `/rackcraft locate datacenter [variant] [radius]` (radius in chunks, default 100, or 1,500 for the campus) and build one in front of them with `/rackcraft structure place <variant>` (`/rackcraft structure datacenter` still builds Site 7).
+Operators can find one with `/rackcraft locate datacenter [variant] [radius]` (radius in chunks, default 100, or 1,500 for the campus and the military base) and build one in front of them with `/rackcraft structure place <variant>` (`/rackcraft structure datacenter` still builds Site 7).
 
 ## Compute: Mining, Autocrafting and AI Work
 
@@ -196,6 +198,8 @@ The late game: once the cluster is big, the Operations Terminal's **R&D** tab tu
 | Personal Propulsion | Cryogenic Hydrogen Storage | 5,000,000 RC + 60M general | Unlocks the Hydrogen Jetpack |
 | Magnetic Levitation | Advanced Materials | 8,000,000 RC + 100M general | Unlocks Mag-Lev Rails and Stations |
 | Quantum Entanglement | Quantum Annealing | 30,000,000 RC + 300M general | Unlocks Quantum Teleport Pads |
+| Directed Energy | Advanced Materials | 6,000,000 RC + 80M general | Unlocks the Hydrogen Flamethrower, Arc Coil, Railgun, EMP Grenade and Sentry Turrets |
+| Plasma Weapons | Directed Energy, Cryogenic Hydrogen Storage | 12,000,000 RC + 150M general | Unlocks the Plasma Rifle and Lance Laser |
 
 Every cube multiblock (reactors, batteries, the processing and utility cubes, the Electrolyser) stops at 5x5x5 until the megastructure research is done, so a new world can't build its way straight to the end. A cube bigger than the research allows stays a pile of lone blocks, and the fault finder and its screen say which research it needs. Bigger cubes keep getting better, more gently past 5: fuel and power per core drop 2.5% per step (67.5% at 10x10x10), batteries hold 5% more per bank per step (65% more at 10) and reach 99% efficiency. Cubes from 6x6x6 to 9x9x9 wear a heavy steel casing with hazard-striped corners, and a 10x10x10 its own gold-trimmed one.
 
@@ -431,6 +435,31 @@ Two more layouts for the **Site Planner** (press Layout): both go through the us
 - **Blueprint Scanner and Blueprint:** a blank **Blueprint** is paper, a circuit board and blue dye. Mark a box with the **Blueprint Scanner** (use on one corner, then the opposite; up to 64 blocks a side) and use it in the air to scan it into a blank Blueprint from your pack (**Digital Twin** research). It records Rackcraft blocks only: their kind, which way they face, and for a rack the module that fills most of its bays; vanilla blocks are skipped, and so are machines' drives, settings and contents. Put a written Blueprint in one of the planner's material slots, pick the **Blueprint** layout, mark a site at least as big as the blueprint, and the drones level it and print the copy with its south-west corner on the site's, buying what is missing. A rack prints full of its main module. A blueprint prints its own cables and does not run one back to the planner. The planner says if the research is missing, there is no readable Blueprint in the slots, or it is bigger than the site.
 - **Retrofit:** the **Rack** button picks a tier, and every rack on the site below it is upgraded in place by drones that carry the parts the next tier is built from (the Assembly Line's install steps, summed over every tier it jumps). Modules, load limit and facing are kept. A rack whose modules the tier won't take (an Exascale Cabinet takes only tier 2 hardware and better) is left alone, and the tier is held to the research done. It builds nothing new, so there is no clearing or levelling.
 
+## Arms and Ruins
+
+The only places that fight back are the Military Base and the hostile data centres. Nothing roams, nothing raids, nothing ambushes you at home: if you never go looking, nobody minds. Weapons are not for sale at the Exchange; the **Directed Energy** and **Plasma Weapons** projects (R&D tab) unlock using them, and anything you loot is inert until then.
+
+**Weapons.** Each has a heat meter (shown on the tooltip) that cools by itself and locks the weapon out for four seconds with a hiss at 100%. A **Coolant Pack** carried in your inventory vents every weapon ten times faster; each shot while it is warm wears the pack down a notch. Ammo comes from your inventory or a Wireless Terminal's storage.
+
+| Weapon | Use | Ammo | Notes |
+| --- | --- | --- | --- |
+| **Hydrogen Flamethrower** | Hold: an 8-block cone of fire | a Hydrogen Canister per ~20 s | Sets mobs alight, burns cobwebs, lights flammable plain blocks; never Rackcraft blocks or chests |
+| **Arc Coil** | Click: lightning that chains to 3 more mobs within 5 blocks | a Battery Cell per 8 shots | Trips every PDU on a machine's network; doubled against robots, which also freeze for 20 s |
+| **Railgun** | Hold to charge (2 s), release | a Steel Slug and a quarter of a Cell | Pierces mobs and 3 plain blocks, never a Rackcraft block; damage scales with charge; strong recoil |
+| **Plasma Rifle** | Click: a bolt with splash damage | a Canister per 12 bolts and a Cell per 30 | Overheats in seconds without a Coolant Pack |
+| **Lance Laser** | Hold: a 32-block beam | a Cell per ~20 s | Melts cobweb and ice (glass only if `weapons.meltGlass`), goes round armour, extreme heat |
+| **EMP Grenade** | Throw | consumable | Switches off every Rackcraft machine, drone, turret and security robot within 10 blocks for 3 minutes; PDUs trip, Blast Doors open |
+
+**Sentry Turrets** (Laser, Arc and Railgun variants) are powered machines: 1.5 kW, a 16-block reach, and a target scan twice a second. They shoot hostile mobs and angry guards, never you, pets, villagers or drones. Use one to cycle *all hostile / guards only / off*. A turret heats as it fires and cools only with a coolant loop that has a tower or chiller on it, so an uncooled one overheats within seconds and stands down until it has cooled.
+
+**Guards** (Soldiers, Security Robots, Scavengers) follow zombified-piglin rules. On **Peaceful** they ignore you unless you hit one, and then it and its neighbours come for you for a few minutes. On **Easy and Normal** they act when you come within 12 blocks with a line of sight (8 for the jittery Scavengers); on **Hard** they open fire on sight from 20 (16). They shoot visible, slow bolts you can sidestep, stay at their posts, never spawn on their own and stand down and heal once they have lost you for 30 seconds. Robots are the ones an EMP can freeze.
+
+**The Military Base** is a 90 x 90 fenced compound: barracks, a motor pool, an armoury, a command bunker with a **vault**, six laser turrets, around twenty guards and a named **commander**. Three ways in: fight, cut the power or EMP it. The turrets and the **Blast Door** gate run off a generator shed outside the south wall and one cable into the fenced ring; a Blast Door stays shut only while a cable touching it leads back to a live source, so breaking the cable outside the wall, destroying the generator or throwing an EMP opens the gate (and kills the turrets, but not the soldiers). The vault door is on its own power inside the bunker. The vault holds the best loot in the mod, scarce on purpose: Gold chiplets, the odd Wafer-Scale Engine, Superconducting Wire, Battery Cells, EMP Grenades, a Warhead Blueprint and a random weapon. Look for the **Mission Log** in the command bunker.
+
+**Hostile data centres** are ordinary ruins with Scavengers in them (and, one time in three, a named boss), and a stash of components behind them.
+
+**Bounties.** Name an elite by finding one (any elite within 64 blocks of you) and the Darknet posts a bounty on it, shown among the Operations Terminal's alerts with where it was last seen; killing it pays 250,000 RC once.
+
 ## Grid-Scale Batteries
 
 A Battery Bank stores 3,000 kJ, charges at 15 kW and discharges at 60 kW, losing 10% each way. Build Battery Banks into a solid cube, 2x2x2 up to 5x5x5, and they become one **Grid-Scale Battery**: one store with every bank's charge and rates, 10% more capacity per bank for each step up in size (40% more in a 5-cube), and smaller losses: 8% each way for a 2-cube down to 2% for a 5-cube. The casing changes when it forms, and its screen and the Multimeter show its size, capacity and efficiency.
@@ -476,6 +505,8 @@ All textures are generated by `tools/textures.py` from the `color`, `pattern`, `
 ## Configuration
 
 `config/rackcraft.json` is written on first launch. Main keys include `sim.stepTicks` (10), `thermal.ambientC` (24), `thermal.cellCapacityKjPerK` (4), `thermal.faceConductanceKwPerK` (2), `thermal.upwardMultiplier` (2), `thermal.leakKwPerK` (0.005, through walls), `thermal.outdoorLeakKwPerK` (0.4, under open sky), `thermal.maxActiveCells` (65536), `thermal.settleEpsilonK` (0.03), `events.enabled`, `events.perHour` (3), and `heatOverlay.maxCells` (2000). Config files from before the air model was rebuilt (no `version`, or below 2) get the new thermal defaults once.
+
+Weapons, turrets and guards have their own `weapons` block: cooling and lockout (`coolPerSecond`, `coolPackPerSecond`, `lockoutTicks`), every weapon's damage, ammo and heat, the EMP radius and seconds, the sentry range, damage and draw, each guard's health and engage range by difficulty, and the bounty payout. `weapons.blockDamage` turns scorching and melting off, and `weapons.meltGlass` lets the Lance Laser melt glass.
 
 ## Commands
 

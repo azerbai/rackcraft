@@ -1,0 +1,21 @@
+{
+  "ingredients": [
+    {
+      "item": "rackcraft:steel_block"
+    },
+    {
+      "item": "rackcraft:pdu"
+    },
+    {
+      "item": "rackcraft:railgun"
+    },
+    {
+      "item": "rackcraft:electric_motor"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:railgun_sentry"
+  },
+  "type": "minecraft:crafting_shapeless"
+}

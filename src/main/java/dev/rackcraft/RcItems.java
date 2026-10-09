@@ -37,6 +37,8 @@ public final class RcItems {
 			if (id.equals("maintenance_drone") || id.equals("construction_drone") || id.equals("terraforming_drone")
 					|| id.equals("tanker_drone")) settings.maxCount(8);
 			if (id.equals("survey_stake")) settings.maxCount(1);
+			if (id.equals("coolant_pack")) settings.maxCount(1).maxDamage(600);
+			if (id.equals("warhead_blueprint")) settings.maxCount(1).rarity(net.minecraft.util.Rarity.EPIC);
 			if (id.equals("rocket_stage")) settings.maxCount(16);
 			if (java.util.Set.of("comms_satellite", "survey_satellite", "orbital_datacenter", "dyson_mirror").contains(id)) settings.maxCount(1);
 			Item item = switch (id) {
@@ -47,6 +49,12 @@ public final class RcItems {
 				case "dimensional_shard" -> new dev.rackcraft.item.LinkedShardItem(settings, true);
 				case "grapple_hook" -> new dev.rackcraft.item.GrappleItem(settings);
 				case "hydrogen_jetpack" -> new dev.rackcraft.item.JetpackItem(settings);
+				case "hydrogen_flamethrower" -> new dev.rackcraft.item.WeaponItem(settings, dev.rackcraft.world.Weapons.Kind.FLAMETHROWER);
+				case "arc_coil" -> new dev.rackcraft.item.WeaponItem(settings, dev.rackcraft.world.Weapons.Kind.ARC_COIL);
+				case "railgun" -> new dev.rackcraft.item.WeaponItem(settings, dev.rackcraft.world.Weapons.Kind.RAILGUN);
+				case "plasma_rifle" -> new dev.rackcraft.item.WeaponItem(settings, dev.rackcraft.world.Weapons.Kind.PLASMA_RIFLE);
+				case "lance_laser" -> new dev.rackcraft.item.WeaponItem(settings, dev.rackcraft.world.Weapons.Kind.LANCE_LASER);
+				case "emp_grenade" -> new dev.rackcraft.item.EmpGrenadeItem(settings);
 				case "blueprint" -> new dev.rackcraft.item.BlueprintItem(settings);
 				case "blueprint_scanner" -> new dev.rackcraft.item.BlueprintScannerItem(settings);
 				case "cable_planner" -> new dev.rackcraft.item.CablePlannerItem(settings);

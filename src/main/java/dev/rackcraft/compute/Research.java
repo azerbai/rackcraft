@@ -143,6 +143,13 @@ public final class Research {
 			project("quantum_entanglement", "Quantum Entanglement", Kind.GENERAL, 30_000_000, 3e8, List.of("quantum_annealing"),
 					"Unlocks Quantum Teleport Pads",
 					"Spooky action at a distance, now with a power bill and a waiver."),
+			// Arms: weapons, turrets and EMPs. Both are gated at use, so a Military Base's loot is inert until they are done.
+			project("directed_energy", "Directed Energy", Kind.GENERAL, 6_000_000, 8e7, List.of("advanced_materials"),
+					"Unlocks the Hydrogen Flamethrower, Arc Coil, Railgun, EMP Grenade and Sentry Turrets",
+					"The safety review asked what these were for. The answer was \"defence\", said slowly, while looking at the ceiling."),
+			project("plasma_weapons", "Plasma Weapons", Kind.GENERAL, 12_000_000, 1.5e8, List.of("directed_energy", "cryo_hydrogen"),
+					"Unlocks the Plasma Rifle and the Lance Laser",
+					"Four thousand degrees in a bottle, aimed. Please do not ask the Coolant Pack how it feels."),
 			// The Assembly Line: each one doubles the speed of every Conveyor Belt and every Welding, Riveting and Assembly Robot.
 			project("line_speed_1", "Brisk Belts", Kind.GENERAL, 1_500_000, 2e7, List.of("predictive_maintenance", "psu_titanium"),
 					"Conveyor Belts and Assembly Line robots work twice as fast",

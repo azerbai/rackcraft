@@ -57,6 +57,7 @@ public final class RackcraftConfig {
 		public Construction construction = new Construction();
 		public Exchange exchange = new Exchange();
 		public Building building = new Building();
+		public Weapons weapons = new Weapons();
 
 		private Values withDefaults() {
 			Values defaults = new Values();
@@ -69,12 +70,68 @@ public final class RackcraftConfig {
 			if (construction == null) construction = defaults.construction;
 			if (exchange == null) exchange = defaults.exchange;
 			if (building == null) building = defaults.building;
+			if (weapons == null) weapons = defaults.weapons;
 			if (sim.stepTicks <= 0) sim.stepTicks = defaults.sim.stepTicks;
 			if (thermal.cellCapacityKjPerK <= 0) thermal.cellCapacityKjPerK = defaults.thermal.cellCapacityKjPerK;
 			if (thermal.maxActiveCells <= 0) thermal.maxActiveCells = defaults.thermal.maxActiveCells;
 			if (heatOverlay.maxCells <= 0) heatOverlay.maxCells = defaults.heatOverlay.maxCells;
 			return this;
 		}
+	}
+
+	/** Postgame weapons, turrets and the people who carry them. Every number a fight depends on lives here. */
+	public static final class Weapons {
+		/** Scorching only: flames light flammable plain blocks, beams melt cobweb and ice. Never touches Rackcraft blocks or chests. */
+		public boolean blockDamage = true;
+		/** Lance Laser melts glass too. Off, because someone's greenhouse is in the way. */
+		public boolean meltGlass = false;
+		/** Heat a weapon loses per second on its own, and with a Coolant Pack in the pack; 100 is lockout. */
+		public double coolPerSecond = 4;
+		public double coolPackPerSecond = 45;
+		public int lockoutTicks = 80;
+		public int coolantPackUses = 600;
+		public double flameDamage = 2.5;
+		public int flameRange = 8;
+		public int flameSecondsPerCanister = 20;
+		public double flameHeatPerStep = 0.48;
+		public double arcDamage = 7;
+		public int arcChain = 3;
+		public double arcChainRange = 5;
+		public int arcShotsPerCell = 8;
+		public double arcHeat = 10;
+		public double railDamage = 24;
+		public int railChargeTicks = 40;
+		public int railPierceBlocks = 3;
+		public int railShotsPerCell = 4;
+		public double railHeat = 45;
+		public int railCooldownTicks = 40;
+		public double plasmaDamage = 9;
+		public double plasmaSplashRadius = 2.5;
+		public int plasmaMagazine = 12;
+		public int plasmaShotsPerCell = 30;
+		public double plasmaHeat = 12;
+		public double lanceDamage = 3;
+		public int lanceRange = 32;
+		public int lanceSecondsPerCell = 20;
+		public double lanceHeatPerStep = 2.5;
+		public int empRadius = 10;
+		public int empSeconds = 180;
+		/** Sentry reach in blocks and its damage per shot (laser; arc and railgun scale from it). */
+		public int sentryRange = 16;
+		public double sentryDamage = 4;
+		public double sentryKw = 1.5;
+		/** Guards: how close a player must come before they act, by difficulty (blocks). Peaceful: only once attacked. */
+		public int guardEngageNormal = 12;
+		public int guardEngageHard = 20;
+		public int scavengerEngageNormal = 8;
+		public int scavengerEngageHard = 16;
+		public double soldierHealth = 30;
+		public double robotHealth = 40;
+		public double scavengerHealth = 18;
+		public double guardDamage = 4;
+		public double scavengerDamage = 3;
+		/** RackCoin paid for a Darknet bounty kill. */
+		public int bountyPayout = 250_000;
 	}
 
 	/** Postgame building and wiring tools. */

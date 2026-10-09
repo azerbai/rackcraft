@@ -1,0 +1,8 @@
+{
+  "biomes": "#rackcraft:has_structure/data_center_bunker",
+  "spawn_overrides": {},
+  "step": "surface_structures",
+  "terrain_adaptation": "none",
+  "type": "rackcraft:data_center",
+  "variant": "hostile_bunker"
+}

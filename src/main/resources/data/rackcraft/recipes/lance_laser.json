@@ -1,0 +1,32 @@
+{
+  "key": {
+    "B": {
+      "item": "rackcraft:battery_cell"
+    },
+    "C": {
+      "item": "rackcraft:cryo_coil"
+    },
+    "G": {
+      "item": "rackcraft:graphene_sheet"
+    },
+    "J": {
+      "item": "rackcraft:photonic_chip"
+    },
+    "S": {
+      "item": "rackcraft:steel_block"
+    },
+    "W": {
+      "item": "rackcraft:superconducting_wire"
+    }
+  },
+  "pattern": [
+    "JJG",
+    "WCW",
+    "SBS"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:lance_laser"
+  },
+  "type": "minecraft:crafting_shaped"
+}

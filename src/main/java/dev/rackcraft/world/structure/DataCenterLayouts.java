@@ -81,9 +81,26 @@ public final class DataCenterLayouts {
 		add(new Layout("solar_farm", 23, 5, 15, Placement.SURFACE, 0, 4, false, false, DataCenterLayouts::solarFarm));
 		add(new Layout("tape_archive", 13, 7, 11, Placement.SURFACE, 0, 4, false, false, DataCenterLayouts::tapeArchive));
 		add(new Layout("hyperscale_campus", CAMPUS_SIZE, 24, CAMPUS_SIZE, Placement.SURFACE, 0, 16, false, true, DataCenterLayouts::campus));
+		add(new Layout("military_base", MilitaryBase.SIZE, 14, MilitaryBase.SIZE, Placement.SURFACE, 0, 8, false, true, MilitaryBase::build));
+		// Hostile twins of four ruins: the same building with scavengers in it and a stash they have been building.
+		add(hostile("hostile_container_farm", "container_farm", 4));
+		add(hostile("hostile_bunker", "bunker", 4));
+		add(hostile("hostile_tape_archive", "tape_archive", 3));
+		add(hostile("hostile_ai_lab", "ai_lab", 5));
 	}
 
 	private DataCenterLayouts() {}
+
+	private static Layout hostile(String id, String ruin, int scavengers) {
+		Layout base = LAYOUTS.get(ruin);
+		return new Layout(id, base.width(), base.height(), base.depth(), base.placement(), base.buryDepth(), base.maxSlope(),
+				base.allowWater(), base.levelToAverage(), MilitaryBase.hostile(base.build(), base.width(), base.depth(), scavengers));
+	}
+
+	/** The rare, far-flung structures (the campus and the military base): never near spawn, and only some of the eligible spots. */
+	public static boolean isRare(String id) {
+		return id.equals("hyperscale_campus") || id.equals("military_base");
+	}
 
 	private static void add(Layout layout) {
 		LAYOUTS.put(layout.id(), layout);

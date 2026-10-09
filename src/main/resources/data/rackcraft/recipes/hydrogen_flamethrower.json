@@ -1,0 +1,32 @@
+{
+  "key": {
+    "B": {
+      "item": "rackcraft:battery_cell"
+    },
+    "G": {
+      "item": "rackcraft:graphene_sheet"
+    },
+    "H": {
+      "item": "rackcraft:hydrogen_canister"
+    },
+    "M": {
+      "item": "rackcraft:electric_motor"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    },
+    "T": {
+      "item": "rackcraft:hydrogen_tank"
+    }
+  },
+  "pattern": [
+    "SSG",
+    "THM",
+    " B "
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:hydrogen_flamethrower"
+  },
+  "type": "minecraft:crafting_shaped"
+}

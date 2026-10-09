@@ -1,0 +1,27 @@
+{
+  "ingredients": [
+    {
+      "item": "rackcraft:steel_block"
+    },
+    {
+      "item": "rackcraft:pdu"
+    },
+    {
+      "item": "rackcraft:photonic_chip"
+    },
+    {
+      "item": "rackcraft:electric_motor"
+    },
+    {
+      "item": "rackcraft:superconducting_wire"
+    },
+    {
+      "item": "rackcraft:graphene_sheet"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:laser_sentry"
+  },
+  "type": "minecraft:crafting_shapeless"
+}

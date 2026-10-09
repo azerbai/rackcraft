@@ -291,6 +291,24 @@ public final class Site {
 		return villager;
 	}
 
+	/** True if this local cell is a standing spot: solid floor under it, two cells of air above. */
+	public boolean open(int x, int y, int z) {
+		return get(x, y, z).isAir() && get(x, y + 1, z).isAir() && !get(x, y - 1, z).isAir();
+	}
+
+	/** Spawns a guard standing here, tied to this post, once (from the chunk that contains it). Elites carry a bounty name. */
+	public dev.rackcraft.entity.GuardEntity guard(int x, int y, int z, net.minecraft.entity.EntityType<dev.rackcraft.entity.GuardEntity> type, String eliteName) {
+		BlockPos pos = pos(x, y, z);
+		if (!inside(pos)) return null;
+		dev.rackcraft.entity.GuardEntity guard = type.create(world.toServerWorld());
+		if (guard == null) return null;
+		guard.refreshPositionAndAngles(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, (hash(x, y, z, 31) % 360), 0);
+		guard.initialize(world, world.getLocalDifficulty(pos), SpawnReason.STRUCTURE, null, null);
+		guard.equipFor(pos, eliteName);
+		world.spawnEntityAndPassengers(guard);
+		return guard;
+	}
+
 	/** A wall sign with up to four lines of text, hanging on the block behind it (facing away from that block). */
 	public void sign(int x, int y, int z, Direction facing, String... lines) {
 		BlockPos pos = pos(x, y, z);

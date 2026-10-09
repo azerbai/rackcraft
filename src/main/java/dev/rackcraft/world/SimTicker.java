@@ -128,6 +128,8 @@ public final class SimTicker {
 			List<PowerSolver.Sink> sinks = new ArrayList<>();
 			Map<String, MachineBlockEntity> sinkOwners = new HashMap<>();
 			for (MachineBlockEntity machine : members) {
+				// An EMP'd machine neither gives nor takes: it is just furniture until it comes round.
+				if (Emp.isDisabled(machine)) continue;
 				PowerSolver.Source source = machine.blockId().equals("modular_reactor")
 						? reactorSource(machine, reactors.get(machine))
 						: machine.blockId().equals("battery_bank") ? batterySource(machine, arrays.get(machine)) : sourceFor(world, machine);
@@ -251,6 +253,7 @@ public final class SimTicker {
 		Set<MachineBlockEntity> podHeld = ComputePods.apply(machines, pods);
 		ComputePods.idle(world, machines, pods);
 		TeleportPads.step(world, machines);
+		Sentries.step(world, machines);
 		int overclockCap = Overclocking.cap(world);
 		boolean overclockCooling = ResearchLab.get(world).done(Overclocking.COOLING);
 		for (MachineBlockEntity rack : machines) {
@@ -651,6 +654,7 @@ public final class SimTicker {
 		return switch (machine.blockId()) {
 			case "cryostat" -> Cryostats.KW;
 			case "pod_port" -> 0.5;
+			case "laser_sentry", "arc_sentry", "railgun_sentry" -> RackcraftConfig.values.weapons.sentryKw;
 			case "teleport_pad" -> machine.getWorld() instanceof ServerWorld padWorld ? TeleportPads.demandKw(padWorld, machine) : 1;
 			case "maglev_station" -> machine.getWorld() instanceof ServerWorld stationWorld ? MaglevNetwork.demandKw(stationWorld, machine) : 0.5;
 			case "power_beacon" -> machine.getWorld() instanceof ServerWorld beaconWorld ? WirelessPower.beaconDemandKw(beaconWorld, machine) : 0;

@@ -13,6 +13,10 @@
     "rackcraft:content_mill",
     "rackcraft:solar_farm",
     "rackcraft:tape_archive",
-    "rackcraft:hyperscale_campus"
+    "rackcraft:hyperscale_campus",
+    "rackcraft:hostile_container_farm",
+    "rackcraft:hostile_bunker",
+    "rackcraft:hostile_tape_archive",
+    "rackcraft:hostile_ai_lab"
   ]
 }

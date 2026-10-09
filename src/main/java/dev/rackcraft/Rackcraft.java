@@ -48,6 +48,7 @@ public final class Rackcraft implements ModInitializer {
 		dev.rackcraft.world.Jetpacks.register();
 		dev.rackcraft.world.Grapples.register();
 		dev.rackcraft.world.TeleportPads.register();
+		dev.rackcraft.world.Bounties.register();
 		RackcraftCommands.register();
 		RackcraftNetworking.registerServer();
 		ExchangeCatalog.register();

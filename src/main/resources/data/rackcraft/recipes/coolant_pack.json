@@ -1,0 +1,26 @@
+{
+  "key": {
+    "C": {
+      "item": "rackcraft:coolant_pipe"
+    },
+    "G": {
+      "item": "rackcraft:graphene_sheet"
+    },
+    "H": {
+      "item": "rackcraft:hydrogen_canister"
+    },
+    "S": {
+      "item": "rackcraft:steel_ingot"
+    }
+  },
+  "pattern": [
+    "SCS",
+    "GHG",
+    "SCS"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:coolant_pack"
+  },
+  "type": "minecraft:crafting_shaped"
+}

@@ -53,6 +53,22 @@
     {
       "structure": "rackcraft:tape_archive",
       "weight": 3
+    },
+    {
+      "structure": "rackcraft:hostile_container_farm",
+      "weight": 4
+    },
+    {
+      "structure": "rackcraft:hostile_bunker",
+      "weight": 3
+    },
+    {
+      "structure": "rackcraft:hostile_tape_archive",
+      "weight": 3
+    },
+    {
+      "structure": "rackcraft:hostile_ai_lab",
+      "weight": 4
     }
   ]
 }

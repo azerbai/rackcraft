@@ -236,6 +236,10 @@ public final class OpsScreenHandler extends ScreenHandler {
 		}
 
 		machineAlerts(world, machines, alerts);
+		for (dev.rackcraft.world.Bounties.Bounty bounty : dev.rackcraft.world.Bounties.get(world).open()) {
+			alerts.add(new OpsSnapshot.Alert(0, "Bounty: " + bounty.name() + ", " + bounty.payout() + " RC, last seen near "
+					+ bounty.lastSeen().getX() + " " + bounty.lastSeen().getZ()));
+		}
 		if (!facility.activeEvent().equals("none")) {
 			alerts.add(0, new OpsSnapshot.Alert(2, "Event: " + (facility.eventDetail().isEmpty()
 					? facility.activeEvent().replace('_', ' ') : facility.eventDetail())));

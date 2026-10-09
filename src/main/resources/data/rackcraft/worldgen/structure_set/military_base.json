@@ -1,0 +1,14 @@
+{
+  "placement": {
+    "salt": 20761125,
+    "separation": 96,
+    "spacing": 320,
+    "type": "minecraft:random_spread"
+  },
+  "structures": [
+    {
+      "structure": "rackcraft:military_base",
+      "weight": 1
+    }
+  ]
+}

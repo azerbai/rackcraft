@@ -1,0 +1,35 @@
+{
+  "key": {
+    "B": {
+      "item": "rackcraft:battery_cell"
+    },
+    "G": {
+      "item": "rackcraft:gallium_nitride"
+    },
+    "H": {
+      "item": "rackcraft:hydrogen_tank"
+    },
+    "J": {
+      "item": "rackcraft:photonic_chip"
+    },
+    "M": {
+      "item": "rackcraft:electric_motor"
+    },
+    "S": {
+      "item": "rackcraft:steel_block"
+    },
+    "W": {
+      "item": "rackcraft:superconducting_wire"
+    }
+  },
+  "pattern": [
+    "GJG",
+    "WHW",
+    "SBM"
+  ],
+  "result": {
+    "count": 1,
+    "item": "rackcraft:plasma_rifle"
+  },
+  "type": "minecraft:crafting_shaped"
+}

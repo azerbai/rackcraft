@@ -38,6 +38,8 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 	private int loadLimitPercent = 100;
 	private double chargeKws;
 	private boolean tripped;
+	/** Sentry Turrets: who it shoots (0 all hostile, 1 guards only, 2 off, 3 the base's rules). Saved. */
+	private int sentryMode;
 	private String feedLabel = "A";
 	private double inletCelsius = 24;
 	private double exhaustCelsius = 24;
@@ -173,10 +175,10 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 				"rear_door_cooler", "dry_cooler", "chiller", "water_heat_exchanger", "desalination_plant", "grid_substation",
 				"welding_arm", "riveting_arm", "assembly_arm", "drone_dock", "launch_control", "rectenna",
 				"solar_array", "solar_array_tracking", "wind_nacelle", "tower_section", "site_planner", "cryostat", "procurement_wall",
-				"pylon", "superconducting_pylon", "power_beacon", "beacon_receiver", "pod_port", "teleport_pad", "maglev_station")
+				"laser_sentry", "arc_sentry", "railgun_sentry", "pylon", "superconducting_pylon", "power_beacon", "beacon_receiver", "pod_port", "teleport_pad", "maglev_station")
 				.contains(id) || ServerModel.Tier.isRack(id)) kinds.add(NetKind.POWER);
 		// The coolant loop: racks (liquid-cooled modules) and reactors put heat in; towers, coolers and chillers take it out.
-		if (COOLANT_MACHINES.contains(id)) kinds.add(NetKind.COOLANT);
+		if (COOLANT_MACHINES.contains(id) || dev.rackcraft.world.Sentries.isSentry(id)) kinds.add(NetKind.COOLANT);
 		if (ITEM_MACHINES.contains(id)) kinds.add(NetKind.ITEM);
 		if (List.of("uplink_router", "core_router", "facility_controller",
 				"monitoring_wall", "creative_router").contains(id) || ServerModel.Tier.isRack(id)) kinds.add(NetKind.DATA);
@@ -298,6 +300,8 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 	}
 	public double chargeKws() { return chargeKws; }
 	public void setChargeKws(double value) { chargeKws = Math.max(0, value); markDirty(); }
+	public int sentryMode() { return sentryMode; }
+	public void setSentryMode(int value) { sentryMode = Math.max(0, Math.min(3, value)); markDirty(); }
 	public boolean isTripped() { return tripped; }
 	public void setTripped(boolean value) { tripped = value; markDirty(); }
 	public String feedLabel() { return feedLabel; }
@@ -606,6 +610,7 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 		loadLimitPercent = MathHelper.clamp(nbt.getInt("LoadLimit"), 25, 150);
 		chargeKws = Math.max(0, nbt.getDouble("ChargeKws"));
 		tripped = nbt.getBoolean("Tripped");
+		sentryMode = Math.max(0, Math.min(3, nbt.getInt("SentryMode")));
 		feedLabel = nbt.getString("FeedLabel").equals("B") ? "B" : "A";
 		creditRemainder = Math.max(0, nbt.getDouble("CreditRemainder"));
 		dieselSpinupSteps = Math.max(0, Math.min(20, nbt.getInt("DieselSpinupSteps")));
@@ -646,6 +651,7 @@ public final class MachineBlockEntity extends BlockEntity implements net.minecra
 		nbt.putInt("LoadLimit", loadLimitPercent);
 		nbt.putDouble("ChargeKws", chargeKws);
 		nbt.putBoolean("Tripped", tripped);
+		if (sentryMode != 0) nbt.putInt("SentryMode", sentryMode);
 		nbt.putString("FeedLabel", feedLabel);
 		nbt.putDouble("CreditRemainder", creditRemainder);
 		nbt.putInt("DieselSpinupSteps", dieselSpinupSteps);

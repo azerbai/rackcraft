@@ -1,0 +1,15 @@
+{
+  "ingredients": [
+    {
+      "item": "rackcraft:steel_ingot"
+    },
+    {
+      "item": "minecraft:iron_nugget"
+    }
+  ],
+  "result": {
+    "count": 4,
+    "item": "rackcraft:steel_slug"
+  },
+  "type": "minecraft:crafting_shapeless"
+}

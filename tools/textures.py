@@ -3496,3 +3496,211 @@ ITEM_STYLES.update({
     "chassis": item_open_chassis, "drive": item_drive_tiered, "chiplet": item_binned_chiplet, "du_ingot": item_depleted_ingot,
     "heavy_drone_frame": item_heavy_frame, "tanker": item_tanker, "gpu_die": item_gpu_die,
 })
+
+
+# ---------------------------------------------------------------- arms and ruins
+
+def _gun_body(canvas, base, barrel_len=7, y=7):
+    """A side-on gun: stock, receiver and a barrel, in the item's colour."""
+    canvas.rect(2, y, 5, y + 3, darken(base, 0.45))
+    canvas.rect(4, y - 1, 9, y + 2, base)
+    canvas.bevel(4, y - 1, 9, y + 2, lighten(base, 0.4), darken(base, 0.55))
+    canvas.rect(10, y, 9 + barrel_len, y + 1, darken(base, 0.3))
+    canvas.hline(10, 9 + barrel_len, y, lighten(base, 0.2))
+    canvas.rect(5, y + 3, 6, y + 5, darken(base, 0.55))
+    return canvas
+
+
+def item_flamer(base, key):
+    """A canister-fed flame gun with a flame at the nozzle."""
+    canvas = _gun_body(Canvas(), (120, 130, 140), 4)
+    canvas.rect(6, 4, 8, 6, (127, 184, 232))
+    canvas.hline(6, 8, 4, (200, 230, 250))
+    for x, y, c in ((14, 6, (255, 200, 70)), (14, 7, (255, 140, 40)), (15, 7, (255, 90, 30)), (15, 6, (255, 220, 120)), (14, 8, (230, 90, 30))):
+        canvas.set(x, y, c)
+    return canvas
+
+
+def item_arc(base, key):
+    """A bulbous coil on a handle with a lightning bolt on the front."""
+    canvas = Canvas()
+    canvas.rect(7, 9, 9, 14, darken(base, 0.55))
+    canvas.disc(8, 6, 4.5, darken(base, 0.35))
+    canvas.disc(8, 6, 3.4, base)
+    canvas.disc(8, 6, 4.5, lighten(base, 0.3), inner=3.9)
+    for x, y in ((9, 3), (8, 4), (9, 5), (7, 6), (8, 7), (7, 8)):
+        canvas.set(x, y, (255, 255, 200))
+    return canvas
+
+
+def item_rail(base, key):
+    """A long dark gun with two glowing rails."""
+    canvas = Canvas()
+    canvas.rect(1, 8, 13, 9, darken(base, 0.55))
+    canvas.hline(1, 13, 7, base)
+    canvas.hline(1, 13, 10, base)
+    canvas.hline(2, 12, 8, (110, 220, 235))
+    canvas.rect(1, 6, 4, 11, darken(base, 0.3))
+    canvas.bevel(1, 6, 4, 11, lighten(base, 0.3), darken(base, 0.6))
+    canvas.rect(3, 11, 4, 14, darken(base, 0.5))
+    canvas.set(14, 8, (190, 245, 255))
+    return canvas
+
+
+def item_plasma(base, key):
+    """A chunky rifle with a glowing cyan cell on top."""
+    canvas = _gun_body(Canvas(), (86, 96, 108), 5)
+    canvas.rect(5, 3, 9, 4, base)
+    canvas.hline(5, 9, 3, lighten(base, 0.5))
+    canvas.set(15, 7, lighten(base, 0.5))
+    canvas.set(15, 8, base)
+    return canvas
+
+
+def item_lance(base, key):
+    """A long thin emitter with a red beam leaving it."""
+    canvas = Canvas()
+    canvas.rect(1, 9, 8, 10, (90, 96, 108))
+    canvas.hline(1, 8, 9, (150, 158, 170))
+    canvas.rect(1, 7, 3, 12, (60, 64, 74))
+    canvas.rect(8, 8, 10, 11, (50, 54, 62))
+    canvas.hline(11, 15, 9, base)
+    canvas.hline(11, 15, 10, lighten(base, 0.5))
+    canvas.set(2, 13, darken(base, 0.4))
+    return canvas
+
+
+def item_grenade(base, key):
+    """A fat canister with a lightning stripe and a pin."""
+    canvas = Canvas()
+    canvas.rect(5, 4, 11, 13, darken(base, 0.35))
+    canvas.bevel(5, 4, 11, 13, lighten(base, 0.35), darken(base, 0.65))
+    canvas.rect(6, 2, 10, 3, (110, 116, 124))
+    canvas.hline(7, 9, 1, (180, 186, 194))
+    canvas.set(11, 1, (230, 200, 70))
+    for x, y in ((9, 6), (8, 7), (9, 8), (7, 9), (8, 10)):
+        canvas.set(x, y, (255, 255, 200))
+    return canvas
+
+
+def item_slug(base, key):
+    """A fat steel slug, base-first."""
+    canvas = Canvas()
+    canvas.rect(6, 4, 9, 12, base)
+    canvas.bevel(6, 4, 9, 12, lighten(base, 0.45), darken(base, 0.55))
+    canvas.hline(7, 8, 3, darken(base, 0.1))
+    canvas.hline(7, 8, 2, darken(base, 0.2))
+    canvas.hline(6, 9, 9, darken(base, 0.5))
+    canvas.set(7, 6, (255, 255, 255))
+    return canvas
+
+
+def item_coolpack(base, key):
+    """A backpack of frosty cylinders with a hose."""
+    canvas = Canvas()
+    canvas.rect(3, 4, 12, 13, darken(base, 0.55))
+    canvas.bevel(3, 4, 12, 13, lighten(base, 0.2), darken(base, 0.75))
+    for x in (4, 9):
+        canvas.rect(x, 5, x + 2, 12, base)
+        canvas.hline(x, x + 2, 5, lighten(base, 0.6))
+    canvas.line(12, 6, 14, 3, (60, 70, 80))
+    canvas.set(14, 2, (180, 230, 245))
+    return canvas
+
+
+def item_warhead(base, key):
+    """A rolled-up set of plans with a worried little warhead drawn on it."""
+    canvas = Canvas()
+    canvas.rect(2, 3, 13, 13, (206, 196, 150))
+    canvas.frame(2, 3, 13, 13, darken(base, 0.4))
+    canvas.hline(2, 13, 2, (170, 160, 118))
+    canvas.hline(2, 13, 14, (170, 160, 118))
+    canvas.rect(5, 6, 10, 9, (60, 60, 60))
+    canvas.poly([(10, 6), (13, 7.5), (10, 10)], (150, 40, 40))
+    canvas.hline(4, 6, 11, (90, 90, 90))
+    canvas.hline(4, 11, 12, (130, 120, 90))
+    return canvas
+
+
+ITEM_STYLES.update({
+    "flamer": item_flamer, "arc": item_arc, "rail": item_rail, "plasma": item_plasma, "lance": item_lance,
+    "grenade": item_grenade, "slug": item_slug, "coolpack": item_coolpack, "warhead": item_warhead,
+})
+
+
+def turret_face(base, key, on):
+    """Sentry front: a dark housing with a lens that glows when it is powered and a barrel below."""
+    frames = []
+    for frame in range(4 if on else 1):
+        canvas = plate(base, key)
+        canvas.inset(2, 2, 13, 9, darken(base, 0.6), lighten(base, 0.1), darken(base, 0.75))
+        lens = (255, 70, 60) if on and frame % 2 == 0 else (150, 60, 56) if on else darken(base, 0.4)
+        canvas.disc(8, 5.5, 2.2, lens)
+        canvas.disc(7.4, 4.9, 0.8, lighten(lens, 0.6) if on else darken(lens, 0.1))
+        canvas.rect(6, 10, 9, 14, (36, 40, 46))
+        canvas.hline(6, 9, 10, (90, 96, 104))
+        canvas.hline(5, 10, 15, darken(base, 0.5))
+        frames.append(canvas)
+    return frames
+
+
+FRONT_STYLES["turret"] = turret_face
+
+
+def humanoid_skin(palette, key, robot=False):
+    """A 64x64 biped skin: head, body, arms and legs in the standard layout, in a uniform, with a face.
+
+    palette: dict with cloth, trim, skin, dark and accent colours."""
+    rng = rng_for("skin:" + key)
+    W = 64
+    rows = [[None] * W for _ in range(W)]
+
+    def box(x0, y0, x1, y1, color, jitter=0.05):
+        for y in range(y0, y1 + 1):
+            for x in range(x0, x1 + 1):
+                delta = rng.uniform(-jitter, jitter)
+                rows[y][x] = lighten(color, delta) if delta > 0 else darken(color, -delta)
+
+    cloth, trim, skin, dark, accent = (palette[k] for k in ("cloth", "trim", "skin", "dark", "accent"))
+    # head 8x8x8: front face at (8,8)-(15,15), the rest of the 32x16 block in hair/helmet colour
+    box(0, 0, 31, 15, dark if not robot else cloth)
+    box(8, 8, 15, 15, skin if not robot else darken(cloth, 0.3))
+    if robot:
+        box(9, 10, 14, 12, (30, 34, 40), 0.0)
+        box(10, 11, 11, 11, accent, 0.0)
+        box(12, 11, 13, 11, accent, 0.0)
+        box(10, 14, 13, 14, (30, 34, 40), 0.0)
+    else:
+        box(9, 11, 10, 11, (250, 250, 250), 0.0)
+        box(13, 11, 14, 11, (250, 250, 250), 0.0)
+        box(10, 11, 10, 11, (30, 30, 36), 0.0)
+        box(13, 11, 13, 11, (30, 30, 36), 0.0)
+        box(10, 14, 13, 14, darken(skin, 0.35), 0.0)
+        if palette.get("hood"):
+            box(8, 8, 15, 9, palette["hood"], 0.04)
+            box(8, 8, 8, 15, palette["hood"], 0.04)
+            box(15, 8, 15, 15, palette["hood"], 0.04)
+    # body: 16..39 x 16..31
+    box(16, 16, 39, 31, cloth)
+    box(20, 20, 27, 31, cloth)
+    box(20, 20, 27, 21, trim, 0.0)
+    box(20, 28, 27, 28, trim, 0.0)
+    box(23, 22, 24, 25, accent, 0.0)
+    # arms 40..55 x 16..31, legs 0..15 x 16..31
+    box(40, 16, 55, 31, cloth)
+    box(40, 20, 55, 20, trim, 0.0)
+    box(44, 28, 47, 31, skin if not robot else dark, 0.03)
+    box(0, 16, 15, 31, dark if not robot else cloth)
+    box(0, 28, 15, 31, trim, 0.0)
+    return png_rgba(W, W, rows)
+
+
+def guard_skins():
+    return {
+        "soldier": humanoid_skin({"cloth": (84, 96, 70), "trim": (54, 62, 46), "skin": (214, 170, 140), "dark": (58, 66, 52),
+                                  "accent": (226, 184, 72)}, "soldier"),
+        "security_robot": humanoid_skin({"cloth": (138, 146, 156), "trim": (80, 88, 98), "skin": (200, 205, 212), "dark": (92, 98, 108),
+                                         "accent": (255, 70, 60)}, "robot", robot=True),
+        "scavenger": humanoid_skin({"cloth": (88, 80, 94), "trim": (56, 50, 62), "skin": (206, 160, 130), "dark": (66, 54, 48),
+                                    "accent": (190, 120, 60), "hood": (70, 62, 78)}, "scavenger"),
+    }

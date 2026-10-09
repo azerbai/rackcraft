@@ -722,6 +722,13 @@ def main():
         "entity.rackcraft.construction_drone": "Construction Drone",
         "entity.rackcraft.tanker_drone": "Tanker Drone",
         "entity.rackcraft.maglev_car": "Mag-Lev Car",
+        "entity.rackcraft.soldier": "Soldier",
+        "entity.rackcraft.security_robot": "Security Robot",
+        "entity.rackcraft.scavenger": "Scavenger",
+        "entity.rackcraft.guard_bolt": "Laser Bolt",
+        "entity.rackcraft.emp_grenade": "EMP Grenade",
+        "death.attack.rackcraft.guard_beam": "%1$s was shot for trespassing",
+        "death.attack.rackcraft.guard_beam.player": "%1$s was shot for trespassing by %2$s",
         "subtitles.rackcraft.rocket.ignition": "Rocket engines igniting",
         "subtitles.rackcraft.rocket.liftoff": "Rocket lifts off",
         "subtitles.rackcraft.rocket.thrust": "Rocket roars",
@@ -810,6 +817,8 @@ def main():
     (entity_textures / "wind_rotor.png").write_bytes(textures.rotor_parts())
     (entity_textures / "construction_drone.png").write_bytes(textures.site_drone_parts((232, 192, 48), "construction_drone", False))
     (entity_textures / "maglev_car.png").write_bytes(textures.maglev_car_parts())
+    for guard_id, guard_png in textures.guard_skins().items():
+        (entity_textures / f"{guard_id}.png").write_bytes(guard_png)
     (entity_textures / "tanker_drone.png").write_bytes(textures.site_drone_parts((84, 150, 214), "tanker_drone", False))
     (entity_textures / "terraforming_drone.png").write_bytes(textures.site_drone_parts((122, 106, 72), "terraforming_drone", True))
     (entity_textures / "rocket_first_stage.png").write_bytes(textures.rocket_first_stage())

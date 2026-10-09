@@ -33,6 +33,8 @@ public final class RcBlocks {
 				case "fiber_cable" -> new CableBlock(settings, NetKind.DATA);
 				case "item_pipe" -> new CableBlock(settings, NetKind.ITEM);
 				case "trunk_bundle" -> new CableBlock(settings, java.util.EnumSet.of(NetKind.POWER, NetKind.COOLANT, NetKind.DATA), 3.5, "structured_cabling");
+				case "laser_sentry", "arc_sentry", "railgun_sentry" -> new dev.rackcraft.block.SentryBlock(settings.nonOpaque());
+				case "blast_door" -> new dev.rackcraft.block.BlastDoorBlock(settings);
 				case "teleport_pad" -> new dev.rackcraft.block.TeleportPadBlock(settings);
 				case "maglev_station" -> new dev.rackcraft.block.MaglevStationBlock(settings);
 				case "maglev_rail" -> new CableBlock(settings, java.util.EnumSet.of(NetKind.POWER), 3, "maglev");

@@ -38,7 +38,7 @@ public final class RackcraftSelfTest {
 		RackcraftConfig.values.events.enabled = false;
 		dev.rackcraft.compute.ResearchLab.get(server.getOverworld()).reset();
 		dev.rackcraft.world.OrbitState.get(server.getOverworld()).reset();
-		check("S0.a", RcBlocks.BLOCKS.size() == 95 && RcItems.ITEMS.size() == 95,
+		check("S0.a", RcBlocks.BLOCKS.size() == 99 && RcItems.ITEMS.size() == 104,
 				"blocks=" + RcBlocks.BLOCKS.size() + " items=" + RcItems.ITEMS.size(), failures);
 		ServerWorld world = server.getOverworld();
 		BlockPos generatorPos = new BlockPos(0, 80, 0);
@@ -165,6 +165,8 @@ public final class RackcraftSelfTest {
 		checkBlueprints(world, failures);
 		checkRetrofit(world, failures);
 		checkMovement(world, failures);
+		checkArms(world, failures);
+		checkMilitary(world, failures);
 		checkPerformance(world, failures);
 		checkStructures(world, failures);
 		check("S0.b", SimTicker.failedSteps() == 0, "simulation steps that threw=" + SimTicker.failedSteps(), failures);
@@ -3660,7 +3662,7 @@ public final class RackcraftSelfTest {
 		var tagged = registry.getEntryList(Worldgen.DATA_CENTERS).map(list -> list.size()).orElse(0);
 		var layouts = dev.rackcraft.world.structure.DataCenterLayouts.all();
 		boolean registered = layouts.keySet().stream().allMatch(id -> registry.containsId(Rackcraft.id(id)));
-		check("D1.a", layouts.size() >= 12 && registered && tagged == layouts.size(),
+		check("D1.a", layouts.size() >= 12 && registered && tagged == layouts.size() - 1,
 				"layouts=" + layouts.size() + " registered=" + registered + " tagged=" + tagged, failures);
 		int index = 0;
 		BlockPos campusOrigin = null;
@@ -3691,7 +3693,7 @@ public final class RackcraftSelfTest {
 			String details = layout.id() + " " + rotation + " machines=" + machines + " racks=" + racks
 					+ (layout.id().equals("hyperscale_campus") ? " footprint=" + layout.width() + "x" + layout.depth() : "")
 					+ (error == null ? "" : " error=" + error);
-			check("D2." + layout.id(), error == null && machines >= 2 && (racks > 0 || layout.id().equals("tape_archive")), details, failures);
+			check("D2." + layout.id(), error == null && machines >= 2 && (racks > 0 || layout.id().endsWith("tape_archive") || layout.id().equals("military_base")), details, failures);
 		}
 		var scribes = world.getEntitiesByClass(net.minecraft.entity.passive.VillagerEntity.class,
 				new net.minecraft.util.math.Box(new BlockPos(4096, 120, 4096)).expand(2700, 64, 240),
@@ -3745,18 +3747,19 @@ public final class RackcraftSelfTest {
 					Rackcraft.id(layout.id())));
 			if (entry.isEmpty()) continue;
 			boolean campus = layout.id().equals("hyperscale_campus");
-			if (campus) {
+			boolean rare = dev.rackcraft.world.structure.DataCenterLayouts.isRare(layout.id());
+			if (rare) {
 				// Never within 5000 blocks of spawn: nothing within 312 chunks of the origin.
 				var near = world.getChunkManager().getChunkGenerator().locateStructure(world,
 						net.minecraft.registry.entry.RegistryEntryList.of(entry.get()), BlockPos.ORIGIN, 312, false);
 				// locate can answer past its radius, so check the distance itself.
 				boolean far = near == null || Math.hypot(near.getFirst().getX(), near.getFirst().getZ()) >= 5000;
-				check("D7.a", far, "nearest campus to spawn: " + (near == null ? "none within range" : near.getFirst()), failures);
+				check("D7." + layout.id(), far, "nearest " + layout.id() + " to spawn: " + (near == null ? "none within range" : near.getFirst()), failures);
 			}
 			// The campus is far out by design: look for it from 20,000 blocks away.
-			BlockPos from = campus ? new BlockPos(20000, 0, 20000) : BlockPos.ORIGIN;
+			BlockPos from = rare ? new BlockPos(20000, 0, 20000) : BlockPos.ORIGIN;
 			var found = world.getChunkManager().getChunkGenerator().locateStructure(world,
-					net.minecraft.registry.entry.RegistryEntryList.of(entry.get()), from, campus ? 1000 : 100, false);
+					net.minecraft.registry.entry.RegistryEntryList.of(entry.get()), from, rare ? 1000 : 100, false);
 			if (found == null) {
 				check("D6." + layout.id(), true, "skipped: none within range of 0,0 in this seed", failures);
 				continue;
@@ -3844,6 +3847,598 @@ public final class RackcraftSelfTest {
 		ItemStack pattern = new ItemStack(RcItems.ITEMS.get("recipe_pattern"));
 		dev.rackcraft.storage.PatternItem.encode(pattern, stacks, output);
 		return pattern;
+	}
+
+	// ---------------------------------------------------------------- Batch D: arms and ruins
+
+	private static net.minecraft.entity.LivingEntity mob(ServerWorld world, net.minecraft.entity.EntityType<? extends net.minecraft.entity.mob.MobEntity> type, double x, double y, double z) {
+		var entity = type.create(world);
+		entity.refreshPositionAndAngles(x, y, z, 0, 0);
+		entity.setPersistent();
+		entity.setAiDisabled(true);
+		world.spawnEntity(entity);
+		return entity;
+	}
+
+	private static dev.rackcraft.entity.GuardEntity guard(ServerWorld world, net.minecraft.entity.EntityType<dev.rackcraft.entity.GuardEntity> type,
+			BlockPos pos, String elite) {
+		var guard = type.create(world);
+		guard.refreshPositionAndAngles(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, 0, 0);
+		guard.initialize(world, world.getLocalDifficulty(pos), net.minecraft.entity.SpawnReason.STRUCTURE, null, null);
+		guard.equipFor(pos, elite);
+		world.spawnEntity(guard);
+		return guard;
+	}
+
+	/**
+	 * A guard whose AI the server would run this tick. A mob's goals only update on alternate server ticks (by the parity of
+	 * its id), and the self-test never lets the server tick, so half the guards would sit through every hand-ticked fight.
+	 */
+	private static dev.rackcraft.entity.GuardEntity awakeGuard(ServerWorld world, net.minecraft.entity.EntityType<dev.rackcraft.entity.GuardEntity> type, BlockPos pos) {
+		for (int attempt = 0; attempt < 8; attempt++) {
+			var guard = guard(world, type, pos, null);
+			if ((world.getServer().getTicks() + guard.getId()) % 2 == 0) return guard;
+			guard.discard();
+		}
+		throw new IllegalStateException("No awake guard after 8 tries");
+	}
+
+	private static void checkArms(ServerWorld world, int[] failures) {
+		dev.rackcraft.compute.ResearchLab lab = dev.rackcraft.compute.ResearchLab.get(world);
+		lab.reset();
+		dev.rackcraft.world.Emp.reset();
+		dev.rackcraft.world.Sentries.reset();
+		dev.rackcraft.world.Bounties.get(world).reset();
+		var player = net.fabricmc.fabric.api.entity.FakePlayer.get(world);
+		player.getInventory().clear();
+		player.getAbilities().creativeMode = false;
+		var difficulty = world.getDifficulty();
+		boolean fireTick = world.getGameRules().getBoolean(net.minecraft.world.GameRules.DO_FIRE_TICK);
+		world.getGameRules().get(net.minecraft.world.GameRules.DO_FIRE_TICK).set(true, server(world));
+		var weapons = RackcraftConfig.values.weapons;
+		BlockPos o = clearArea(world, new BlockPos(-3800, 120, -1536), 40, 14, 40);
+		for (BlockPos pos : BlockPos.iterate(o.add(-3, -1, -3), o.add(40, -1, 40))) world.setBlockState(pos, Blocks.STONE.getDefaultState());
+		net.minecraft.item.Item cell = RcItems.ITEMS.get("battery_cell");
+		net.minecraft.item.Item canister = RcItems.ITEMS.get("hydrogen_canister");
+		net.minecraft.item.Item slug = RcItems.ITEMS.get("steel_slug");
+		long now = 10_000;
+		player.setPosition(o.getX() + 2.5, o.getY(), o.getZ() + 2.5);
+		player.setYaw(0);
+		player.setHeadYaw(0);
+		player.setPitch(0);
+		double eyeY = player.getEyeY();
+		int eyeBlock = net.minecraft.util.math.MathHelper.floor(eyeY - 0.2);
+
+		// ---- Gating, ammo and the shared heat meter.
+		ItemStack arc = new ItemStack(RcItems.ITEMS.get("arc_coil"));
+		player.getInventory().setStack(0, arc);
+		String inert = dev.rackcraft.world.Weapons.fire(dev.rackcraft.world.Weapons.Kind.ARC_COIL, player, arc, now, 1);
+		lab.complete(world, dev.rackcraft.compute.Research.get("directed_energy"));
+		String dry = dev.rackcraft.world.Weapons.fire(dev.rackcraft.world.Weapons.Kind.ARC_COIL, player, arc, now, 1);
+		player.getInventory().setStack(5, new ItemStack(cell, 1));
+		int fired = 0;
+		for (int shot = 0; shot < weapons.arcShotsPerCell; shot++) {
+			arc.getNbt().putDouble("Heat", 0);
+			if (dev.rackcraft.world.Weapons.fire(dev.rackcraft.world.Weapons.Kind.ARC_COIL, player, arc, now, 1) == null) fired++;
+		}
+		arc.getNbt().putDouble("Heat", 0);
+		String outOfCells = dev.rackcraft.world.Weapons.fire(dev.rackcraft.world.Weapons.Kind.ARC_COIL, player, arc, now, 1);
+		check("AR1.a", inert != null && inert.startsWith("Inert until") && "Out of Battery Cells".equals(dry) && fired == weapons.arcShotsPerCell
+						&& outOfCells != null && player.getInventory().count(cell) == 0,
+				"inert=" + inert + " dry=" + dry + " fired=" + fired + " last=" + outOfCells, failures);
+		// Heat: ten quick shots overheat it, it stays locked a few seconds, and a Coolant Pack vents it much faster.
+		player.getInventory().setStack(5, new ItemStack(cell, 4));
+		ItemStack hot = new ItemStack(RcItems.ITEMS.get("arc_coil"));
+		player.getInventory().setStack(0, hot);
+		int shots = 0;
+		String lockMessage = null;
+		for (int shot = 0; shot < 14 && lockMessage == null; shot++) {
+			lockMessage = dev.rackcraft.world.Weapons.fire(dev.rackcraft.world.Weapons.Kind.ARC_COIL, player, hot, now, 1);
+			if (lockMessage == null) shots++;
+		}
+		lockMessage = dev.rackcraft.world.Weapons.fire(dev.rackcraft.world.Weapons.Kind.ARC_COIL, player, hot, now, 1);
+		String afterWait = dev.rackcraft.world.Weapons.fire(dev.rackcraft.world.Weapons.Kind.ARC_COIL, player, hot, now + weapons.lockoutTicks, 1);
+		ItemStack warm = new ItemStack(RcItems.ITEMS.get("arc_coil"));
+		warm.getOrCreateNbt().putDouble("Heat", 80);
+		warm.getNbt().putLong("HeatAt", now);
+		ItemStack warmPacked = warm.copy();
+		double plain = dev.rackcraft.world.Weapons.settle(warm, now + 20, false);
+		double packed = dev.rackcraft.world.Weapons.settle(warmPacked, now + 20, true);
+		check("AR1.b", shots == 10 && "Overheated".equals(lockMessage) && afterWait == null && plain > 70 && packed < 40,
+				"shotsBeforeLock=" + shots + " locked=" + lockMessage + " afterWait=" + afterWait + " heat after 1 s plain=" + plain + " packed=" + packed, failures);
+
+		// ---- Arc Coil chains through four mobs and trips the breaker of a machine it touches.
+		player.getInventory().clear();
+		player.getInventory().setStack(5, new ItemStack(cell, 2));
+		ItemStack coil = new ItemStack(RcItems.ITEMS.get("arc_coil"));
+		player.getInventory().setStack(0, coil);
+		List<net.minecraft.entity.LivingEntity> line = new java.util.ArrayList<>();
+		for (int index = 0; index < 5; index++) line.add(mob(world, net.minecraft.entity.EntityType.ZOMBIE, o.getX() + 2.5, o.getY(), o.getZ() + 4.5 + index * 2));
+		dev.rackcraft.world.Weapons.fire(dev.rackcraft.world.Weapons.Kind.ARC_COIL, player, coil, now, 1);
+		long hurt = line.stream().filter(entity -> entity.getHealth() < entity.getMaxHealth()).count();
+		boolean lastSpared = line.get(4).getHealth() == line.get(4).getMaxHealth();
+		line.forEach(net.minecraft.entity.Entity::discard);
+		BlockPos pduPos = new BlockPos(o.getX() + 2, eyeBlock, o.getZ() + 6);
+		world.setBlockState(pduPos.up(), Blocks.AIR.getDefaultState());
+		MachineBlockEntity pdu = place(world, pduPos, "pdu", Direction.NORTH);
+		coil.getNbt().putDouble("Heat", 0);
+		dev.rackcraft.world.Weapons.fire(dev.rackcraft.world.Weapons.Kind.ARC_COIL, player, coil, now, 1);
+		check("AR1.c", hurt == 4 && lastSpared && pdu.isTripped(), "mobsHurt=" + hurt + " fifthSpared=" + lastSpared + " pduTripped=" + pdu.isTripped(), failures);
+		world.setBlockState(pduPos, Blocks.AIR.getDefaultState());
+
+		// ---- Railgun: needs slugs, pierces mobs and a few plain blocks, stops at the fourth, scales with charge.
+		player.getInventory().clear();
+		ItemStack railgun = new ItemStack(RcItems.ITEMS.get("railgun"));
+		player.getInventory().setStack(0, railgun);
+		String noSlug = dev.rackcraft.world.Weapons.fire(dev.rackcraft.world.Weapons.Kind.RAILGUN, player, railgun, now, 1);
+		player.getInventory().setStack(5, new ItemStack(slug, 8));
+		player.getInventory().setStack(6, new ItemStack(cell, 4));
+		for (int z : new int[] {7, 9, 11, 13}) world.setBlockState(new BlockPos(o.getX() + 2, eyeBlock, o.getZ() + z), Blocks.STONE.getDefaultState());
+		var rail1 = mob(world, net.minecraft.entity.EntityType.ZOMBIE, o.getX() + 2.5, o.getY(), o.getZ() + 5.5);
+		var rail2 = mob(world, net.minecraft.entity.EntityType.ZOMBIE, o.getX() + 2.5, o.getY(), o.getZ() + 8.5);
+		var rail3 = mob(world, net.minecraft.entity.EntityType.ZOMBIE, o.getX() + 2.5, o.getY(), o.getZ() + 12.5);
+		var rail4 = mob(world, net.minecraft.entity.EntityType.ZOMBIE, o.getX() + 2.5, o.getY(), o.getZ() + 16.5);
+		String railShot = dev.rackcraft.world.Weapons.fire(dev.rackcraft.world.Weapons.Kind.RAILGUN, player, railgun, now, 1);
+		boolean pierced = !rail1.isAlive() && !rail2.isAlive() && !rail3.isAlive() && rail4.isAlive() && rail4.getHealth() == rail4.getMaxHealth();
+		check("AR1.d", noSlug != null && noSlug.startsWith("Out of Steel Slugs") && railShot == null && pierced && player.getInventory().count(slug) == 7
+						&& player.getInventory().count(cell) == 3,
+				"noSlug=" + noSlug + " shot=" + railShot + " pierced=" + pierced + " slugsLeft=" + player.getInventory().count(slug), failures);
+		for (int z : new int[] {7, 9, 11, 13}) world.setBlockState(new BlockPos(o.getX() + 2, eyeBlock, o.getZ() + z), Blocks.AIR.getDefaultState());
+		rail4.discard();
+		var golem = mob(world, net.minecraft.entity.EntityType.IRON_GOLEM, o.getX() + 2.5, o.getY(), o.getZ() + 6.5);
+		railgun.getNbt().putDouble("Heat", 0);
+		dev.rackcraft.world.Weapons.fire(dev.rackcraft.world.Weapons.Kind.RAILGUN, player, railgun, now, 0.25);
+		float light = golem.getMaxHealth() - golem.getHealth();
+		golem.timeUntilRegen = 0;
+		golem.setHealth(golem.getMaxHealth());
+		railgun.getNbt().putDouble("Heat", 0);
+		dev.rackcraft.world.Weapons.fire(dev.rackcraft.world.Weapons.Kind.RAILGUN, player, railgun, now, 1);
+		float full = golem.getMaxHealth() - golem.getHealth();
+		check("AR1.e", light > 3 && full > light * 3.2, "damage at 25% charge=" + light + ", at full=" + full, failures);
+		golem.discard();
+
+		// ---- Plasma Rifle: hydrogen and power, splash damage that falls off with distance.
+		player.getInventory().clear();
+		ItemStack plasma = new ItemStack(RcItems.ITEMS.get("plasma_rifle"));
+		player.getInventory().setStack(0, plasma);
+		String noGas = dev.rackcraft.world.Weapons.fire(dev.rackcraft.world.Weapons.Kind.PLASMA_RIFLE, player, plasma, now, 1);
+		lab.complete(world, dev.rackcraft.compute.Research.get("plasma_weapons"));
+		player.getInventory().setStack(5, new ItemStack(canister, 1));
+		player.getInventory().setStack(6, new ItemStack(cell, 1));
+		var hit = mob(world, net.minecraft.entity.EntityType.ZOMBIE, o.getX() + 2.5, o.getY(), o.getZ() + 8.5);
+		var near = mob(world, net.minecraft.entity.EntityType.ZOMBIE, o.getX() + 2.5, o.getY(), o.getZ() + 9.9);
+		var far = mob(world, net.minecraft.entity.EntityType.ZOMBIE, o.getX() + 2.5, o.getY(), o.getZ() + 14.5);
+		String plasmaShot = dev.rackcraft.world.Weapons.fire(dev.rackcraft.world.Weapons.Kind.PLASMA_RIFLE, player, plasma, now, 1);
+		float hitLoss = hit.getMaxHealth() - hit.getHealth();
+		float nearLoss = near.getMaxHealth() - near.getHealth();
+		check("AR1.f", noGas != null && plasmaShot == null && hitLoss >= weapons.plasmaDamage * 0.95 && nearLoss > 2 && nearLoss < hitLoss
+						&& far.getHealth() == far.getMaxHealth() && player.getInventory().count(canister) == 0 && plasma.getNbt().getInt("Ammo") == weapons.plasmaMagazine - 1,
+				"noGas=" + noGas + " shot=" + plasmaShot + " hit=" + hitLoss + " near=" + nearLoss + " far=" + (far.getMaxHealth() - far.getHealth())
+						+ " ammoLeft=" + plasma.getNbt().getInt("Ammo"), failures);
+		hit.discard();
+		near.discard();
+		far.discard();
+
+		// ---- Lance Laser melts cobweb and ice, never glass (unless asked) and never next to Rackcraft blocks.
+		player.getInventory().clear();
+		ItemStack lance = new ItemStack(RcItems.ITEMS.get("lance_laser"));
+		player.getInventory().setStack(0, lance);
+		player.getInventory().setStack(5, new ItemStack(cell, 1));
+		BlockPos webSafe = new BlockPos(o.getX() + 2, eyeBlock, o.getZ() + 5);
+		BlockPos ice = new BlockPos(o.getX() + 2, eyeBlock, o.getZ() + 7);
+		BlockPos glass = new BlockPos(o.getX() + 2, eyeBlock, o.getZ() + 9);
+		BlockPos stone = new BlockPos(o.getX() + 2, eyeBlock, o.getZ() + 12);
+		world.setBlockState(webSafe, Blocks.COBWEB.getDefaultState());
+		world.setBlockState(webSafe.down(), RcBlocks.get("steel_block").getDefaultState());
+		world.setBlockState(ice, Blocks.PACKED_ICE.getDefaultState());
+		world.setBlockState(glass, Blocks.GLASS.getDefaultState());
+		world.setBlockState(stone, Blocks.STONE.getDefaultState());
+		var burned = mob(world, net.minecraft.entity.EntityType.ZOMBIE, o.getX() + 2.5, o.getY(), o.getZ() + 3.5);
+		dev.rackcraft.world.Weapons.fire(dev.rackcraft.world.Weapons.Kind.LANCE_LASER, player, lance, now, 1);
+		boolean webKept = world.getBlockState(webSafe).isOf(Blocks.COBWEB);
+		boolean iceMelted = world.getBlockState(ice).isAir();
+		boolean glassKept = world.getBlockState(glass).isOf(Blocks.GLASS);
+		weapons.meltGlass = true;
+		lance.getNbt().putDouble("Heat", 0);
+		world.setBlockState(webSafe, Blocks.AIR.getDefaultState());
+		dev.rackcraft.world.Weapons.fire(dev.rackcraft.world.Weapons.Kind.LANCE_LASER, player, lance, now, 1);
+		boolean glassMelted = world.getBlockState(glass).isAir();
+		boolean stoneKept = world.getBlockState(stone).isOf(Blocks.STONE);
+		weapons.meltGlass = false;
+		check("AR1.g", webKept && iceMelted && glassKept && glassMelted && stoneKept && burned.getHealth() < burned.getMaxHealth() && burned.isOnFire(),
+				"cobwebNextToRackcraftKept=" + webKept + " iceMelted=" + iceMelted + " glassKept=" + glassKept + " glassMeltedWhenAsked=" + glassMelted
+						+ " stoneKept=" + stoneKept + " zombieHurt=" + (burned.getMaxHealth() - burned.getHealth()), failures);
+		burned.discard();
+		world.setBlockState(webSafe.down(), Blocks.AIR.getDefaultState());
+		world.setBlockState(stone, Blocks.AIR.getDefaultState());
+
+		// ---- Flamethrower: sets mobs alight, lights a plain wooden wall, leaves a wall beside Rackcraft blocks alone.
+		player.getInventory().clear();
+		ItemStack flamer = new ItemStack(RcItems.ITEMS.get("hydrogen_flamethrower"));
+		player.getInventory().setStack(0, flamer);
+		player.getInventory().setStack(5, new ItemStack(canister, 1));
+		for (int y = 0; y < 3; y++) for (int x = 0; x < 3; x++) world.setBlockState(new BlockPos(o.getX() + x + 1, o.getY() + y, o.getZ() + 7), Blocks.OAK_PLANKS.getDefaultState());
+		var roast = mob(world, net.minecraft.entity.EntityType.ZOMBIE, o.getX() + 2.5, o.getY(), o.getZ() + 4.5);
+		String flameShot = dev.rackcraft.world.Weapons.fire(dev.rackcraft.world.Weapons.Kind.FLAMETHROWER, player, flamer, now, 1);
+		boolean lit = false;
+		for (BlockPos pos : BlockPos.iterate(o.add(0, 0, 5), o.add(5, 3, 7))) lit |= world.getBlockState(pos).isOf(Blocks.FIRE);
+		for (BlockPos pos : BlockPos.iterate(o.add(0, 0, 5), o.add(5, 3, 7))) if (world.getBlockState(pos).isOf(Blocks.FIRE)) world.setBlockState(pos, Blocks.AIR.getDefaultState());
+		world.setBlockState(new BlockPos(o.getX() + 1, o.getY(), o.getZ() + 6), RcBlocks.get("steel_block").getDefaultState());
+		world.setBlockState(new BlockPos(o.getX() + 3, o.getY(), o.getZ() + 6), RcBlocks.get("steel_block").getDefaultState());
+		world.setBlockState(new BlockPos(o.getX() + 2, o.getY() + 1, o.getZ() + 6), RcBlocks.get("steel_block").getDefaultState());
+		roast.discard();
+		player.setPitch(20);
+		flamer.getNbt().putDouble("Heat", 0);
+		dev.rackcraft.world.Weapons.fire(dev.rackcraft.world.Weapons.Kind.FLAMETHROWER, player, flamer, now, 1);
+		player.setPitch(0);
+		boolean protectedWall = true;
+		for (BlockPos pos : BlockPos.iterate(o.add(0, 0, 5), o.add(5, 3, 7))) protectedWall &= !world.getBlockState(pos).isOf(Blocks.FIRE);
+		check("AR1.h", flameShot == null && lit && protectedWall && roast.isOnFire() && flamer.getNbt().getInt("Ammo") == weapons.flameSecondsPerCanister * 10 - 2,
+				"shot=" + flameShot + " wallLit=" + lit + " nothingLitNextToRackcraft=" + protectedWall + " mobBurning=" + roast.isOnFire(), failures);
+		for (BlockPos pos : BlockPos.iterate(o.add(0, 0, 4), o.add(6, 4, 8))) world.setBlockState(pos, Blocks.AIR.getDefaultState());
+
+		// ---- EMP: a machine, a turret, a PDU, a Blast Door and a Security Robot go quiet; a Soldier does not.
+		player.getInventory().clear();
+		BlockPos e0 = o.add(20, 0, 20);
+		clearArea(world, e0, 12, 6, 12);
+		world.setBlockState(e0, RcBlocks.get("creative_power").getDefaultState());
+		MachineBlockEntity empSource = machine(world, e0);
+		empSource.setCreativeValue(CreativeSettings.OUTPUT_KW, 1000);
+		MachineBlockEntity sentry = place(world, e0.east(), "arc_sentry", Direction.NORTH);
+		MachineBlockEntity empPdu = place(world, e0.up(), "pdu", Direction.NORTH);
+		BlockPos wire = e0.add(0, 0, 1);
+		CableBlock cable = (CableBlock) RcBlocks.get("power_cable");
+		world.setBlockState(wire, cable.withConnections(cable.getDefaultState(), world, wire));
+		BlockPos door = e0.add(0, 0, 2);
+		world.setBlockState(door, RcBlocks.get("blast_door").getDefaultState());
+		for (int step = 0; step < 3; step++) SimTicker.stepNow(world);
+		boolean poweredBefore = sentry.powerSatisfaction() >= 0.5 && dev.rackcraft.block.BlastDoorBlock.held(world, door);
+		var robot = guard(world, dev.rackcraft.entity.RcEntities.SECURITY_ROBOT, e0.add(4, 0, 4), null);
+		var trooper = guard(world, dev.rackcraft.entity.RcEntities.SOLDIER, e0.add(5, 0, 4), null);
+		var faraway = guard(world, dev.rackcraft.entity.RcEntities.SECURITY_ROBOT, e0.add(40, 0, 40), null);
+		int touched = dev.rackcraft.world.Emp.zap(world, net.minecraft.util.math.Vec3d.ofCenter(e0), weapons.empRadius, 20L * weapons.empSeconds);
+		for (int step = 0; step < 3; step++) SimTicker.stepNow(world);
+		check("AR2.a", poweredBefore && dev.rackcraft.world.Emp.isDisabled(sentry) && sentry.powerSatisfaction() < 0.5 && empPdu.isTripped()
+						&& world.getBlockState(door).isAir() && dev.rackcraft.world.Emp.isFrozen(robot) && robot.isAiDisabled()
+						&& !dev.rackcraft.world.Emp.isFrozen(trooper) && !dev.rackcraft.world.Emp.isFrozen(faraway) && touched >= 5,
+				"poweredBefore=" + poweredBefore + " sentryOff=" + dev.rackcraft.world.Emp.isDisabled(sentry) + " sentrySat=" + sentry.powerSatisfaction()
+						+ " pduTripped=" + empPdu.isTripped() + " doorOpen=" + world.getBlockState(door).isAir() + " robotFrozen=" + dev.rackcraft.world.Emp.isFrozen(robot)
+						+ " soldierFrozen=" + dev.rackcraft.world.Emp.isFrozen(trooper) + " farRobotFrozen=" + dev.rackcraft.world.Emp.isFrozen(faraway) + " touched=" + touched, failures);
+		// The grenade itself: inert before its research, then a thrown entity that costs the stack one.
+		lab.reset();
+		ItemStack grenades = new ItemStack(RcItems.ITEMS.get("emp_grenade"), 2);
+		player.setStackInHand(net.minecraft.util.Hand.MAIN_HAND, grenades);
+		var before = grenades.getItem().use(world, player, net.minecraft.util.Hand.MAIN_HAND);
+		boolean refused = grenades.getCount() == 2;
+		lab.complete(world, dev.rackcraft.compute.Research.get("directed_energy"));
+		grenades.getItem().use(world, player, net.minecraft.util.Hand.MAIN_HAND);
+		var thrown = world.getEntitiesByClass(dev.rackcraft.entity.EmpGrenadeEntity.class, new net.minecraft.util.math.Box(player.getBlockPos()).expand(6), g -> true);
+		check("AR2.b", refused && thrown.size() == 1 && player.getStackInHand(net.minecraft.util.Hand.MAIN_HAND).getCount() == 1,
+				"refusedBeforeResearch=" + refused + " thrown=" + thrown.size() + " left=" + player.getStackInHand(net.minecraft.util.Hand.MAIN_HAND).getCount(), failures);
+		thrown.forEach(net.minecraft.entity.Entity::discard);
+		player.setStackInHand(net.minecraft.util.Hand.MAIN_HAND, ItemStack.EMPTY);
+		robot.discard();
+		trooper.discard();
+		faraway.discard();
+		dev.rackcraft.world.Emp.reset();
+
+		// ---- A Blast Door lets go when the cable behind it is broken, and when the source on the cable goes.
+		for (int step = 0; step < 2; step++) SimTicker.stepNow(world);
+		world.setBlockState(door, RcBlocks.get("blast_door").getDefaultState());
+		world.setBlockState(sentry.getPos(), Blocks.AIR.getDefaultState());
+		world.setBlockState(empPdu.getPos(), Blocks.AIR.getDefaultState());
+		SimTicker.stepNow(world);
+		boolean holds = dev.rackcraft.block.BlastDoorBlock.held(world, door);
+		world.setBlockState(e0, Blocks.AIR.getDefaultState());
+		SimTicker.stepNow(world);
+		boolean letsGo = !dev.rackcraft.block.BlastDoorBlock.held(world, door);
+		world.setBlockState(e0, RcBlocks.get("creative_power").getDefaultState());
+		SimTicker.stepNow(world);
+		boolean holdsAgain = dev.rackcraft.block.BlastDoorBlock.held(world, door);
+		world.setBlockState(wire, Blocks.AIR.getDefaultState());
+		SimTicker.stepNow(world);
+		boolean cutOpens = !dev.rackcraft.block.BlastDoorBlock.held(world, door);
+		check("AR2.c", holds && letsGo && holdsAgain && cutOpens, "holdsWithSource=" + holds + " letsGoWithoutSource=" + letsGo
+				+ " holdsAgain=" + holdsAgain + " letsGoWhenCableBroken=" + cutOpens, failures);
+		world.setBlockState(door, Blocks.AIR.getDefaultState());
+		world.setBlockState(e0, Blocks.AIR.getDefaultState());
+
+		// ---- Sentries shoot hostile mobs only; the mode toggles; a turret without coolant overheats; a base turret follows guard rules.
+		player.setPosition(o.getX() + 2.5, o.getY(), o.getZ() + 14.5);
+		BlockPos s0 = o.add(10, 0, 10);
+		clearArea(world, s0, 14, 6, 14);
+		world.setBlockState(s0, RcBlocks.get("creative_power").getDefaultState());
+		machine(world, s0).setCreativeValue(CreativeSettings.OUTPUT_KW, 5000);
+		MachineBlockEntity arcSentry = place(world, s0.east(), "arc_sentry", Direction.NORTH);
+		for (int step = 0; step < 3; step++) SimTicker.stepNow(world);
+		var zombie = mob(world, net.minecraft.entity.EntityType.ZOMBIE, s0.getX() + 3.5, s0.getY(), s0.getZ() + 4.5);
+		var villager = mob(world, net.minecraft.entity.EntityType.VILLAGER, s0.getX() + 3.5, s0.getY(), s0.getZ() + 6.5);
+		player.setPosition(s0.getX() + 5.5, s0.getY(), s0.getZ() + 3.5);
+		for (int step = 0; step < 4; step++) SimTicker.stepNow(world);
+		boolean zombieShot = zombie.getHealth() < zombie.getMaxHealth();
+		boolean villagerSafe = villager.getHealth() == villager.getMaxHealth();
+		var pickedPlayer = dev.rackcraft.world.Sentries.pick(world, arcSentry);
+		zombie.discard();
+		check("AR3.a", zombieShot && villagerSafe && (pickedPlayer == null || !(pickedPlayer instanceof net.minecraft.entity.player.PlayerEntity)),
+				"zombieShot=" + zombieShot + " villagerSafe=" + villagerSafe + " pick=" + pickedPlayer, failures);
+		var spare = mob(world, net.minecraft.entity.EntityType.ZOMBIE, s0.getX() + 3.5, s0.getY(), s0.getZ() + 4.5);
+		arcSentry.setSentryMode(dev.rackcraft.world.Sentries.MODE_OFF);
+		for (int step = 0; step < 4; step++) SimTicker.stepNow(world);
+		boolean offQuiet = spare.getHealth() == spare.getMaxHealth();
+		arcSentry.setSentryMode(dev.rackcraft.world.Sentries.MODE_GUARDS);
+		for (int step = 0; step < 4; step++) SimTicker.stepNow(world);
+		boolean guardsOnlyIgnoresMobs = spare.getHealth() == spare.getMaxHealth();
+		var angryRobot = guard(world, dev.rackcraft.entity.RcEntities.SECURITY_ROBOT, s0.add(3, 0, 8), null);
+		angryRobot.setAngryAt(player.getUuid());
+		angryRobot.setAngerTime(600);
+		var seen = dev.rackcraft.world.Sentries.pick(world, arcSentry);
+		check("AR3.b", offQuiet && guardsOnlyIgnoresMobs && seen == angryRobot, "offQuiet=" + offQuiet + " guardsModeIgnoresMobs=" + guardsOnlyIgnoresMobs + " seesAngryGuard=" + (seen == angryRobot), failures);
+		angryRobot.discard();
+		spare.discard();
+		villager.discard();
+		// A turret with no coolant overheats and stops; the heat is on a meter, not a mystery.
+		arcSentry.setSentryMode(dev.rackcraft.world.Sentries.MODE_ALL);
+		var ravager = mob(world, net.minecraft.entity.EntityType.RAVAGER, s0.getX() + 3.5, s0.getY(), s0.getZ() + 4.5);
+		double peak = 0;
+		float healthAtLock = -1;
+		boolean quietWhileLocked = false;
+		for (int step = 0; step < 30; step++) {
+			SimTicker.stepNow(world);
+			double heat = dev.rackcraft.world.Sentries.heat(world, arcSentry.getPos());
+			peak = Math.max(peak, heat);
+			if (healthAtLock < 0 && heat >= 100) healthAtLock = ravager.getHealth();
+			else if (healthAtLock >= 0 && !quietWhileLocked && heat >= 60) quietWhileLocked = ravager.getHealth() == healthAtLock;
+		}
+		check("AR3.c", peak >= 100 && quietWhileLocked, "peakHeat=" + peak + " quietWhileLocked=" + quietWhileLocked, failures);
+		ravager.discard();
+		// The base's turrets: calm on Peaceful until a guard nearby is angry at you, 12 blocks on Normal, 20 on Hard.
+		arcSentry.setSentryMode(dev.rackcraft.world.Sentries.MODE_BASE);
+		Vec3dHolder pos = new Vec3dHolder(net.minecraft.util.math.Vec3d.ofCenter(arcSentry.getPos()));
+		var server = server(world);
+		player.setPosition(pos.v.x, pos.v.y - 0.5, pos.v.z + 10);
+		server.setDifficulty(net.minecraft.world.Difficulty.PEACEFUL, true);
+		boolean peacefulCalm = !dev.rackcraft.world.Sentries.wouldTarget(world, arcSentry, player);
+		var provoked = guard(world, dev.rackcraft.entity.RcEntities.SOLDIER, s0.add(1, 0, 8), null);
+		provoked.setAngryAt(player.getUuid());
+		provoked.setAngerTime(600);
+		boolean peacefulProvoked = dev.rackcraft.world.Sentries.wouldTarget(world, arcSentry, player);
+		provoked.discard();
+		server.setDifficulty(net.minecraft.world.Difficulty.NORMAL, true);
+		boolean normalClose = dev.rackcraft.world.Sentries.wouldTarget(world, arcSentry, player);
+		player.setPosition(pos.v.x, pos.v.y - 0.5, pos.v.z + 16);
+		boolean normalFar = !dev.rackcraft.world.Sentries.wouldTarget(world, arcSentry, player);
+		server.setDifficulty(net.minecraft.world.Difficulty.HARD, true);
+		boolean hardFar = dev.rackcraft.world.Sentries.wouldTarget(world, arcSentry, player);
+		server.setDifficulty(difficulty, true);
+		check("AR3.d", peacefulCalm && peacefulProvoked && normalClose && normalFar && hardFar,
+				"peacefulCalm=" + peacefulCalm + " peacefulOnceProvoked=" + peacefulProvoked + " normal10=" + normalClose + " normal16Quiet=" + normalFar + " hard16=" + hardFar, failures);
+
+		// ---- Guards: zombified-piglin rules by difficulty, loyal neighbours, a post to keep, a heal after the fight.
+		BlockPos g0 = o.add(20, 0, 2);
+		clearArea(world, g0, 30, 6, 20);
+		for (BlockPos floorPos : BlockPos.iterate(g0.add(-3, -1, -3), g0.add(30, -1, 20))) world.setBlockState(floorPos, Blocks.STONE.getDefaultState());
+		var sentinel = awakeGuard(world, dev.rackcraft.entity.RcEntities.SOLDIER, g0);
+		var scav = guard(world, dev.rackcraft.entity.RcEntities.SCAVENGER, g0.add(0, 0, 10), null);
+		player.setPosition(g0.getX() + 0.5, g0.getY(), g0.getZ() + 10.5);
+		server.setDifficulty(net.minecraft.world.Difficulty.PEACEFUL, true);
+		boolean peacefulIdle = sentinel.engageRange(net.minecraft.world.Difficulty.PEACEFUL) == 0 && sentinel.getTarget() == null;
+		for (int tick = 0; tick < 40; tick++) sentinel.tick();
+		peacefulIdle &= sentinel.getTarget() == null;
+		check("AR4.a", peacefulIdle && sentinel.engageRange(net.minecraft.world.Difficulty.NORMAL) == weapons.guardEngageNormal
+						&& sentinel.engageRange(net.minecraft.world.Difficulty.HARD) == weapons.guardEngageHard
+						&& scav.engageRange(net.minecraft.world.Difficulty.EASY) == weapons.scavengerEngageNormal
+						&& scav.engageRange(net.minecraft.world.Difficulty.HARD) == weapons.scavengerEngageHard
+						&& sentinel.cannotDespawn() && sentinel.getType().getSpawnGroup() == net.minecraft.entity.SpawnGroup.MISC,
+				"peacefulIdle=" + peacefulIdle + " ranges " + sentinel.engageRange(net.minecraft.world.Difficulty.NORMAL) + "/" + sentinel.engageRange(net.minecraft.world.Difficulty.HARD)
+						+ " scav " + scav.engageRange(net.minecraft.world.Difficulty.EASY) + "/" + scav.engageRange(net.minecraft.world.Difficulty.HARD), failures);
+		// Hit one and it and its neighbour come for the attacker (a zombie stands in for the player here: a fake player
+		// is not a valid revenge target); and a guard that has been set on a player stays angry at them on Peaceful.
+		var buddy = awakeGuard(world, dev.rackcraft.entity.RcEntities.SOLDIER, g0.add(3, 0, 0));
+		var tormentor = mob(world, net.minecraft.entity.EntityType.ZOMBIE, g0.getX() + 0.5, g0.getY(), g0.getZ() + 3.5);
+		// The world ticks age; a hand-ticked entity has to do it itself.
+		for (int tick = 0; tick < 6; tick++) {
+			sentinel.age++;
+			buddy.age++;
+			sentinel.tick();
+			buddy.tick();
+		}
+		sentinel.damage(world.getDamageSources().mobAttack(tormentor), 1);
+		boolean everRevenge = false;
+		boolean everNeighbour = false;
+		for (int tick = 0; tick < 30; tick++) {
+			sentinel.age++;
+			buddy.age++;
+			sentinel.tick();
+			buddy.tick();
+			everRevenge |= sentinel.getTarget() == tormentor;
+			everNeighbour |= buddy.getTarget() == tormentor;
+		}
+		boolean revenge = everRevenge;
+		boolean neighbourJoins = everNeighbour;
+		tormentor.discard();
+		sentinel.setTarget(null);
+		buddy.setTarget(null);
+		sentinel.setTarget(player);
+		sentinel.tick();
+		boolean peacefulRevenge = revenge && sentinel.hasAngerTime() && player.getUuid().equals(sentinel.getAngryAt())
+				&& wouldFight(sentinel, player) && !wouldFight(buddy, player);
+		// And the ordinary approach rules (the targeting predicate, not the whole AI loop).
+		server.setDifficulty(net.minecraft.world.Difficulty.NORMAL, true);
+		var calm = guard(world, dev.rackcraft.entity.RcEntities.SOLDIER, g0.add(10, 0, 8), null);
+		calm.setYaw(0);
+		player.setPosition(g0.getX() + 10.5, g0.getY(), g0.getZ() + 8 + 10.5);
+		boolean normal10 = wouldFight(calm, player);
+		player.setPosition(g0.getX() + 10.5, g0.getY(), g0.getZ() + 8 + 16.5);
+		boolean normal16 = wouldFight(calm, player);
+		server.setDifficulty(net.minecraft.world.Difficulty.HARD, true);
+		boolean hard16 = wouldFight(calm, player);
+		player.setPosition(g0.getX() + 10.5, g0.getY(), g0.getZ() + 8 + 24.5);
+		boolean hard24 = wouldFight(calm, player);
+		server.setDifficulty(difficulty, true);
+		check("AR4.b", peacefulRevenge && neighbourJoins && normal10 && !normal16 && hard16 && !hard24,
+				"revenge=" + revenge + " angerTime=" + sentinel.getAngerTime() + " angryAt=" + sentinel.getAngryAt()
+						+ " peacefulRevenge=" + peacefulRevenge + " neighbourJoins=" + neighbourJoins + " normal10=" + normal10 + " normal16=" + normal16
+						+ " hard16=" + hard16 + " hard24=" + hard24, failures);
+		// A fight that has gone quiet is forgotten: the guard stands down and heals.
+		sentinel.setTarget(null);
+		sentinel.stopAnger();
+		sentinel.setHealth(5);
+		sentinel.setIdleTicks(dev.rackcraft.entity.GuardEntity.RESET_TICKS - 1);
+		server.setDifficulty(net.minecraft.world.Difficulty.PEACEFUL, true);
+		sentinel.tick();
+		server.setDifficulty(difficulty, true);
+		check("AR4.c", sentinel.getHealth() == sentinel.getMaxHealth() && sentinel.home() != null, "healed=" + sentinel.getHealth() + "/" + sentinel.getMaxHealth(), failures);
+		for (var each : new net.minecraft.entity.Entity[] {sentinel, scav, buddy, calm}) each.discard();
+
+		// ---- Bounties: an elite you have found gets a bounty; killing it pays once; the Ops Terminal lists it.
+		var bounties = dev.rackcraft.world.Bounties.get(world);
+		bounties.reset();
+		var facility = dev.rackcraft.world.FacilityManager.get(world);
+		long creditsBefore = facility.credits();
+		player.setPosition(g0.getX() + 0.5, g0.getY(), g0.getZ() + 0.5);
+		var colonel = guard(world, dev.rackcraft.entity.RcEntities.SOLDIER, g0.add(4, 0, 4), "Colonel Test");
+		int posted = dev.rackcraft.world.Bounties.scan(world, java.util.List.of(player));
+		boolean listed = bounties.open().size() == 1 && bounties.open().get(0).name().equals("Colonel Test");
+		int repeat = dev.rackcraft.world.Bounties.scan(world, java.util.List.of(player));
+		colonel.damage(world.getDamageSources().playerAttack(player), 10_000);
+		boolean paid = facility.credits() - creditsBefore == weapons.bountyPayout && bounties.open().isEmpty() && colonel.isElite();
+		int again = dev.rackcraft.world.Bounties.complete(world, colonel, player);
+		var boss = guard(world, dev.rackcraft.entity.RcEntities.SCAVENGER, g0.add(8, 0, 8), "Big Pipe Test");
+		boss.damage(world.getDamageSources().playerAttack(player), 10_000);
+		check("AR5.a", posted == 1 && listed && repeat == 0 && paid && again == 0 && facility.credits() - creditsBefore == 2L * weapons.bountyPayout,
+				"posted=" + posted + " listed=" + listed + " repostedOnRescan=" + repeat + " paidOnce=" + paid + " paidAgain=" + again
+						+ " afterBoss=" + (facility.credits() - creditsBefore), failures);
+		facility.addCredits(-(facility.credits() - creditsBefore));
+		bounties.reset();
+
+		// ---- Nothing here is sold; the Field Manual knows about all of it.
+		java.util.List<String> sold = java.util.stream.Stream.of("hydrogen_flamethrower", "arc_coil", "railgun", "plasma_rifle", "lance_laser", "emp_grenade",
+						"steel_slug", "coolant_pack", "laser_sentry", "arc_sentry", "railgun_sentry", "blast_door", "warhead_blueprint")
+				.filter(id -> ExchangeCatalog.price(RcItems.ITEMS.containsKey(id) ? RcItems.ITEMS.get(id) : RcBlocks.get(id).asItem()) != null).toList();
+		check("AR6.a", sold.isEmpty(), "on the Exchange: " + sold, failures);
+
+		server.setDifficulty(difficulty, true);
+		world.getGameRules().get(net.minecraft.world.GameRules.DO_FIRE_TICK).set(fireTick, server(world));
+		lab.reset();
+		dev.rackcraft.world.Emp.reset();
+		dev.rackcraft.world.Sentries.reset();
+		player.getInventory().clear();
+	}
+
+	/** Would this guard pick that player as a target right now (the targeting predicate, by difficulty and sight)? */
+	private static boolean wouldFight(dev.rackcraft.entity.GuardEntity guard, net.minecraft.entity.player.PlayerEntity player) {
+		return guard.wantsToFight(player);
+	}
+
+	/** The Military Base and the hostile data centres, built for real, and the base's puzzles. */
+	private static void checkMilitary(ServerWorld world, int[] failures) {
+		var player = net.fabricmc.fabric.api.entity.FakePlayer.get(world);
+		player.getInventory().clear();
+		BlockPos origin = new BlockPos(-4200, 100, 4096);
+		world.getChunk(origin);
+		for (int cx = 0; cx < 6; cx++) for (int cz = 0; cz < 6; cz++) world.getChunk(origin.add(cx * 16, 0, cz * 16));
+		for (BlockPos pos : BlockPos.iterate(origin.add(-2, -4, -2), origin.add(92, -1, 92))) world.setBlockState(pos, Blocks.STONE.getDefaultState());
+		String error = null;
+		try {
+			dev.rackcraft.world.structure.DataCenterPiece.buildNow(world, "military_base", origin, net.minecraft.util.BlockRotation.NONE, 99);
+		} catch (RuntimeException exception) {
+			error = exception.toString();
+			Rackcraft.LOGGER.error("Building the military base failed", exception);
+		}
+		net.minecraft.util.math.Box box = new net.minecraft.util.math.Box(origin).expand(0).stretch(90, 14, 90);
+		var guards = world.getEntitiesByClass(dev.rackcraft.entity.GuardEntity.class, box, g -> true);
+		long soldiers = guards.stream().filter(g -> g.kind() == dev.rackcraft.entity.GuardEntity.Kind.SOLDIER).count();
+		long robots = guards.stream().filter(g -> g.kind() == dev.rackcraft.entity.GuardEntity.Kind.ROBOT).count();
+		long elites = guards.stream().filter(dev.rackcraft.entity.GuardEntity::isElite).count();
+		int doors = 0;
+		int sentries = 0;
+		int baseMode = 0;
+		int chests = 0;
+		int intakes = 0;
+		for (BlockPos pos : BlockPos.iterate(origin, origin.add(89, 13, 89))) {
+			var state = world.getBlockState(pos);
+			if (state.isOf(RcBlocks.get("blast_door"))) doors++;
+			if (state.isOf(Blocks.CHEST)) chests++;
+			if (world.getBlockEntity(pos) instanceof MachineBlockEntity machine) {
+				if (dev.rackcraft.world.Sentries.isSentry(machine.blockId())) {
+					sentries++;
+					if (machine.sentryMode() == dev.rackcraft.world.Sentries.MODE_BASE) baseMode++;
+				}
+				if (machine.blockId().equals("utility_intake")) intakes++;
+			}
+		}
+		check("MB1.a", error == null && soldiers >= 10 && robots >= 5 && elites == 1 && doors == 12 + 4 && sentries == 6 && baseMode == 6 && chests >= 7 && intakes == 2,
+				"error=" + error + " soldiers=" + soldiers + " robots=" + robots + " elites=" + elites + " blastDoorBlocks=" + doors + " sentries=" + sentries
+						+ " baseMode=" + baseMode + " chests=" + chests + " intakes=" + intakes, failures);
+		// Power: the gate holds while the shed feeds the ring, and lets go when the line outside the wall is cut.
+		for (int step = 0; step < 6; step++) SimTicker.stepNow(world);
+		BlockPos gate = origin.add(44, 1, 81);
+		boolean gateHeld = dev.rackcraft.block.BlastDoorBlock.held(world, gate);
+		long poweredTurrets = SimTicker.machines(world).stream().filter(m -> dev.rackcraft.world.Sentries.isSentry(m.blockId())
+				&& m.getPos().getX() >= origin.getX() && m.getPos().getX() < origin.getX() + 90 && m.powerSatisfaction() >= 0.5).count();
+		BlockPos line = origin.add(62, 1, 83);
+		boolean wasCable = world.getBlockState(line).getBlock() instanceof CableBlock;
+		world.setBlockState(line, Blocks.AIR.getDefaultState());
+		for (int step = 0; step < 3; step++) SimTicker.stepNow(world);
+		boolean gateOpens = !dev.rackcraft.block.BlastDoorBlock.held(world, gate);
+		long darkTurrets = SimTicker.machines(world).stream().filter(m -> dev.rackcraft.world.Sentries.isSentry(m.blockId())
+				&& m.getPos().getX() >= origin.getX() && m.getPos().getX() < origin.getX() + 90 && m.powerSatisfaction() >= 0.5).count();
+		boolean vaultStillHeld = dev.rackcraft.block.BlastDoorBlock.held(world, origin.add(47, 1, 41));
+		check("MB1.b", wasCable && gateHeld && poweredTurrets == 6 && gateOpens && darkTurrets == 0 && vaultStillHeld,
+				"gateHeld=" + gateHeld + " poweredTurrets=" + poweredTurrets + " lineWasCable=" + wasCable + " gateOpensWhenCut=" + gateOpens
+						+ " turretsAfterCut=" + darkTurrets + " vaultOnItsOwnPower=" + vaultStillHeld, failures);
+		// Loot: the vault's chests roll scarce top-tier hardware, the command bunker has the Mission Log, the armoury is stocked.
+		int vaultItems = 0;
+		int topTier = 0;
+		boolean missionLog = false;
+		boolean armouryStocked = false;
+		for (BlockPos pos : BlockPos.iterate(origin, origin.add(89, 13, 89))) {
+			if (!(world.getBlockEntity(pos) instanceof net.minecraft.block.entity.ChestBlockEntity chest)) continue;
+			chest.checkLootInteraction(null);
+			boolean inVault = pos.getX() - origin.getX() >= 46 && pos.getX() - origin.getX() <= 50 && pos.getZ() - origin.getZ() == 38;
+			for (int slot = 0; slot < chest.size(); slot++) {
+				ItemStack stack = chest.getStack(slot);
+				if (stack.isEmpty()) continue;
+				if (inVault) {
+					vaultItems++;
+					var id = net.minecraft.registry.Registries.ITEM.getId(stack.getItem()).getPath();
+					if (id.equals("wafer_scale_engine") || id.equals("chiplet_gold") || id.equals("warhead_blueprint")) topTier++;
+				}
+				missionLog |= stack.isOf(Items.WRITTEN_BOOK) && stack.hasNbt() && stack.getNbt().getString("title").equals("Mission Log");
+				armouryStocked |= stack.isOf(RcItems.ITEMS.get("emp_grenade")) || stack.isOf(RcItems.ITEMS.get("steel_slug"));
+			}
+		}
+		check("MB1.c", vaultItems >= 3 && vaultItems <= 12 && topTier <= 3 && missionLog && armouryStocked,
+				"vaultItems=" + vaultItems + " topTierPieces=" + topTier + " missionLog=" + missionLog + " armouryStocked=" + armouryStocked, failures);
+		guards.forEach(net.minecraft.entity.Entity::discard);
+		for (BlockPos pos : BlockPos.iterate(origin, origin.add(89, 13, 89))) if (!world.getBlockState(pos).isAir()) world.setBlockState(pos, Blocks.AIR.getDefaultState());
+
+		// ---- Hostile data centres: scavengers in the ruins and a stash they have been piling up.
+		int index = 0;
+		for (String variant : new String[] {"hostile_container_farm", "hostile_bunker", "hostile_tape_archive", "hostile_ai_lab"}) {
+			var layout = dev.rackcraft.world.structure.DataCenterLayouts.get(variant);
+			BlockPos site = new BlockPos(-4200 + index * 120, 100, 4400);
+			index++;
+			world.getChunk(site);
+			for (int cx = 0; cx <= layout.width() / 16 + 1; cx++) for (int cz = 0; cz <= layout.depth() / 16 + 1; cz++) world.getChunk(site.add(cx * 16, 0, cz * 16));
+			String problem = null;
+			try {
+				dev.rackcraft.world.structure.DataCenterPiece.buildNow(world, variant, site, net.minecraft.util.BlockRotation.NONE, 5 + index);
+			} catch (RuntimeException exception) {
+				problem = exception.toString();
+				Rackcraft.LOGGER.error("Building {} failed", variant, exception);
+			}
+			var area = new net.minecraft.util.math.Box(site).stretch(layout.width(), layout.height(), layout.depth());
+			var scavengers = world.getEntitiesByClass(dev.rackcraft.entity.GuardEntity.class, area, g -> g.kind() == dev.rackcraft.entity.GuardEntity.Kind.SCAVENGER);
+			int stashes = 0;
+			for (BlockPos pos : BlockPos.iterate(site, site.add(layout.width() - 1, layout.height() - 1, layout.depth() - 1))) {
+				if (world.getBlockEntity(pos) instanceof net.minecraft.block.entity.ChestBlockEntity chest && chest.createNbt().getString("LootTable")
+						.equals(dev.rackcraft.world.structure.MilitaryBase.STASH_LOOT.toString())) stashes++;
+			}
+			check("HD1." + variant, problem == null && scavengers.size() >= 1 && stashes >= 1,
+					"error=" + problem + " scavengers=" + scavengers.size() + " stashChests=" + stashes, failures);
+			scavengers.forEach(net.minecraft.entity.Entity::discard);
+		}
 	}
 
 	private static MachineBlockEntity machine(ServerWorld world, BlockPos pos) {

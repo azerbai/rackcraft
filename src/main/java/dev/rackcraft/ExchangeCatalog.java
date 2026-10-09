@@ -71,7 +71,10 @@ public final class ExchangeCatalog {
 			// Compute Pods and Blueprints are built from that hardware too.
 			"pod_port", "blueprint_scanner",
 			// Getting around is made from that hardware as well.
-			"teleport_pad", "linked_shard", "dimensional_shard", "hydrogen_jetpack", "maglev_rail", "maglev_station");
+			"teleport_pad", "linked_shard", "dimensional_shard", "hydrogen_jetpack", "maglev_rail", "maglev_station",
+			// Weapons, turrets and what comes out of a Military Base vault are earned, never bought.
+			"hydrogen_flamethrower", "arc_coil", "railgun", "plasma_rifle", "lance_laser", "emp_grenade", "steel_slug", "coolant_pack",
+			"laser_sentry", "arc_sentry", "railgun_sentry", "blast_door", "warhead_blueprint");
 
 	private static volatile Map<Item, Long> prices = Map.of();
 
